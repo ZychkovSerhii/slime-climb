@@ -8,6 +8,11 @@ export default class MenuScene extends Phaser.Scene {
   }
 
   create() {
+    // зміна розміру екрана → перебудувати екран
+    const onResize = () => this.scene.restart(undefined);
+    this.scale.once(Phaser.Scale.Events.RESIZE, onResize);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.off(Phaser.Scale.Events.RESIZE, onResize));
+
     const { width, height } = this.scale;
     const cx = width / 2;
     const style = (size, color = '#ffffff') => ({ fontFamily: 'sans-serif', fontSize: `${size}px`, color, align: 'center' });

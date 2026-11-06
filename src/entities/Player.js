@@ -25,6 +25,14 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     return side === 'left' ? BALANCE.wallWidth + half : this.scene.scale.width - BALANCE.wallWidth - half;
   }
 
+  /** Після зміни розміру екрана: нова висота і край стіни (під час стрибка — після приземлення). */
+  relayout() {
+    this.baseY = this.scene.scale.height * BALANCE.playerYRatio;
+    if (this.isJumping) return;
+    this.y = this.baseY;
+    this.x = this.wallX(this.side);
+  }
+
   jump() {
     if (this.isJumping) return;
     this.isJumping = true;
@@ -39,6 +47,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
       onComplete: () => {
         this.side = target;
         this.isJumping = false;
+        this.x = this.wallX(target);
         this.y = this.baseY;
         this.emit('landed');
       },

@@ -29,3 +29,14 @@ export function browserStorage() {
     return undefined;
   }
 }
+
+/**
+ * Зберігає результат і каже, чи це новий рекорд: лише якщо score більший за попередній
+ * і справді збережений (зі зламаним сховищем «рекорд» щоразу був би фальшивим).
+ */
+export function recordResult(storage, score) {
+  const previous = loadHighScore(storage);
+  const best = saveHighScore(storage, score);
+  const persisted = loadHighScore(storage) === best;
+  return { best, isNewRecord: persisted && score > previous };
+}

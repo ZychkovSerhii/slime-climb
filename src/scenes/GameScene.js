@@ -17,9 +17,6 @@ import Bat from '../entities/Bat.js';
 import Plant from '../entities/Plant.js';
 import SpiderBoss from '../entities/SpiderBoss.js';
 
-// Межа під екраном, за якою об'єкти знищуються (px)
-const DESPAWN_MARGIN = 100;
-
 export default class GameScene extends Phaser.Scene {
   constructor() {
     super('Game');
@@ -28,6 +25,8 @@ export default class GameScene extends Phaser.Scene {
   create() {
     const { width, height } = this.scale;
 
+    // Clock.paused не скидається Phaser при перезапуску сцени — скидаємо самі
+    this.time.paused = false;
     this.elapsedSec = 0;
     this.distancePx = 0;
     this.bossActive = false;
@@ -72,18 +71,19 @@ export default class GameScene extends Phaser.Scene {
     this.physics.add.overlap(this.player, this.hazards, hurt);
     this.physics.add.overlap(this.player, this.enemies, hurt);
     this.physics.add.overlap(this.player, this.enemyProjectiles, (player, bullet) => {
-      if (!bullet.active) return;
+      if (this.paused || !bullet.active) return;
       bullet.destroy();
       this.hurtPlayer();
     });
 
     this.physics.add.overlap(this.playerProjectiles, this.enemies, (proj, enemy) => {
-      if (!proj.active || !enemy.active) return;
+      if (this.paused || !proj.active || !enemy.active) return;
       enemy.takeHit(proj.damage, proj.slow, this.nowMs);
       proj.destroy();
     });
 
     const onKilled = ({ type }) => {
+      if (this.dead) return;
       this.killScore += killPoints(type);
       if (type === 'boss') this.onBossKilled();
       const r = addXp(this.progression, killXp(type));
@@ -114,8 +114,12 @@ export default class GameScene extends Phaser.Scene {
       if (document.hidden) this.pauseWithOverlay();
     };
     document.addEventListener('visibilitychange', this.onVisibility);
+    this.layoutWidth = this.scale.width;
+    const onResize = () => this.relayout();
+    this.scale.on(Phaser.Scale.Events.RESIZE, onResize);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       document.removeEventListener('visibilitychange', this.onVisibility);
+      this.scale.off(Phaser.Scale.Events.RESIZE, onResize);
     });
   }
 
@@ -183,6 +187,25 @@ export default class GameScene extends Phaser.Scene {
     this.time.paused = paused;
   }
 
+  /** Зміна розміру екрана: стіни на всю висоту, слизак на своїй висоті й стіні. */
+  relayout() {
+    const { width, height } = this.scale;
+    // усе, що прикріплене до правої стіни (шипи, рослини, лев на стіні), їде разом із нею
+    const dx = width - (this.layoutWidth ?? width);
+    this.layoutWidth = width;
+    for (const group of [this.hazards, this.enemies]) {
+      for (const obj of group.getChildren()) {
+        if (obj.side === 'right' && !obj.lunging) obj.x += dx;
+      }
+    }
+    const w = BALANCE.wallWidth;
+    const [left, right] = this.walls.getChildren();
+    left.setSize(w, height).setPosition(w / 2, height / 2);
+    right.setSize(w, height).setPosition(width - w / 2, height / 2);
+    this.player.relayout();
+    this.pauseOverlay.setPosition(width / 2, height / 2);
+  }
+
   /** Час гри в мс: не йде під час паузи, тож невразливість теж стоїть. */
   get nowMs() {
     return this.elapsedSec * 1000;
@@ -193,7 +216,8 @@ export default class GameScene extends Phaser.Scene {
   }
 
   hurtPlayer() {
-    if (this.dead) return;
+    // фізика може зробити ще кілька кроків у кадрі, де гру поставили на паузу (вікно рівня)
+    if (this.dead || this.paused) return;
     const r = applyDamage(this.health, this.nowMs);
     this.health = r.health;
     if (!r.tookDamage) return;
@@ -307,7 +331,7 @@ export default class GameScene extends Phaser.Scene {
 
   /** Зсуває все, що їде зі світом, вниз на dy і знищує те, що пішло за нижній край. */
   scrollObjects(dy) {
-    const limit = this.scale.height + DESPAWN_MARGIN;
+    const limit = this.scale.height + BALANCE.offscreenMarginPx;
     for (const group of this.scrollingGroups) {
       for (const obj of group.getChildren().slice()) {
         if (obj.scrollsWithWorld === false) continue;

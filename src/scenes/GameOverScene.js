@@ -1,5 +1,5 @@
 import * as Phaser from 'phaser';
-import { browserStorage, saveHighScore } from '../systems/HighScore.js';
+import { browserStorage, recordResult } from '../systems/HighScore.js';
 import { formatTime } from '../systems/Format.js';
 
 // Захист від випадкового тапу: гравець міг тапати для стрибка в момент смерті
@@ -11,9 +11,15 @@ export default class GameOverScene extends Phaser.Scene {
   }
 
   create({ score = 0, timeSec = 0 } = {}) {
+    // зміна розміру екрана → перебудувати екран
+    const onResize = () => this.scene.restart(this.sys.settings.data);
+    this.scale.once(Phaser.Scale.Events.RESIZE, onResize);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.off(Phaser.Scale.Events.RESIZE, onResize));
     const { width, height } = this.scale;
-    const best = saveHighScore(browserStorage(), score);
-    const isRecord = score > 0 && score >= best;
+    // рекорд записуємо один раз; при перебудові екрана (resize) беремо збережений результат
+    const data = this.sys.settings.data ?? {};
+    data.result ??= recordResult(browserStorage(), score);
+    const { best, isNewRecord: isRecord } = data.result;
     const cx = width / 2;
     const style = (size, color = '#ffffff') => ({ fontFamily: 'sans-serif', fontSize: `${size}px`, color, align: 'center' });
 
