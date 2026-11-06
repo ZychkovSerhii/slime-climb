@@ -19,3 +19,8 @@ export function pickStrikeX(playerX, rng, laneMin, laneMax) {
   }
   return Math.min(Math.max(x, laneMin), laneMax);
 }
+
+/** Павучки з'являються лише коли павук висить угорі — не під час падіння біля гравця. */
+export function canSpawnMinions(bossState) {
+  return bossState === 'rest' || bossState === 'telegraph';
+}

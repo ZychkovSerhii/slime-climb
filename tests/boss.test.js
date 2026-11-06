@@ -40,3 +40,15 @@ describe('pickStrikeX', () => {
     expect(x).toBeCloseTo(lane[0] + 0.5 * (lane[1] - lane[0]), 9);
   });
 });
+
+import { canSpawnMinions } from '../src/systems/BossPlanner.js';
+
+describe('canSpawnMinions', () => {
+  test('only while the boss hangs at the top (rest, telegraph)', () => {
+    expect(canSpawnMinions('rest')).toBe(true);
+    expect(canSpawnMinions('telegraph')).toBe(true);
+  });
+  test('never during enter/strike/retreat — spiders would appear next to the player', () => {
+    for (const s of ['enter', 'strike', 'retreat']) expect(canSpawnMinions(s)).toBe(false);
+  });
+});

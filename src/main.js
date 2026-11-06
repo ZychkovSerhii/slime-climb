@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
+import { backAction } from './systems/Navigation.js';
 import BootScene from './scenes/BootScene.js';
 import MenuScene from './scenes/MenuScene.js';
 import GameScene from './scenes/GameScene.js';
@@ -52,6 +53,17 @@ function pauseGame() {
 if (Capacitor.isNativePlatform()) {
   App.addListener('pause', pauseGame);
   App.addListener('resume', pauseGame);
+  // Без цього слухача «Назад» закриває застосунок і забіг губиться
+  App.addListener('backButton', () => {
+    const active = game.scene.getScenes(true).map((s) => s.sys.settings.key);
+    const gameScene = game.scene.getScene('Game');
+    const action = backAction(active, Boolean(gameScene?.paused));
+    if (action === 'pause') gameScene.pauseWithOverlay();
+    else if (action === 'menu') {
+      game.scene.stop('GameOver');
+      game.scene.start('Menu');
+    } else if (action === 'exit') App.exitApp();
+  });
 }
 
 // Доступ до гри з консолі браузера — лише в режимі розробки (npm run dev)
