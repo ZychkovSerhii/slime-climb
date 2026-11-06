@@ -2,6 +2,7 @@ import * as Phaser from 'phaser';
 import { BALANCE } from '../config/balance.js';
 import { scrollSpeed } from '../systems/Difficulty.js';
 import { createSpawnState, dueSpawns } from '../systems/Spawner.js';
+import { addXp, applyCard, createProgression, killXp, rollCards, xpToNext } from '../systems/Progression.js';
 import { clampDelta } from '../systems/Time.js';
 import { applyDamage, createHealth } from '../systems/Health.js';
 import { minSpikeGap, nextSpikeGap } from '../systems/SpikePlanner.js';
@@ -32,13 +33,14 @@ export default class GameScene extends Phaser.Scene {
     this.paused = false;
     this.health = createHealth();
     this.killScore = 0;
-    this.level = 1;
-    this.xp = 0;
-    this.xpToNext = BALANCE.xpBase;
+    this.progression = createProgression();
+    this.levelUpQueue = 0;
+    this.levelUpOpen = false;
+    this.inputBlockedUntil = 0;
     this.lastHud = '';
     this.dead = false;
-    // Зброя гравця; картки поліпшень (Task 8) змінюють ці поля
-    this.weapon = { fireIntervalMs: BALANCE.fireIntervalMs, damage: BALANCE.projectileDamage, slow: null };
+    // Зброя гравця — частина прогресії, картки поліпшень змінюють її
+    this.weapon = this.progression.weapon;
     this.fireCooldownMs = 0;
     this.spawnState = createSpawnState();
     // y наступного шипа для кожної стіни (координати екрана; їде вниз разом зі світом)
@@ -77,14 +79,24 @@ export default class GameScene extends Phaser.Scene {
 
     const onKilled = ({ type }) => {
       this.killScore += killPoints(type);
+      const r = addXp(this.progression, killXp(type));
+      this.progression = r.progression;
+      this.levelUpQueue += r.levelsGained;
+      if (this.levelUpQueue > 0 && !this.levelUpOpen) this.openLevelUp();
     };
+    const onPicked = (id) => this.onCardPicked(id);
     this.events.on('enemy:killed', onKilled);
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.events.off('enemy:killed', onKilled));
+    this.events.on('levelup:picked', onPicked);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.events.off('enemy:killed', onKilled);
+      this.events.off('levelup:picked', onPicked);
+      this.scene.stop('LevelUp');
+    });
 
     this.scene.launch('Hud');
 
     this.input.on('pointerdown', () => {
-      if (this.paused || this.dead) return;
+      if (this.paused || this.dead || this.game.loop.time < this.inputBlockedUntil) return;
       this.player.jump();
     });
 
@@ -115,8 +127,32 @@ export default class GameScene extends Phaser.Scene {
     this.pauseOverlay.on('pointerdown', (pointer, x, y, event) => {
       event?.stopPropagation?.();
       this.pauseOverlay.setVisible(false);
-      this.setPaused(false);
+      this.inputBlockedUntil = this.game.loop.time + BALANCE.tapGuardMs;
+      // під час вибору картки гра лишається на паузі, доки картку не оберуть
+      if (!this.levelUpOpen) this.setPaused(false);
     });
+  }
+
+  /** Пауза гри і вікно вибору картки (по одному на кожен набраний рівень). */
+  openLevelUp() {
+    this.levelUpOpen = true;
+    this.setPaused(true);
+    this.scene.launch('LevelUp', { cards: rollCards(this.progression, Math.random) });
+  }
+
+  onCardPicked(id) {
+    this.progression = applyCard(this.progression, id);
+    this.weapon = this.progression.weapon;
+    this.levelUpQueue = Math.max(this.levelUpQueue - 1, 0);
+    this.emitHud();
+    if (this.levelUpQueue > 0) {
+      this.scene.launch('LevelUp', { cards: rollCards(this.progression, Math.random) });
+      return;
+    }
+    this.levelUpOpen = false;
+    this.inputBlockedUntil = this.game.loop.time + BALANCE.tapGuardMs;
+    // якщо застосунок згортали під час вибору — лишаємось на паузі з «Продовжити»
+    if (!this.pauseOverlay.visible) this.setPaused(false);
   }
 
   /** Пауза з кнопкою «Продовжити» (згортання застосунку / вкладки). */
@@ -231,9 +267,9 @@ export default class GameScene extends Phaser.Scene {
       timeSec: this.elapsedSec,
       score: this.score,
       lives: this.health.lives,
-      level: this.level,
-      xp: this.xp,
-      xpToNext: this.xpToNext,
+      level: this.progression.level,
+      xp: this.progression.xp,
+      xpToNext: xpToNext(this.progression.level),
     };
     const key = `${Math.floor(s.timeSec)}|${s.score}|${s.lives}|${s.level}|${s.xp}`;
     if (key === this.lastHud) return;

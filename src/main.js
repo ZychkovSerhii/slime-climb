@@ -5,6 +5,7 @@ import BootScene from './scenes/BootScene.js';
 import GameScene from './scenes/GameScene.js';
 import HudScene from './scenes/HudScene.js';
 import GameOverScene from './scenes/GameOverScene.js';
+import LevelUpScene from './scenes/LevelUpScene.js';
 
 export const GAME_WIDTH = 720;
 export const GAME_HEIGHT = 1280;
@@ -21,7 +22,7 @@ const config = {
     mode: Phaser.Scale.EXPAND,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-  scene: [BootScene, GameScene, HudScene, GameOverScene],
+  scene: [BootScene, GameScene, HudScene, GameOverScene, LevelUpScene],
 };
 
 export const game = new Phaser.Game(config);

@@ -1,6 +1,8 @@
 import * as Phaser from 'phaser';
 import { BALANCE } from '../config/balance.js';
 
+const SLOW_TINT = 0x6fa8ff;
+
 /**
  * Базовий ворог. Після додавання в групу enemies викликай spawned().
  * scrollsWithWorld: true — ворог «прикріплений» до світу і їде вниз разом зі стінами;
@@ -16,6 +18,17 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
     this.slowUntil = 0;
     this.slowFactor = 1;
     this.scrollsWithWorld = true;
+  }
+
+  preUpdate(time, delta) {
+    super.preUpdate(time, delta);
+    // під сповільненням ворог тонується синім
+    const slowed = this.speedMul(this.scene.nowMs) < 1;
+    if (slowed !== this.tintedSlow) {
+      this.tintedSlow = slowed;
+      if (slowed) this.setTint(SLOW_TINT);
+      else this.clearTint();
+    }
   }
 
   /** Викликається після додавання у фізичну групу (група скидає швидкість тіла). */
