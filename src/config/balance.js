@@ -25,6 +25,7 @@ export const BALANCE = deepFreeze({
   jumpArcPx: 80, // наскільки слизак підлітає вгору посеред стрибка
   maxLives: 2,
   invulnerableMs: 5000,
+  invulnerableBlinkMs: 125, // півперіод блимання під час невразливості
 
   // Світ
   wallWidth: 60,
