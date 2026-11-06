@@ -37,6 +37,7 @@ export const BALANCE = deepFreeze({
   minFireIntervalMs: 250,
   projectileDamage: 1,
   projectileSpeed: 520,
+  offscreenMarginPx: 100, // за цією межею від краю екрана снаряди й вороги знищуються
 
   // Вороги: hp, досвід, очки, з якої секунди з'являються, швидкості
   enemies: {
