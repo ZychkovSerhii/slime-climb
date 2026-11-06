@@ -2,6 +2,7 @@ import * as Phaser from 'phaser';
 import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
 import BootScene from './scenes/BootScene.js';
+import MenuScene from './scenes/MenuScene.js';
 import GameScene from './scenes/GameScene.js';
 import HudScene from './scenes/HudScene.js';
 import GameOverScene from './scenes/GameOverScene.js';
@@ -22,7 +23,7 @@ const config = {
     mode: Phaser.Scale.EXPAND,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-  scene: [BootScene, GameScene, HudScene, GameOverScene, LevelUpScene],
+  scene: [BootScene, MenuScene, GameScene, HudScene, GameOverScene, LevelUpScene],
 };
 
 export const game = new Phaser.Game(config);

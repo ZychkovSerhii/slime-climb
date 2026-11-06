@@ -8,6 +8,7 @@ import { preview } from 'vite';
 import { chromium } from 'playwright';
 
 const WAIT_MS = 4000;
+const MENU_MS = 1000;
 const VIEWPORT = { width: 360, height: 640 };
 
 function freePort() {
@@ -48,6 +49,9 @@ try {
   });
   page.on('pageerror', (err) => errors.push(`pageerror: ${err.message}`));
   await page.goto(url, { waitUntil: 'load' });
+  // меню → гра: один тап по центру
+  await page.waitForTimeout(MENU_MS);
+  await page.mouse.click(VIEWPORT.width / 2, VIEWPORT.height / 2);
   await page.waitForTimeout(waitMs);
   await page.screenshot({ path: 'smoke.png' });
   console.log(`smoke: ${url} — screenshot smoke.png`);
