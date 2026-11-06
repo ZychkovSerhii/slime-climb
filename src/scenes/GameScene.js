@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 import { BALANCE } from '../config/balance.js';
-import { scrollSpeed, spawnIntervalMs } from '../systems/Difficulty.js';
+import { scrollSpeed } from '../systems/Difficulty.js';
+import { createSpawnState, dueSpawns } from '../systems/Spawner.js';
 import { clampDelta } from '../systems/Time.js';
 import { applyDamage, createHealth } from '../systems/Health.js';
 import { minSpikeGap, nextSpikeGap } from '../systems/SpikePlanner.js';
@@ -10,6 +11,8 @@ import Player from '../entities/Player.js';
 import Spike from '../entities/Spike.js';
 import Projectile from '../entities/Projectile.js';
 import Lion from '../entities/Lion.js';
+import Bat from '../entities/Bat.js';
+import Plant from '../entities/Plant.js';
 
 // Межа під екраном, за якою об'єкти знищуються (px)
 const DESPAWN_MARGIN = 100;
@@ -37,8 +40,7 @@ export default class GameScene extends Phaser.Scene {
     // Зброя гравця; картки поліпшень (Task 8) змінюють ці поля
     this.weapon = { fireIntervalMs: BALANCE.fireIntervalMs, damage: BALANCE.projectileDamage, slow: null };
     this.fireCooldownMs = 0;
-    // Тимчасовий спавн лева (у Task 7 переїде в Spawner)
-    this.nextLionAt = BALANCE.enemies.lion.from;
+    this.spawnState = createSpawnState();
     // y наступного шипа для кожної стіни (координати екрана; їде вниз разом зі світом)
     this.nextSpikeY = { left: -BALANCE.spikeHeight, right: -BALANCE.spikeHeight - minSpikeGap(this.currentScroll) * Math.random() };
 
@@ -61,7 +63,11 @@ export default class GameScene extends Phaser.Scene {
     const hurt = () => this.hurtPlayer();
     this.physics.add.overlap(this.player, this.hazards, hurt);
     this.physics.add.overlap(this.player, this.enemies, hurt);
-    this.physics.add.overlap(this.player, this.enemyProjectiles, hurt);
+    this.physics.add.overlap(this.player, this.enemyProjectiles, (player, bullet) => {
+      if (!bullet.active) return;
+      bullet.destroy();
+      this.hurtPlayer();
+    });
 
     this.physics.add.overlap(this.playerProjectiles, this.enemies, (proj, enemy) => {
       if (!proj.active || !enemy.active) return;
@@ -208,11 +214,16 @@ export default class GameScene extends Phaser.Scene {
     return enemy;
   }
 
-  /** Тимчасово: лев кожні spawnIntervalMs('lion') з enemies.lion.from. */
-  spawnLions() {
-    if (this.elapsedSec < this.nextLionAt) return;
-    this.spawnEnemy(new Lion(this, Math.random() < 0.5 ? 'left' : 'right'));
-    this.nextLionAt = this.elapsedSec + spawnIntervalMs('lion', this.elapsedSec) / 1000;
+  /** Звичайні вороги за розкладом Spawner. */
+  spawnEnemies() {
+    const r = dueSpawns(this.spawnState, this.elapsedSec, this.bossActive);
+    this.spawnState = r.state;
+    const randomSide = () => (Math.random() < 0.5 ? 'left' : 'right');
+    for (const type of r.spawn) {
+      if (type === 'lion') this.spawnEnemy(new Lion(this, randomSide()));
+      else if (type === 'bat') this.spawnEnemy(new Bat(this));
+      else if (type === 'plant') this.spawnEnemy(new Plant(this, randomSide()));
+    }
   }
 
   emitHud() {
@@ -254,7 +265,7 @@ export default class GameScene extends Phaser.Scene {
     this.distancePx += dy;
     this.scrollObjects(dy);
     this.spawnSpikes(dy);
-    this.spawnLions();
+    this.spawnEnemies();
     this.autoFire(dt);
     this.emitHud();
   }
