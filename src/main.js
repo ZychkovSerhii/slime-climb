@@ -20,3 +20,6 @@ const config = {
 };
 
 export const game = new Phaser.Game(config);
+
+// Доступ до гри з консолі браузера — лише в режимі розробки (npm run dev)
+if (import.meta.env.DEV) window.game = game;
