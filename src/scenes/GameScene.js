@@ -6,7 +6,7 @@ import { shouldStartBoss } from '../systems/BossPlanner.js';
 import { addXp, applyCard, createProgression, killXp, rollCards, xpToNext } from '../systems/Progression.js';
 import { clampDelta } from '../systems/Time.js';
 import { applyDamage, createHealth } from '../systems/Health.js';
-import { createSpikeState, planSpikes } from '../systems/SpikePlanner.js';
+import { createSpikeState, planSpikes, prefillStartWorld } from '../systems/SpikePlanner.js';
 import { heightPoints, killPoints } from '../systems/Score.js';
 import { interceptPoint, pickNearest } from '../systems/Targeting.js';
 import Player from '../entities/Player.js';
@@ -49,7 +49,7 @@ export default class GameScene extends Phaser.Scene {
     // ?boss=1 у адресі — бос на 5-й секунді (для перевірки)
     const debugBoss = new URLSearchParams(window.location.search).get('boss') === '1';
     this.bossAtSec = debugBoss ? BALANCE.boss.debugAtSec : BALANCE.boss.atSec;
-    // Планувальник шипів для обох стін разом (світові координати = distancePx); створюється на spikeStartSec
+    // Планувальник шипів для обох стін разом (світові координати = distancePx)
     this.spikeState = null;
 
     // Стіни — тайлові спрайти, «рух» імітується зсувом текстури
@@ -106,6 +106,8 @@ export default class GameScene extends Phaser.Scene {
       if (this.paused || this.dead || this.game.loop.time < this.inputBlockedUntil) return;
       this.player.jump();
     });
+
+    this.spawnSpikes(); // шипи видно з першого кадру
 
     this.createPauseOverlay();
     this.onVisibility = () => {
@@ -220,8 +222,10 @@ export default class GameScene extends Phaser.Scene {
 
   /** Ставить шипи над екраном за планувальником (сусідні шипи обох стін розділені щонайменше spikeBand). */
   spawnSpikes() {
-    if (this.elapsedSec < BALANCE.spikeStartSec) return;
-    if (!this.spikeState) this.spikeState = createSpikeState(this.distancePx, Math.random);
+    if (!this.spikeState) {
+      // перший виклик: одразу заповнюємо екран, щоб не чекати перших шипів
+      this.spikeState = createSpikeState(prefillStartWorld(this.distancePx, this.player.y), Math.random);
+    }
     // проміжки рахуємо за швидкістю БЕЗ сповільнення боса: шип, поставлений під час боса,
     // може доїхати до гравця вже після нього, на повній швидкості
     const r = planSpikes(this.spikeState, this.distancePx, scrollSpeed(this.elapsedSec, false), Math.random);

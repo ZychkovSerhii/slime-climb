@@ -30,7 +30,7 @@ export const BALANCE = deepFreeze({
   // Світ
   wallWidth: 60,
   spikeHeight: 40,
-  spikeStartSec: 3, // перший шип не раніше цього часу
+  spikeLeadSec: 2.5, // на старті екран уже заповнений шипами; перший доходить до слизака за стільки секунд
 
   // Зброя гравця
   fireIntervalMs: 1000,
