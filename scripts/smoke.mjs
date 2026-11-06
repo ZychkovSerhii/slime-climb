@@ -1,6 +1,6 @@
 // Smoke-перевірка: піднімає `vite preview`, відкриває гру в headless Chromium,
 // збирає помилки консолі й сторінки, робить скріншот smoke.png.
-// Використання: npm run build && npm run smoke [-- --query "boss=1"]
+// Використання: npm run build && npm run smoke [-- --query "boss=1" --wait 9000]
 // Якщо Playwright-браузер не встановлено (`npx playwright install chromium`),
 // можна вказати свій Chrome: CHROME_PATH=/шлях/до/chrome npm run smoke
 import { createServer } from 'node:net';
@@ -22,6 +22,8 @@ function freePort() {
   });
 }
 
+const wIndex = process.argv.indexOf('--wait');
+const waitMs = wIndex > -1 ? Number(process.argv[wIndex + 1]) : WAIT_MS;
 const qIndex = process.argv.indexOf('--query');
 const query = qIndex > -1 ? `?${process.argv[qIndex + 1]}` : '';
 
@@ -46,7 +48,7 @@ try {
   });
   page.on('pageerror', (err) => errors.push(`pageerror: ${err.message}`));
   await page.goto(url, { waitUntil: 'load' });
-  await page.waitForTimeout(WAIT_MS);
+  await page.waitForTimeout(waitMs);
   await page.screenshot({ path: 'smoke.png' });
   console.log(`smoke: ${url} — screenshot smoke.png`);
 } catch (err) {

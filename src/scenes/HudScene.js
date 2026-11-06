@@ -6,6 +6,7 @@ import { formatTime } from '../systems/Format.js';
 const PAD = 24;
 const HEART_STEP = 40;
 const XP_BAR = { y: 76, w: 220, h: 14 };
+const BOSS_BAR = { y: 128, h: 18 };
 const TEXT_STYLE = { fontFamily: 'monospace', fontSize: '36px', color: '#ffffff' };
 const SMALL_STYLE = { fontFamily: 'monospace', fontSize: '24px', color: '#ffffff' };
 
@@ -29,10 +30,30 @@ export default class HudScene extends Phaser.Scene {
 
     this.update_({ timeSec: 0, score: 0, lives: BALANCE.maxLives, level: 1, xp: 0, xpToNext: BALANCE.xpBase });
 
+    this.bossBar = this.add.graphics();
+    this.bossLabel = this.add.text(width / 2, BOSS_BAR.y - 4, 'ПАВУК', SMALL_STYLE).setOrigin(0.5, 1).setVisible(false);
+
     const game = this.scene.get('Game');
     const onUpdate = (s) => this.update_(s);
+    const onBoss = (b) => this.updateBoss(b);
     game.events.on('hud:update', onUpdate);
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => game.events.off('hud:update', onUpdate));
+    game.events.on('hud:boss', onBoss);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      game.events.off('hud:update', onUpdate);
+      game.events.off('hud:boss', onBoss);
+    });
+  }
+
+  /** Смуга HP боса; null — сховати. */
+  updateBoss(b) {
+    this.bossBar.clear();
+    this.bossLabel.setVisible(!!b);
+    if (!b) return;
+    const w = this.scale.width - 2 * PAD - 2 * BALANCE.wallWidth;
+    const x = PAD + BALANCE.wallWidth;
+    const k = Math.max(b.hp, 0) / b.maxHp;
+    this.bossBar.fillStyle(0x000000, 0.6).fillRect(x, BOSS_BAR.y, w, BOSS_BAR.h);
+    this.bossBar.fillStyle(0xff3b5c, 1).fillRect(x, BOSS_BAR.y, w * k, BOSS_BAR.h);
   }
 
   update_({ timeSec, score, lives, level, xp, xpToNext }) {
