@@ -100,3 +100,11 @@ describe('spikes at the start of a run', () => {
     for (const y of ys) expect(y).toBeLessThan(zoneTop);
   });
 });
+
+describe('reaction slack', () => {
+  test('band leaves spikeSlackSec of reaction time on top of a jump', () => {
+    const scroll = 200;
+    const tight = minSpikeGap(scroll);
+    expect(spikeBand(scroll) - tight).toBeCloseTo(scroll * BALANCE.spikeSlackSec, 9);
+  });
+});

@@ -20,7 +20,8 @@ export function nextSpikeGap(scrollPxPerSec, rng) {
  * стрибок не встигає «проскочити» між ними. Тож обидві стіни плануються разом.
  */
 export function spikeBand(scrollPxPerSec) {
-  return minSpikeGap(scrollPxPerSec);
+  // плюс запас на реакцію: мінімум «впритул» проходить лише ідеальний гравець без затримок
+  return minSpikeGap(scrollPxPerSec) + scrollPxPerSec * BALANCE.spikeSlackSec;
 }
 
 /**

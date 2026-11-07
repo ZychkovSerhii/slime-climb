@@ -5,7 +5,10 @@ import { BALANCE } from '../../src/config/balance.js';
 import { scrollSpeed } from '../../src/systems/Difficulty.js';
 
 const PLAYER_Y = BALANCE.playerYRatio * 1280;
-const HALF = (BALANCE.playerSize + BALANCE.spikeHeight) / 2;
+// +4 px: тіла фізики й округлення кадрів — зона удару трохи ширша за «ідеальну»
+const HALF = (BALANCE.playerSize + BALANCE.spikeHeight) / 2 + 4;
+// Затримка старту стрибка: твін зрушує слизака лише через ~2 кадри після тапу
+const START_LATENCY_MS = 2 * (1000 / 60);
 const FRAME_MS = 1000 / 60;
 
 export function mulberry32(seed) {
@@ -48,8 +51,11 @@ export function firstUnavoidableHit(generate, durationSec, stepMs = 2) {
     }
   }
 
-  const JUMP = Math.round(BALANCE.jumpDurationMs / stepMs);
-  const EDGE = Math.ceil(JUMP * 0.075); // частка стрибка, коли слизак ще/вже над стіною
+  const LAT = Math.round(START_LATENCY_MS / stepMs);
+  const JUMP = Math.round(BALANCE.jumpDurationMs / stepMs) + LAT;
+  // перші LAT кроків + ~7.5 % польоту слизак ще над стіною старту, останні ~7.5 % — уже над стіною приземлення
+  const EDGE_START = LAT + Math.ceil((JUMP - LAT) * 0.075);
+  const EDGE_END = Math.ceil((JUMP - LAT) * 0.075);
   let onL = true;
   let onR = false;
   let airLR = new Uint8Array(JUMP + 1);
@@ -69,8 +75,8 @@ export function firstUnavoidableHit(generate, durationSec, stepMs = 2) {
     if (occ.right[i]) nR = false;
     let any = nL || nR;
     for (let e = 0; e <= JUMP; e++) {
-      if (nLR[e] && ((e < EDGE && occ.left[i]) || (e > JUMP - EDGE && occ.right[i]))) nLR[e] = 0;
-      if (nRL[e] && ((e < EDGE && occ.right[i]) || (e > JUMP - EDGE && occ.left[i]))) nRL[e] = 0;
+      if (nLR[e] && ((e < EDGE_START && occ.left[i]) || (e > JUMP - EDGE_END && occ.right[i]))) nLR[e] = 0;
+      if (nRL[e] && ((e < EDGE_START && occ.right[i]) || (e > JUMP - EDGE_END && occ.left[i]))) nRL[e] = 0;
       any = any || nLR[e] === 1 || nRL[e] === 1;
     }
     if (!any) return (i * stepMs) / 1000;

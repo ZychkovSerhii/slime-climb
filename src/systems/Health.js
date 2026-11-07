@@ -15,3 +15,8 @@ export function applyDamage(h, nowMs) {
   const health = { lives: h.lives - 1, invulnerableUntil: nowMs + BALANCE.invulnerableMs };
   return { health, tookDamage: true, died: health.lives <= 0 };
 }
+
+/** Відновлює amount життів, але не більше maxLives. Не змінює вхід. */
+export function heal(h, amount, maxLives = BALANCE.maxLives) {
+  return { ...h, lives: Math.min(h.lives + amount, maxLives) };
+}

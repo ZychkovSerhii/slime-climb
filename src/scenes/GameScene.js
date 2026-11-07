@@ -5,7 +5,7 @@ import { createSpawnState, dueSpawns } from '../systems/Spawner.js';
 import { shouldStartBoss } from '../systems/BossPlanner.js';
 import { addXp, applyCard, createProgression, killXp, rollCards, xpToNext } from '../systems/Progression.js';
 import { clampDelta } from '../systems/Time.js';
-import { applyDamage, createHealth } from '../systems/Health.js';
+import { applyDamage, createHealth, heal } from '../systems/Health.js';
 import { createSpikeState, planSpikes, prefillStartWorld } from '../systems/SpikePlanner.js';
 import { heightPoints, killPoints } from '../systems/Score.js';
 import { interceptPoint, pickNearest } from '../systems/Targeting.js';
@@ -50,6 +50,8 @@ export default class GameScene extends Phaser.Scene {
     this.bossAtSec = debugBoss ? BALANCE.boss.debugAtSec : BALANCE.boss.atSec;
     // Планувальник шипів для обох стін разом (світові координати = distancePx)
     this.spikeState = null;
+    // рослини сідають на місце чергового запланованого шипа — так на них теж діють правила проміжків
+    this.pendingPlants = 0;
 
     // Стіни — тайлові спрайти, «рух» імітується зсувом текстури
     const w = BALANCE.wallWidth;
@@ -89,6 +91,7 @@ export default class GameScene extends Phaser.Scene {
       const r = addXp(this.progression, killXp(type));
       this.progression = r.progression;
       this.levelUpQueue += r.levelsGained;
+      if (r.levelsGained > 0) this.health = heal(this.health, BALANCE.healPerLevel * r.levelsGained);
       if (this.levelUpQueue > 0 && !this.levelUpOpen) this.openLevelUp();
     };
     const onPicked = (id) => this.onCardPicked(id);
@@ -257,7 +260,12 @@ export default class GameScene extends Phaser.Scene {
     for (const { side, w } of r.spikes) {
       // центр шипа: над верхнім краєм + наскільки світ уже проїхав після точки w
       const y = -BALANCE.spikeHeight / 2 + (this.distancePx - w);
-      this.hazards.add(new Spike(this, side, y));
+      if (this.pendingPlants > 0) {
+        this.pendingPlants -= 1;
+        this.spawnEnemy(new Plant(this, side, y));
+      } else {
+        this.hazards.add(new Spike(this, side, y));
+      }
     }
   }
 
@@ -306,11 +314,12 @@ export default class GameScene extends Phaser.Scene {
   spawnEnemies() {
     const r = dueSpawns(this.spawnState, this.elapsedSec, this.bossActive);
     this.spawnState = r.state;
-    const randomSide = () => (Math.random() < 0.5 ? 'left' : 'right');
     for (const type of r.spawn) {
-      if (type === 'lion') this.spawnEnemy(new Lion(this, randomSide()));
+      // лев біжить по стіні, де гравця НЕМАЄ: загроза — ривок, від якого можна відскочити,
+      // а не удар знизу по власній стіні, коли згори йдуть шипи
+      if (type === 'lion') this.spawnEnemy(new Lion(this, this.player.side === 'left' ? 'right' : 'left'));
       else if (type === 'bat') this.spawnEnemy(new Bat(this));
-      else if (type === 'plant') this.spawnEnemy(new Plant(this, randomSide()));
+      else if (type === 'plant') this.pendingPlants += 1;
     }
   }
 

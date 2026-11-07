@@ -23,13 +23,15 @@ export const BALANCE = deepFreeze({
   playerYRatio: 0.7, // частка висоти екрана, на якій тримається гравець
   jumpDurationMs: 380,
   jumpArcPx: 80, // наскільки слизак підлітає вгору посеред стрибка
-  maxLives: 2,
+  maxLives: 3, // специфікація: 2; бот-плейтест показав, що з 2 до боса доживає хіба ідеальний гравець
   invulnerableMs: 5000,
+  healPerLevel: 1, // скільки життів повертає кожен новий рівень (не більше maxLives)
   invulnerableBlinkMs: 125, // півперіод блимання під час невразливості
 
   // Світ
   wallWidth: 60,
   spikeHeight: 40,
+  spikeSlackSec: 0.25, // запас на реакцію людини понад тривалість стрибка між сусідніми шипами
   spikeLeadSec: 2.5, // на старті екран уже заповнений шипами; перший доходить до слизака за стільки секунд
 
   // Зброя гравця
@@ -41,7 +43,7 @@ export const BALANCE = deepFreeze({
 
   // Вороги: hp, досвід, очки, з якої секунди з'являються, швидкості
   enemies: {
-    lion: { hp: 4, xp: 5, points: 50, from: 10, speed: 90, lungeSpeed: 420 },
+    lion: { hp: 4, xp: 5, points: 50, from: 10, speed: 90, lungeSpeed: 420, windupMs: 500 },
     bat: { hp: 1, xp: 2, points: 20, from: 30, speed: 260 },
     plant: { hp: 2, xp: 3, points: 30, from: 45, fireMs: 2500, bulletSpeed: 220 },
     smallSpider: { hp: 1, xp: 1, points: 10, speed: 150 },
