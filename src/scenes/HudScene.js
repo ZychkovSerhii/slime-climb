@@ -57,6 +57,16 @@ export default class HudScene extends Phaser.Scene {
     this.bossBar = this.add.graphics();
     this.bossLabel = this.add.text(width / 2, this.bossBarY() - 4, 'ПАВУК', SMALL_STYLE).setOrigin(0.5, 1).setVisible(false);
 
+    const onResize = () => {
+      const w = this.scale.width;
+      this.timeText.setX(w - PAD);
+      this.scoreText.setX(w - PAD);
+      this.bossLabel.setX(w / 2);
+      this.updateBoss(this.lastBoss);
+    };
+    this.scale.on(Phaser.Scale.Events.RESIZE, onResize);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.off(Phaser.Scale.Events.RESIZE, onResize));
+
     const game = this.scene.get('Game');
     const onUpdate = (s) => this.update_(s);
     const onBoss = (b) => this.updateBoss(b);
@@ -78,6 +88,7 @@ export default class HudScene extends Phaser.Scene {
 
   /** Смуга HP боса; null — сховати. */
   updateBoss(b) {
+    this.lastBoss = b;
     this.bossBar.clear();
     this.bossLabel.setVisible(!!b);
     if (!b) return;

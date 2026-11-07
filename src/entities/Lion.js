@@ -26,10 +26,18 @@ export default class Lion extends Enemy {
     const scene = this.scene;
     const mul = this.speedMul(scene.nowMs);
 
-    if (!this.lunging) {
+    if (!this.lunging && this.windupUntil === undefined) {
       this.body.setVelocity(0, -CFG.speed * mul);
       if (this.y <= scene.scale.height / 2) {
+        // попередження: лев завмирає і блимає windupMs, потім кидається туди, де гравець у момент ривка
+        this.windupUntil = scene.nowMs + CFG.windupMs;
+        this.body.setVelocity(0, 0);
+        this.windupTween = scene.tweens.add({ targets: this, alpha: 0.4, duration: CFG.windupMs / 4, yoyo: true, repeat: 1 });
+      }
+    } else if (!this.lunging) {
+      if (scene.nowMs >= this.windupUntil) {
         this.lunging = true;
+        this.setAlpha(1);
         const p = scene.player;
         this.lungeDir = new Phaser.Math.Vector2(p.x - this.x, p.y - this.y).normalize();
       }

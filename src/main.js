@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+import { BALANCE } from './config/balance.js';
 import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
 import { backAction } from './systems/Navigation.js';
@@ -19,8 +20,11 @@ const config = {
   height: GAME_HEIGHT,
   backgroundColor: '#1b2a1b',
   physics: { default: 'arcade', arcade: { debug: false } },
+  // кадр рушія не довший за maxDeltaMs: так фізика, твіни й таймери теж не «телепортуються» після підвисання
+  fps: { min: 1000 / BALANCE.maxDeltaMs },
   scale: {
-    // EXPAND: ширина 720 фіксована, висота розтягується під пропорції екрана (без чорних смуг)
+    // EXPAND: базова область 720×1280 завжди видна, а зайвий простір екрана (довший телефон — висота,
+    // ширший екран — ширина) додається до гри, без чорних смуг. Сцени слухають подію resize.
     mode: Phaser.Scale.EXPAND,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },

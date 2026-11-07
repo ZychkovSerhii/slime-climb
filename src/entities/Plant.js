@@ -6,11 +6,12 @@ const CFG = BALANCE.enemies.plant;
 
 /** Рослина: сидить на стіні, їде разом зі світом, раз на fireMs стріляє кулею в гравця (поки видно на екрані). */
 export default class Plant extends Enemy {
-  constructor(scene, side) {
+  /** y — центр на стіні (за замовчуванням над верхнім краєм екрана). */
+  constructor(scene, side, y) {
     const { width } = scene.scale;
     const tex = scene.textures.get('plant').getSourceImage();
     const x = side === 'left' ? BALANCE.wallWidth + tex.width / 2 : width - BALANCE.wallWidth - tex.width / 2;
-    super(scene, x, -tex.height / 2, 'plant', 'plant');
+    super(scene, x, y ?? -tex.height / 2, 'plant', 'plant');
     this.side = side;
     this.scrollsWithWorld = true;
     if (side === 'right') this.setFlipX(true);

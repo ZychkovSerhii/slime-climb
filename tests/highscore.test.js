@@ -40,3 +40,23 @@ test('garbage value → 0', () => {
 });
 
 test('missing storage (undefined) → 0', () => expect(loadHighScore(undefined)).toBe(0));
+
+import { recordResult } from '../src/systems/HighScore.js';
+
+test('recordResult: beating the old record is a new record', () => {
+  const s = memoryStorage({ 'slime-climb.highScore': '100' });
+  expect(recordResult(s, 150)).toEqual({ best: 150, isNewRecord: true });
+});
+
+test('recordResult: equal to the old record is NOT a new record', () => {
+  const s = memoryStorage({ 'slime-climb.highScore': '100' });
+  expect(recordResult(s, 100)).toEqual({ best: 100, isNewRecord: false });
+});
+
+test('recordResult: broken storage never claims a new record', () => {
+  expect(recordResult(throwingStorage, 500).isNewRecord).toBe(false);
+});
+
+test('recordResult: zero score is not a record on a fresh install', () => {
+  expect(recordResult(memoryStorage(), 0).isNewRecord).toBe(false);
+});

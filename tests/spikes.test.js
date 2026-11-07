@@ -19,16 +19,17 @@ test('nextSpikeGap stays below twice the minimum', () => {
 
 import { BALANCE } from '../src/config/balance.js';
 import { scrollSpeed } from '../src/systems/Difficulty.js';
-import { createSpikeState, planSpikes, spikeBand } from '../src/systems/SpikePlanner.js';
+import { createSpikeState, planSpikes, prefillStartWorld, spikeBand } from '../src/systems/SpikePlanner.js';
 import { firstUnavoidableHit, mulberry32 } from './helpers/spikeFeasibility.js';
 
 /** Генератор шипів так, як його використовує GameScene. */
+const PLAYER_Y = BALANCE.playerYRatio * 1280;
+
 function plannerGenerator(rng) {
   let state = null;
   return ({ tSec, distancePx }) => {
-    if (tSec < BALANCE.spikeStartSec) return [];
     const scroll = scrollSpeed(tSec, false);
-    if (!state) state = createSpikeState(distancePx, rng);
+    if (!state) state = createSpikeState(prefillStartWorld(distancePx, PLAYER_Y), rng);
     const r = planSpikes(state, distancePx, scroll, rng);
     state = r.state;
     return r.spikes.map((s) => ({ side: s.side, y: -BALANCE.spikeHeight / 2 + (distancePx - s.w) }));
@@ -40,7 +41,7 @@ function legacyGenerator(rng) {
   const next = { left: -BALANCE.spikeHeight, right: -BALANCE.spikeHeight - minSpikeGap(120) * rng() };
   return ({ tSec, dy }) => {
     const out = [];
-    if (tSec < BALANCE.spikeStartSec) return out;
+    if (tSec < 3) return out;
     const s = scrollSpeed(tSec, false);
     for (const side of ['left', 'right']) {
       next[side] += dy;
@@ -82,4 +83,28 @@ describe('two-wall spike planner', () => {
   test.each([1, 2, 3])('perfect play survives 2:05 of spikes (seed %i)', (seed) => {
     expect(firstUnavoidableHit(plannerGenerator(mulberry32(seed)), 125)).toBeNull();
   }, 60000);
+});
+
+describe('spikes at the start of a run', () => {
+  test('screen is pre-filled: first spike reaches the player after spikeLeadSec, not ~9 s', () => {
+    const rng = mulberry32(5);
+    const state = createSpikeState(prefillStartWorld(0, PLAYER_Y), rng);
+    const { spikes } = planSpikes(state, 0, BALANCE.scrollBase, rng);
+    const ys = spikes.map((s) => -BALANCE.spikeHeight / 2 + (0 - s.w));
+    expect(spikes.length).toBeGreaterThanOrEqual(3); // кілька шипів уже видно на екрані
+    const lowest = Math.max(...ys);
+    const zoneTop = PLAYER_Y - (BALANCE.playerSize + BALANCE.spikeHeight) / 2;
+    const arrivalSec = (zoneTop - lowest) / BALANCE.scrollBase;
+    expect(arrivalSec).toBeGreaterThanOrEqual(BALANCE.spikeLeadSec - 1e-9);
+    expect(arrivalSec).toBeLessThanOrEqual(BALANCE.spikeLeadSec + 1.5);
+    for (const y of ys) expect(y).toBeLessThan(zoneTop);
+  });
+});
+
+describe('reaction slack', () => {
+  test('band leaves spikeSlackSec of reaction time on top of a jump', () => {
+    const scroll = 200;
+    const tight = minSpikeGap(scroll);
+    expect(spikeBand(scroll) - tight).toBeCloseTo(scroll * BALANCE.spikeSlackSec, 9);
+  });
 });

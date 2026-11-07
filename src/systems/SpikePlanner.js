@@ -20,7 +20,8 @@ export function nextSpikeGap(scrollPxPerSec, rng) {
  * стрибок не встигає «проскочити» між ними. Тож обидві стіни плануються разом.
  */
 export function spikeBand(scrollPxPerSec) {
-  return minSpikeGap(scrollPxPerSec);
+  // плюс запас на реакцію: мінімум «впритул» проходить лише ідеальний гравець без затримок
+  return minSpikeGap(scrollPxPerSec) + scrollPxPerSec * BALANCE.spikeSlackSec;
 }
 
 /**
@@ -58,4 +59,14 @@ export function planSpikes(state, distancePx, scrollPxPerSec, rng) {
     next[side] = w + nextSpikeGap(scrollPxPerSec, rng);
   }
   return { state: { next, lastW }, spikes };
+}
+
+/**
+ * Світова координата, з якої починати планування, щоб на старті екран уже був заповнений шипами,
+ * а найнижчий з них дійшов до гравця (playerY) через spikeLeadSec на стартовій швидкості.
+ */
+export function prefillStartWorld(distancePx, playerY) {
+  const zoneTop = playerY - (BALANCE.playerSize + BALANCE.spikeHeight) / 2;
+  const lowestY = zoneTop - BALANCE.spikeLeadSec * BALANCE.scrollBase;
+  return distancePx - (lowestY + BALANCE.spikeHeight / 2);
 }

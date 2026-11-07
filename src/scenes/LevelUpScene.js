@@ -28,6 +28,10 @@ export default class LevelUpScene extends Phaser.Scene {
   }
 
   create({ cards = [] } = {}) {
+    // зміна розміру екрана → перебудувати екран
+    const onResize = () => this.scene.restart(this.sys.settings.data);
+    this.scale.once(Phaser.Scale.Events.RESIZE, onResize);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.off(Phaser.Scale.Events.RESIZE, onResize));
     const { width, height } = this.scale;
     this.add.rectangle(0, 0, width, height, 0x000000, 0.7).setOrigin(0).setInteractive();
     this.add
