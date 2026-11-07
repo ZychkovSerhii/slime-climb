@@ -3,6 +3,8 @@ import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
 import BootScene from './scenes/BootScene.js';
 import GameScene from './scenes/GameScene.js';
+import HudScene from './scenes/HudScene.js';
+import GameOverScene from './scenes/GameOverScene.js';
 
 export const GAME_WIDTH = 720;
 export const GAME_HEIGHT = 1280;
@@ -18,7 +20,7 @@ const config = {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-  scene: [BootScene, GameScene],
+  scene: [BootScene, GameScene, HudScene, GameOverScene],
 };
 
 export const game = new Phaser.Game(config);
