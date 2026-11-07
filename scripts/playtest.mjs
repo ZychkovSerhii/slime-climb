@@ -1,6 +1,6 @@
 // Бот-плейтест: справжня гра в headless Chromium, бот сам стрибає і вибирає картки.
 // Смерть вимкнена: рахуємо кожен удар (з джерелом і часом), щоб оцінити, чи реально дожити до боса і вбити його.
-// Використання: node scripts/playtest.mjs [--seconds 160] [--runs 1] [--no-enemies]
+// Використання: node scripts/playtest.mjs [--seconds 160] [--runs 1] [--no-enemies] [--weapon axe|chakra|shotgun]
 // Потрібен браузер Playwright (npx playwright install chromium) або CHROME_PATH.
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
@@ -12,6 +12,8 @@ const arg = (name, def) => {
 const SECONDS = arg('--seconds', 160);
 const RUNS = arg('--runs', 1);
 const NO_ENEMIES = process.argv.includes('--no-enemies');
+const wIdx = process.argv.indexOf('--weapon');
+const WEAPON = wIdx > -1 ? process.argv[wIdx + 1] : null; // з цією зброєю з першої секунди
 
 // Код бота виконується всередині сторінки (dev-режим дає window.game)
 function installBot() {
@@ -215,7 +217,7 @@ for (let r = 0; r < RUNS; r++) {
   const page = await browser.newPage({ viewport: { width: 360, height: 640 } });
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto(url);
+  await page.goto(WEAPON ? `${url}?weapon=${WEAPON}` : url);
   await page.waitForTimeout(800);
   await page.mouse.click(180, 320); // меню → гра
   await page.waitForTimeout(500);

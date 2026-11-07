@@ -38,6 +38,11 @@ export const C = {
   metal: 0x8a9aa0,
   metalLight: 0xd8e2e6,
 
+  woodDark: 0x5a3517,
+  wood: 0x9a6232,
+  veinDark: 0x7a1030,
+  vein: 0xe0305a,
+
   heartDark: 0xa0122f,
   heart: 0xff3b5c,
 
