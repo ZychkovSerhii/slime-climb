@@ -1,6 +1,6 @@
 // Бот-плейтест: справжня гра в headless Chromium, бот сам стрибає і вибирає картки.
 // Смерть вимкнена: рахуємо кожен удар (з джерелом і часом), щоб оцінити, чи реально дожити до боса і вбити його.
-// Використання: node scripts/playtest.mjs [--seconds 160] [--runs 1] [--no-enemies] [--weapon axe|chakra|shotgun]
+// Використання: node scripts/playtest.mjs [--seconds 160] [--runs 1] [--no-enemies] [--weapon axe|chakra|shotgun] [--cards hat,hat,extraLife]
 // Потрібен браузер Playwright (npx playwright install chromium) або CHROME_PATH.
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
@@ -14,6 +14,8 @@ const RUNS = arg('--runs', 1);
 const NO_ENEMIES = process.argv.includes('--no-enemies');
 const wIdx = process.argv.indexOf('--weapon');
 const WEAPON = wIdx > -1 ? process.argv[wIdx + 1] : null; // з цією зброєю з першої секунди
+const cIdx = process.argv.indexOf('--cards');
+const CARDS = cIdx > -1 ? process.argv[cIdx + 1] : null; // з цими картками з першої секунди (?cards=)
 
 // Код бота виконується всередині сторінки (dev-режим дає window.game)
 function installBot() {
@@ -193,7 +195,7 @@ function installBot() {
     const lu = g.scene.getScene('LevelUp');
     if (!lu.sys.isActive()) return;
     const cards = lu.sys.settings.data.cards;
-    const pick = order.find((c) => cards.includes(c));
+    const pick = order.find((c) => cards.includes(c)) ?? cards[0]; // трофеї павучихи — перший
     const rects = lu.children.list.filter((o) => o.type === 'Rectangle' && o.input && o.width < g.scale.width);
     const idx = cards.indexOf(pick);
     if (rects[idx]) {
@@ -217,7 +219,8 @@ for (let r = 0; r < RUNS; r++) {
   const page = await browser.newPage({ viewport: { width: 360, height: 640 } });
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto(WEAPON ? `${url}?weapon=${WEAPON}` : url);
+  const q = [WEAPON && `weapon=${WEAPON}`, CARDS && `cards=${CARDS}`].filter(Boolean).join('&');
+  await page.goto(q ? `${url}?${q}` : url);
   await page.waitForTimeout(800);
   await page.mouse.click(180, 320); // меню → гра
   await page.waitForTimeout(500);
@@ -240,7 +243,7 @@ for (let r = 0; r < RUNS; r++) {
   }
   const rep = await page.evaluate(() => {
     const s = window.game.scene.getScene('Game');
-    return { ...window.__report, endT: +s.elapsedSec.toFixed(1), fps: +window.game.loop.actualFps.toFixed(0) };
+    return { ...window.__report, relics: s.progression.relics, endT: +s.elapsedSec.toFixed(1), fps: +window.game.loop.actualFps.toFixed(0) };
   });
   rep.errors = errors;
   results.push(rep);
@@ -257,6 +260,7 @@ for (const [i, rep] of results.entries()) {
   console.log(`  deaths (with real lives & healing): ${rep.deaths.length ? rep.deaths.join(', ') : 'none'}`);
   console.log(`  hits ${rep.hits.length}:`, JSON.stringify(bySrc));
   console.log(`  hit times:`, rep.hits.map((h) => `${h.t}(${h.src})`).join(' '));
+  if (rep.relics) console.log(`  relics: ${rep.relics.join(', ')}`);
   console.log(`  boss start ${rep.bossStart ?? '-'}, boss killed ${rep.bossKilled ?? '-'}, phases: ${rep.boss.join(' ') || '-'}`);
   console.log(`  picks: ${rep.picks.join(', ')}`, 'decisions', JSON.stringify(rep.decisions), 'panicBy', JSON.stringify(rep.panicBy));
   if (rep.errors.length) console.log('  ERRORS:', rep.errors);

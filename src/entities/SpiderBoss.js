@@ -59,8 +59,8 @@ export default class SpiderBoss extends Enemy {
     this.scene.events.emit('hud:boss', { hp: this.hp, maxHp: this.maxHp, name: B.name, invulnerable: this.invulnerable });
   }
 
-  takeHit(damage, slow, nowMs) {
-    super.takeHit(damage, slow, nowMs);
+  takeHit(damage, fx, nowMs) {
+    super.takeHit(damage, fx, nowMs);
     if (!this.active) return;
     if (shouldStartSwarm(this.hp, this.maxHp, this.swarmDone) && !this.invulnerable) this.startSwarmPhase();
     if (!this.rage && isRage(this.hp, this.maxHp, this.rageAt)) this.enterRage();

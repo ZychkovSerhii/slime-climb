@@ -22,7 +22,14 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     this.speedMul = 1; // > 1 — стрибки швидші (картки, ефекти)
     this.baseY = this.y;
     this.x = this.wallX(this.side);
-    this.play(animKey('slime', 'idle'));
+    this.skin = 'slime'; // текстура/анімації: 'slime' або трансформація ('slimeSpider')
+    this.play(animKey(this.skin, 'idle'));
+  }
+
+  /** Скін трансформації (той самий розмір полотна — хітбокс не міняється). */
+  setSkin(key) {
+    this.skin = key;
+    this.play(animKey(key, this.isJumping ? 'jump' : 'idle'));
   }
 
   get isJumping() {
@@ -68,7 +75,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
 
   startJump(holding) {
     this.jumpState = createJump(this.side, { holding });
-    this.play(animKey('slime', 'jump'));
+    this.play(animKey(this.skin, 'jump'));
     this.emit('jumped');
   }
 
@@ -81,7 +88,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
       this.x = this.wallX(this.side);
       this.y = this.baseY;
       this.setFlipX(this.side === 'right');
-      this.play(animKey('slime', 'idle'));
+      this.play(animKey(this.skin, 'idle'));
       this.emit('landed');
       return;
     }

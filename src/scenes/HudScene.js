@@ -1,7 +1,7 @@
 import * as Phaser from 'phaser';
 import { BALANCE } from '../config/balance.js';
 import { formatTime } from '../systems/Format.js';
-import { parseCssPx, safeTopGamePx } from '../systems/Layout.js';
+import { invisButton, parseCssPx, safeTopGamePx } from '../systems/Layout.js';
 
 // Розкладка HUD (px базової роздільності) — це верстка, не баланс
 const PAD = 24;
@@ -57,14 +57,17 @@ export default class HudScene extends Phaser.Scene {
     this.timeText = this.add.text(width - PAD, top, '00:00', TEXT_STYLE).setOrigin(1, 0);
     this.scoreText = this.add.text(width - PAD, top + 44, 'SCORE 0', TEXT_STYLE).setOrigin(1, 0);
 
+    // серця до максимуму картки «Додаткове життя»; зайві сховані. Останнє місце — чорне серце броні
     this.hearts = [];
-    for (let i = 0; i < BALANCE.maxLives; i++) {
+    for (let i = 0; i < BALANCE.skills.extraLife.maxLives; i++) {
       this.hearts.push(this.add.image(PAD + 16 + i * HEART_STEP, top + 14, 'heart'));
     }
+    this.armorHeart = this.add.image(0, top + 14, 'heart').setTint(0x222230).setVisible(false);
+    this.createInvisButton();
     this.xpBar = this.add.graphics();
     this.levelText = this.add.text(PAD + XP_BAR.w + 12, this.xpBarY() - 6, 'LV 1', SMALL_STYLE);
 
-    this.update_({ timeSec: 0, score: 0, lives: BALANCE.maxLives, level: 1, xp: 0, xpToNext: BALANCE.xpBase });
+    this.update_({ timeSec: 0, score: 0, lives: BALANCE.maxLives, maxLives: BALANCE.maxLives, level: 1, xp: 0, xpToNext: BALANCE.xpBase });
 
     this.bossBar = this.add.graphics();
     this.bossLabel = this.add.text(width / 2, this.bossBarY() - 4, '', SMALL_STYLE).setOrigin(0.5, 1).setVisible(false);
@@ -77,6 +80,7 @@ export default class HudScene extends Phaser.Scene {
       this.bossLabel.setX(w / 2);
       this.banner.setPosition(w / 2, this.scale.height * 0.38);
       this.updateBoss(this.lastBoss);
+      this.drawInvis(this.lastInvis);
     };
     this.scale.on(Phaser.Scale.Events.RESIZE, onResize);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.off(Phaser.Scale.Events.RESIZE, onResize));
@@ -125,10 +129,44 @@ export default class HudScene extends Phaser.Scene {
     this.bossBar.fillStyle(b.invulnerable ? BOSS_IMMUNE_COLOR : BOSS_COLOR, 1).fillRect(x, this.bossBarY(), w * k, BOSS_BAR.h);
   }
 
-  update_({ timeSec, score, lives, level, xp, xpToNext }) {
+  /** Кнопка «Невидимість»: з'являється, коли скіл узято; кільце показує перезарядку. */
+  createInvisButton() {
+    this.invisGfx = this.add.graphics().setDepth(5);
+    this.invisLabel = this.add
+      .text(0, 0, 'НЕВИД.', { fontFamily: 'sans-serif', fontSize: '22px', fontStyle: 'bold', color: '#ffffff' })
+      .setOrigin(0.5)
+      .setDepth(6)
+      .setVisible(false);
+    this.invisZone = this.add.zone(0, 0, 1, 1).setInteractive().setDepth(6);
+    this.invisZone.input.enabled = false;
+    this.invisZone.on('pointerdown', () => this.scene.get('Game').events.emit('skill:invis'));
+  }
+
+  drawInvis(inv) {
+    this.lastInvis = inv;
+    this.invisGfx.clear();
+    const on = !!inv;
+    this.invisLabel.setVisible(on);
+    this.invisZone.input.enabled = on;
+    if (!on) return;
+    const b = invisButton(this.scale.width, this.scale.height);
+    this.invisZone.setPosition(b.x, b.y).setSize(2 * b.r + 24, 2 * b.r + 24);
+    this.invisLabel.setPosition(b.x, b.y);
+    const ready = inv.charge >= 1;
+    this.invisGfx.fillStyle(inv.active ? 0x6a7cff : ready ? 0x2a2a6a : 0x1a1a1a, 0.75).fillCircle(b.x, b.y, b.r);
+    this.invisGfx.lineStyle(8, ready ? 0xa8b8ff : 0x5a5a7a, 1);
+    this.invisGfx.beginPath();
+    this.invisGfx.arc(b.x, b.y, b.r - 4, -Math.PI / 2, -Math.PI / 2 + 2 * Math.PI * Math.min(inv.charge, 1), false);
+    this.invisGfx.strokePath();
+    this.invisLabel.setAlpha(ready || inv.active ? 1 : 0.5);
+  }
+
+  update_({ timeSec, score, lives, maxLives = BALANCE.maxLives, armor = null, invis = null, level, xp, xpToNext }) {
     this.timeText.setText(formatTime(timeSec));
     this.scoreText.setText(`SCORE ${score}`);
-    this.hearts.forEach((h, i) => h.setAlpha(i < lives ? 1 : 0.2));
+    this.hearts.forEach((h, i) => h.setVisible(i < maxLives).setAlpha(i < lives ? 1 : 0.2));
+    this.armorHeart.setVisible(!!armor).setAlpha(armor === 'on' ? 1 : 0.25).setX(PAD + 16 + maxLives * HEART_STEP);
+    this.drawInvis(invis);
     this.levelText.setText(`LV ${level}`);
 
     const k = xpToNext > 0 ? Math.min(xp / xpToNext, 1) : 0;

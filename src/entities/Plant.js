@@ -25,7 +25,7 @@ export default class Plant extends Enemy {
     const scene = this.scene;
     // час гри (nowMs) стоїть на паузі — рослина не «накопичує» постріли
     if (scene.nowMs < this.nextFireAt) return;
-    this.nextFireAt = scene.nowMs + CFG.fireMs / this.speedMul(scene.nowMs);
+    this.nextFireAt = scene.nowMs + CFG.fireMs / Math.max(this.speedMul(scene.nowMs), 0.25); // приклеєна павутиною — не «замерзає» назавжди
     if (!this.isOnScreen()) return;
     this.play(animKey('plant', 'shoot'));
     this.chain(animKey('plant', 'idle'));
