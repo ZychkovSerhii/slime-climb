@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser';
 import { BALANCE } from '../config/balance.js';
-import { pickStrikeX } from '../systems/BossPlanner.js';
+import { canSpawnMinions, pickStrikeX } from '../systems/BossPlanner.js';
 import Enemy from './Enemy.js';
 import SmallSpider from './SmallSpider.js';
 
@@ -86,7 +86,8 @@ export default class SpiderBoss extends Enemy {
         break;
     }
 
-    if (now >= this.nextSpawnAt) {
+    // якщо час спавну випав на удар — павучки чекають, поки павук знову повисне вгорі
+    if (now >= this.nextSpawnAt && canSpawnMinions(this.state)) {
       this.nextSpawnAt = now + B.spawnMs;
       this.spawnSpiders();
     }

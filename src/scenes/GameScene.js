@@ -6,7 +6,7 @@ import { shouldStartBoss } from '../systems/BossPlanner.js';
 import { addXp, applyCard, createProgression, killXp, rollCards, xpToNext } from '../systems/Progression.js';
 import { clampDelta } from '../systems/Time.js';
 import { applyDamage, createHealth } from '../systems/Health.js';
-import { minSpikeGap, nextSpikeGap } from '../systems/SpikePlanner.js';
+import { createSpikeState, planSpikes } from '../systems/SpikePlanner.js';
 import { heightPoints, killPoints } from '../systems/Score.js';
 import { interceptPoint, pickNearest } from '../systems/Targeting.js';
 import Player from '../entities/Player.js';
@@ -49,8 +49,8 @@ export default class GameScene extends Phaser.Scene {
     // ?boss=1 у адресі — бос на 5-й секунді (для перевірки)
     const debugBoss = new URLSearchParams(window.location.search).get('boss') === '1';
     this.bossAtSec = debugBoss ? BALANCE.boss.debugAtSec : BALANCE.boss.atSec;
-    // y наступного шипа для кожної стіни (координати екрана; їде вниз разом зі світом)
-    this.nextSpikeY = { left: -BALANCE.spikeHeight, right: -BALANCE.spikeHeight - minSpikeGap(this.currentScroll) * Math.random() };
+    // Планувальник шипів для обох стін разом (світові координати = distancePx); створюється на spikeStartSec
+    this.spikeState = null;
 
     // Стіни — тайлові спрайти, «рух» імітується зсувом текстури
     const w = BALANCE.wallWidth;
@@ -218,15 +218,18 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
-  /** Ставить шипи над екраном, коли до них «доїхав» світ. */
-  spawnSpikes(dy) {
-    for (const side of ['left', 'right']) {
-      if (this.elapsedSec < BALANCE.spikeStartSec) continue;
-      this.nextSpikeY[side] += dy;
-      while (this.nextSpikeY[side] >= -BALANCE.spikeHeight) {
-        this.hazards.add(new Spike(this, side, this.nextSpikeY[side]));
-        this.nextSpikeY[side] -= nextSpikeGap(this.currentScroll, Math.random);
-      }
+  /** Ставить шипи над екраном за планувальником (сусідні шипи обох стін розділені щонайменше spikeBand). */
+  spawnSpikes() {
+    if (this.elapsedSec < BALANCE.spikeStartSec) return;
+    if (!this.spikeState) this.spikeState = createSpikeState(this.distancePx, Math.random);
+    // проміжки рахуємо за швидкістю БЕЗ сповільнення боса: шип, поставлений під час боса,
+    // може доїхати до гравця вже після нього, на повній швидкості
+    const r = planSpikes(this.spikeState, this.distancePx, scrollSpeed(this.elapsedSec, false), Math.random);
+    this.spikeState = r.state;
+    for (const { side, w } of r.spikes) {
+      // центр шипа: над верхнім краєм + наскільки світ уже проїхав після точки w
+      const y = -BALANCE.spikeHeight / 2 + (this.distancePx - w);
+      this.hazards.add(new Spike(this, side, y));
     }
   }
 
@@ -321,7 +324,7 @@ export default class GameScene extends Phaser.Scene {
     const dy = (this.currentScroll * dt) / 1000;
     this.distancePx += dy;
     this.scrollObjects(dy);
-    this.spawnSpikes(dy);
+    this.spawnSpikes();
     if (shouldStartBoss(this.elapsedSec, this.bossState, this.bossAtSec)) this.startBoss();
     this.spawnEnemies();
     this.autoFire(dt);
