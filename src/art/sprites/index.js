@@ -12,8 +12,11 @@ import lion from './lion.js';
 import spider from './spider.js';
 import smallSpider from './smallSpider.js';
 import shadow from './shadow.js';
+import axe from './axe.js';
+import shotgun from './shotgun.js';
+import chakraVeins from './chakraVeins.js';
 
-export const SPRITES = [slime, wall, spike, projectile, plantBullet, heart, bat, plant, lion, spider, smallSpider, shadow];
+export const SPRITES = [slime, wall, spike, projectile, plantBullet, heart, bat, plant, lion, spider, smallSpider, shadow, axe, shotgun, chakraVeins];
 
 /** Ключ анімації в Phaser: 'slime:idle'. */
 export const animKey = (spriteKey, anim) => `${spriteKey}:${anim}`;

@@ -4,7 +4,8 @@ import { scrollSpeed } from '../systems/Difficulty.js';
 import { createSpawnState, dueSpawns } from '../systems/Spawner.js';
 import { afterBossSpawnMul, bannerVisible, bossStage, hazardsSuppressed } from '../systems/BossPlanner.js';
 import { createStatus, isPoisoned, playerSpeedMul, poison } from '../systems/Status.js';
-import { addXp, applyCard, createProgression, killXp, rollCards, xpToNext } from '../systems/Progression.js';
+import { addXp, applyCard, createProgression, killXp, rollLevelUp, weaponCard, xpToNext } from '../systems/Progression.js';
+import { attackDamage, axeRadius, createFireState, inRadius, shotgunAngles, stepFire, weaponJumpMul } from '../systems/Weapons.js';
 import { clampDelta } from '../systems/Time.js';
 import { applyDamage, createHealth, heal } from '../systems/Health.js';
 import { createSpikeState, planSpikes, prefillStartWorld, skipSpikes } from '../systems/SpikePlanner.js';
@@ -18,6 +19,7 @@ import Lion from '../entities/Lion.js';
 import Bat from '../entities/Bat.js';
 import Plant from '../entities/Plant.js';
 import SpiderBoss from '../entities/SpiderBoss.js';
+import WeaponView from '../entities/WeaponView.js';
 import { background } from '../art/textures.js';
 
 const POISON_TINT = 0xb0d040; // слизак і так зелений — під отрутою він темніший, болотний
@@ -49,7 +51,7 @@ export default class GameScene extends Phaser.Scene {
     this.dead = false;
     // Зброя гравця — частина прогресії, картки поліпшень змінюють її
     this.weapon = this.progression.weapon;
-    this.fireCooldownMs = 0;
+    this.fireState = createFireState();
     this.spawnState = createSpawnState();
     // бос: етап забігу рахує bossStage (before → prep → fight → calm → after)
     this.stage = 'before';
@@ -60,6 +62,8 @@ export default class GameScene extends Phaser.Scene {
     // ?boss=1 у адресі — бос на debugAtSec секунді (для перевірки)
     const debugBoss = new URLSearchParams(window.location.search).get('boss') === '1';
     this.bossAtSec = debugBoss ? BALANCE.boss.debugAtSec : BALANCE.boss.atSec;
+    // ?weapon=axe|chakra|shotgun — одразу з повністю вкачаною зброєю (для перевірки)
+    this.debugWeapon = new URLSearchParams(window.location.search).get('weapon');
     // Планувальник шипів для обох стін разом (світові координати = distancePx)
     this.spikeState = null;
     // рослини сідають на місце чергового запланованого шипа — так на них теж діють правила проміжків
@@ -86,6 +90,11 @@ export default class GameScene extends Phaser.Scene {
     this.scrollingGroups = [this.hazards, this.enemies, this.playerProjectiles, this.enemyProjectiles, this.fading];
 
     this.player = new Player(this);
+    this.weaponView = new WeaponView(this, this.player);
+    if (BALANCE.weapons[this.debugWeapon]) {
+      for (let i = 0; i < BALANCE.weapons[this.debugWeapon].steps; i++) this.progression = applyCard(this.progression, weaponCard(this.debugWeapon));
+      this.weaponView.setMain(this.debugWeapon);
+    }
 
     const hurt = () => this.hurtPlayer();
     this.physics.add.overlap(this.player, this.hazards, hurt);
@@ -187,16 +196,35 @@ export default class GameScene extends Phaser.Scene {
     this.levelUpOpen = true;
     this.setPaused(true);
     sfx('levelUp');
-    this.scene.launch('LevelUp', { cards: rollCards(this.progression, Math.random), picks: this.progression.picks });
+    this.launchLevelUp();
+  }
+
+  /** Вікно рівня: 2 звичайні картки + зброя (rollLevelUp запам'ятовує, яку зброю запропонували). */
+  launchLevelUp() {
+    const r = rollLevelUp(this.progression, Math.random);
+    this.progression = r.progression;
+    const { picks, arsenal } = this.progression;
+    this.scene.launch('LevelUp', { cards: r.cards, picks, arsenal });
+  }
+
+  /** Основна зброя змінилась: вигляд, звук, плашка. */
+  onMainWeapon(main) {
+    this.weaponView.setMain(main);
+    this.fireState = createFireState();
+    sfx('weaponReady');
+    this.events.emit('hud:banner', { text: `Нова зброя:\n${BALANCE.weapons[main].name}`, ms: 1800 });
   }
 
   onCardPicked(id) {
+    const mainBefore = this.progression.arsenal.main;
     this.progression = applyCard(this.progression, id);
     this.weapon = this.progression.weapon;
+    const main = this.progression.arsenal.main;
+    if (main !== mainBefore) this.onMainWeapon(main);
     this.levelUpQueue = Math.max(this.levelUpQueue - 1, 0);
     this.emitHud();
     if (this.levelUpQueue > 0) {
-      this.scene.launch('LevelUp', { cards: rollCards(this.progression, Math.random), picks: this.progression.picks });
+      this.launchLevelUp();
       return;
     }
     this.levelUpOpen = false;
@@ -287,7 +315,7 @@ export default class GameScene extends Phaser.Scene {
   /** Швидкість і колір слизака за станами (щокадру). */
   applyStatus() {
     const now = this.nowMs;
-    this.player.speedMul = playerSpeedMul(this.status, now);
+    this.player.speedMul = playerSpeedMul(this.status, now) * weaponJumpMul(this.progression.arsenal.main);
     const poisoned = isPoisoned(this.status, now);
     if (poisoned !== this.player.poisonTinted) {
       this.player.poisonTinted = poisoned;
@@ -341,21 +369,53 @@ export default class GameScene extends Phaser.Scene {
     return this.enemies.getChildren().filter((e) => e.active && e.hp > 0 && !e.invulnerable && e.isOnScreen());
   }
 
+  /** Атака основної зброї: стартовий постріл, сокира, черга чакри або дробовик (логіка — systems/Weapons.js). */
   autoFire(dt) {
-    this.fireCooldownMs = Math.max(this.fireCooldownMs - dt, 0);
-    if (this.fireCooldownMs > 0) return;
-    const target = pickNearest(this.player, this.visibleEnemies());
-    if (!target) return; // без ворогів не стріляємо; постріл одразу, щойно ворог з'явиться
-    const proj = new Projectile(this, this.player.x, this.player.y, 'projectile', {
-      damage: this.weapon.damage,
-      slow: this.weapon.slow,
+    const main = this.progression.arsenal.main;
+    const targets = this.visibleEnemies();
+    const radius = axeRadius(this.scale.width);
+    // сокира б'є лише тих, хто в радіусі; великий бос — краєм тіла
+    const size = (t) => Math.min(t.displayWidth, t.displayHeight) / 2;
+    const inZone = main === 'axe' ? inRadius(this.player, targets, radius, size) : null;
+    // розмах — коли хтось підійшов ближче (triggerFrac радіуса), а б'є всіх у повному радіусі
+    const close = inZone ? inRadius(this.player, inZone, radius * BALANCE.weapons.axe.triggerFrac, size) : null;
+    const r = stepFire(this.fireState, dt, {
+      main,
+      fireIntervalMs: this.weapon.fireIntervalMs,
+      hasTarget: close ? close.length > 0 : targets.length > 0,
     });
-    this.playerProjectiles.add(proj);
+    this.fireState = r.state;
+    if (!r.fire) return;
+    const damage = attackDamage(main, this.weapon.damage);
+    if (inZone) {
+      this.swingAxe(inZone, damage, radius);
+      return;
+    }
+    const target = pickNearest(this.player, targets);
     const { vx, vy } = target.screenVelocity(this.currentScroll);
     const aim = interceptPoint(this.player, { x: target.x, y: target.y, vx, vy }, BALANCE.projectileSpeed);
-    proj.launch(aim.x, aim.y, BALANCE.projectileSpeed, BALANCE.projectileHitboxMul);
-    sfx('shoot');
-    this.fireCooldownMs = this.weapon.fireIntervalMs;
+    const angle = Math.atan2(aim.y - this.player.y, aim.x - this.player.x);
+    const angles = main === 'shotgun' ? shotgunAngles(angle) : [angle];
+    for (const a of angles) {
+      const proj = new Projectile(this, this.player.x, this.player.y, 'projectile', { damage, slow: this.weapon.slow });
+      this.playerProjectiles.add(proj);
+      proj.launch(this.player.x + Math.cos(a) * 100, this.player.y + Math.sin(a) * 100, BALANCE.projectileSpeed, BALANCE.projectileHitboxMul);
+    }
+    this.weaponView.aim(angle);
+    sfx(main === 'shotgun' ? 'shotgun' : 'shoot');
+  }
+
+  /** Розмах сокири: шкода всім у радіусі (зокрема босу), без снарядів. */
+  swingAxe(targets, damage, radius) {
+    this.weaponView.swing(radius);
+    sfx('axe');
+    let hitAlive = false;
+    for (const t of targets) {
+      if (!t.active || t.invulnerable) continue;
+      t.takeHit(damage, this.weapon.slow, this.nowMs);
+      if (t.active) hitAlive = true;
+    }
+    if (hitAlive) sfx('hit');
   }
 
   spawnEnemy(enemy) {
@@ -467,6 +527,7 @@ export default class GameScene extends Phaser.Scene {
     this.distancePx += dy;
     this.applyStatus();
     this.player.step(dt);
+    this.weaponView.update();
     this.scrollObjects(dy);
     this.spawnSpikes();
     this.spawnEnemies();

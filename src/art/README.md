@@ -9,6 +9,7 @@
 | Список спрайтів | `sprites/index.js` |
 | Фон біому | `backgrounds/slimeCave.js` (параметри в `CFG`) |
 | Готові PNG замість намальованого | `png/<key>.png` |
+| Зброя на слизакові: `axe`, `shotgun`, вени чакри `chakraVeins` | `sprites/<key>.js`; розмах сокири малює `entities/WeaponView.js` |
 | Генерація текстур і анімацій у Phaser | `textures.js` (зазвичай не чіпати) |
 
 ## Перемалювати спрайт у коді

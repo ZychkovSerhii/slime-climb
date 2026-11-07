@@ -7,7 +7,14 @@ import {
   createProgression,
   rollCards,
   xpToNext,
+  WEAPON_IDS,
+  cardWeapon,
+  rollLevelUp,
+  rollWeapon,
+  weaponCard,
+  weaponProgress,
 } from '../src/systems/Progression.js';
+import { BALANCE } from '../src/config/balance.js';
 
 function seq(...values) {
   let i = 0;
@@ -105,4 +112,64 @@ test('killXp per enemy type and boss', () => {
   expect(killXp('lion')).toBe(5);
   expect(killXp('smallSpider')).toBe(1);
   expect(killXp('boss')).toBe(60);
+});
+
+describe('weapon cards (stage 4a)', () => {
+  test('level-up window: 2 regular cards + weapon as the 3rd', () => {
+    const { cards } = rollLevelUp(createProgression(), seq(0, 0.5, 0.1));
+    expect(cards).toHaveLength(3);
+    expect(cards.slice(0, 2).every((c) => CARD_IDS.includes(c))).toBe(true);
+    expect(WEAPON_IDS).toContain(cardWeapon(cards[2]));
+  });
+
+  test('never offers the same weapon as in the previous window', () => {
+    let p = createProgression();
+    for (let i = 0; i < 40; i++) {
+      const prev = p.arsenal.lastOffered;
+      const r = rollLevelUp(p, Math.random);
+      const w = cardWeapon(r.cards[2]);
+      expect(w).not.toBe(prev);
+      p = r.progression;
+      expect(p.arsenal.lastOffered).toBe(w);
+    }
+  });
+
+  test('progress is kept, full progress makes the weapon main; replaced by the next full one', () => {
+    let p = createProgression();
+    p = applyCard(p, weaponCard('axe'));
+    p = applyCard(p, weaponCard('shotgun'));
+    p = applyCard(p, weaponCard('axe'));
+    expect(weaponProgress(p, 'axe')).toBe(2);
+    expect(p.arsenal.main).toBeNull();
+    p = applyCard(p, weaponCard('axe'));
+    expect(p.arsenal.main).toBe('axe');
+    p = applyCard(applyCard(p, weaponCard('shotgun')), weaponCard('shotgun'));
+    expect(p.arsenal.main).toBe('shotgun');
+    expect(weaponProgress(p, 'axe')).toBe(3);
+  });
+
+  test('fully upgraded weapons are not offered; none left → 3 regular cards', () => {
+    let p = createProgression();
+    for (const id of WEAPON_IDS) {
+      for (let i = 0; i < BALANCE.weapons[id].steps; i++) p = applyCard(p, weaponCard(id));
+    }
+    expect(rollWeapon(p, Math.random)).toBeNull();
+    const { cards } = rollLevelUp(p, seq(0, 0, 0));
+    expect(cards).toHaveLength(3);
+    expect(cards.every((c) => CARD_IDS.includes(c))).toBe(true);
+  });
+
+  test('a single remaining weapon is offered even twice in a row', () => {
+    let p = createProgression();
+    for (const id of ['axe', 'shotgun']) {
+      for (let i = 0; i < BALANCE.weapons[id].steps; i++) p = applyCard(p, weaponCard(id));
+    }
+    p = { ...p, arsenal: { ...p.arsenal, lastOffered: 'chakra' } };
+    expect(rollWeapon(p, Math.random)).toBe('chakra');
+  });
+
+  test('weapon card does not touch the base weapon stats', () => {
+    const p = applyCard(createProgression(), weaponCard('chakra'));
+    expect(p.weapon).toEqual(createProgression().weapon);
+  });
 });

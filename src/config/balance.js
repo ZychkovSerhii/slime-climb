@@ -101,6 +101,20 @@ export const BALANCE = deepFreeze({
   // damageFirst — перше взяття «Урону», damageNext — кожне наступне
   cards: { attackSpeedFactor: 0.85, slowFactor: 0.6, slowBaseMs: 2000, slowStepMs: 1000, damageFirst: 1, damageNext: 2 },
 
+  // Зброя з прогресом (етап 4a). Повністю вкачана зброя стає основною й замінює попередню.
+  // damageMul множить поточну шкоду пострілу (база + бонус карток «Урон»).
+  weapons: {
+    // ближній бій: розмах по колу радіусом radiusFrac ширини екрана; б'є лише коли хтось у радіусі
+    // intervalMul — [рішення] у специфікації частоти немає: розмах у 1,5 раза рідше за постріл
+    // triggerFrac — [рішення] розмах, коли ціль ближче за цю частку радіуса: б'є по всьому радіусу,
+    // тож зграя рою потрапляє під удар майже вся, а не лише передній павучок
+    axe: { name: 'Сокира Рагнара', steps: 3, damageMul: 4, radiusFrac: 1 / 3, triggerFrac: 0.55, intervalMul: 1.5, swingMs: 240 },
+    // черга з burst пострілів через burstGapMs, потім перезарядка ×reloadMul; стрибки швидші
+    chakra: { name: 'Ворота чакри', steps: 5, burst: 8, burstGapMs: 70, reloadMul: 2, jumpSpeedMul: 1.5 },
+    // 3 кулі: у ціль і дві під ±spreadDeg від неї
+    shotgun: { name: 'Дробовик Хулігана', steps: 3, damageMul: 1.25, spreadDeg: 25 },
+  },
+
   // Захист від довгих кадрів (повернення з фону)
   maxDeltaMs: 50,
   // Після закриття вікна LevelUp тапи для стрибка ігноруються стільки мс (захист від «протікання» тапу)

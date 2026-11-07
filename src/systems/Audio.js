@@ -48,6 +48,18 @@ export const SOUNDS = {
     { wave: 'triangle', from: 420, to: 210, ms: 160, vol: 0.14 },
     { wave: 'triangle', from: 300, to: 150, ms: 220, vol: 0.12, at: 140 },
   ],
+  // сокира: важкий свист розмаху
+  axe: [
+    { noise: true, ms: 140, vol: 0.09 },
+    { wave: 'sawtooth', from: 260, to: 90, ms: 180, vol: 0.08 },
+  ],
+  // дробовик: глухий бах
+  shotgun: [
+    { noise: true, ms: 90, vol: 0.12 },
+    { wave: 'square', from: 220, to: 70, ms: 110, vol: 0.08 },
+  ],
+  // зброя вкачана повністю і стала основною
+  weaponReady: [55, 62, 67, 74].map((n, i) => ({ wave: 'sawtooth', from: midiToHz(n), to: midiToHz(n), ms: 110, vol: 0.08, at: i * 70 })),
   levelUp: [60, 64, 67, 72].map((n, i) => ({ wave: 'square', from: midiToHz(n), to: midiToHz(n), ms: 90, vol: 0.1, at: i * 85 })),
   // сумне «ту-ту-ту-туууу»: три короткі ноти вниз по півтону і довга остання з вібрато
   gameOver: [
