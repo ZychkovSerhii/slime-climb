@@ -1,10 +1,10 @@
 # Збирає debug-APK і кладе його в GitHub Release «apk-dev» (перезаписується при кожній збірці).
-# Запуск: пуш у гілки feat/** або main, чи вручну (Actions → Android APK → Run workflow).
+# Запуск: пуш у гілки feat/**, fix/** або main, чи вручну (Actions → Android APK → Run workflow).
 name: Android APK
 
 on:
   push:
-    branches: [main, 'feat/**']
+    branches: [main, 'feat/**', 'fix/**']
   workflow_dispatch:
 
 permissions:

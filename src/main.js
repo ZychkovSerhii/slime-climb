@@ -17,7 +17,8 @@ const config = {
   backgroundColor: '#1b2a1b',
   physics: { default: 'arcade', arcade: { debug: false } },
   scale: {
-    mode: Phaser.Scale.FIT,
+    // EXPAND: ширина 720 фіксована, висота розтягується під пропорції екрана (без чорних смуг)
+    mode: Phaser.Scale.EXPAND,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
   scene: [BootScene, GameScene, HudScene, GameOverScene],
