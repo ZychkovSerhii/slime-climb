@@ -21,6 +21,13 @@ npm run smoke    # після build: відкриває гру в headless Chrom
 Для `npm run smoke` потрібен браузер Playwright: `npx playwright install chromium`
 (або вказати свій Chrome змінною `CHROME_PATH`).
 
+## Debug-параметри
+
+- `?debug=1` — лічильник fps у кутку (на телефоні: `const DEBUG = true` у `src/main.js`).
+- `?boss=1` — бос-павук з'являється на 5-й секунді замість 2:00.
+
+Наприклад: `http://localhost:5173/?boss=1&debug=1`. Smoke з босом: `npm run smoke -- --query boss=1 --wait 9000`.
+
 ## Android
 
 Як зібрати APK і що перевірити на телефоні — `docs/android-build.md`.

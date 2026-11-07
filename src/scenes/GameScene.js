@@ -2,6 +2,7 @@ import * as Phaser from 'phaser';
 import { BALANCE } from '../config/balance.js';
 import { scrollSpeed } from '../systems/Difficulty.js';
 import { createSpawnState, dueSpawns } from '../systems/Spawner.js';
+import { shouldStartBoss } from '../systems/BossPlanner.js';
 import { addXp, applyCard, createProgression, killXp, rollCards, xpToNext } from '../systems/Progression.js';
 import { clampDelta } from '../systems/Time.js';
 import { applyDamage, createHealth } from '../systems/Health.js';
@@ -14,6 +15,7 @@ import Projectile from '../entities/Projectile.js';
 import Lion from '../entities/Lion.js';
 import Bat from '../entities/Bat.js';
 import Plant from '../entities/Plant.js';
+import SpiderBoss from '../entities/SpiderBoss.js';
 
 // Межа під екраном, за якою об'єкти знищуються (px)
 const DESPAWN_MARGIN = 100;
@@ -43,6 +45,10 @@ export default class GameScene extends Phaser.Scene {
     this.weapon = this.progression.weapon;
     this.fireCooldownMs = 0;
     this.spawnState = createSpawnState();
+    this.bossState = 'none'; // 'none' | 'active' | 'dead'
+    // ?boss=1 у адресі — бос на 5-й секунді (для перевірки)
+    const debugBoss = new URLSearchParams(window.location.search).get('boss') === '1';
+    this.bossAtSec = debugBoss ? BALANCE.boss.debugAtSec : BALANCE.boss.atSec;
     // y наступного шипа для кожної стіни (координати екрана; їде вниз разом зі світом)
     this.nextSpikeY = { left: -BALANCE.spikeHeight, right: -BALANCE.spikeHeight - minSpikeGap(this.currentScroll) * Math.random() };
 
@@ -79,6 +85,7 @@ export default class GameScene extends Phaser.Scene {
 
     const onKilled = ({ type }) => {
       this.killScore += killPoints(type);
+      if (type === 'boss') this.onBossKilled();
       const r = addXp(this.progression, killXp(type));
       this.progression = r.progression;
       this.levelUpQueue += r.levelsGained;
@@ -250,6 +257,20 @@ export default class GameScene extends Phaser.Scene {
     return enemy;
   }
 
+  startBoss() {
+    this.bossState = 'active';
+    this.bossActive = true;
+    const boss = this.spawnEnemy(new SpiderBoss(this));
+    this.events.emit('hud:boss', { hp: boss.hp, maxHp: boss.maxHp });
+  }
+
+  /** Після боса: швидкість і звичайний спавн відновлюються, павучки, що лишились, живуть далі. */
+  onBossKilled() {
+    this.bossState = 'dead';
+    this.bossActive = false;
+    this.events.emit('hud:boss', null);
+  }
+
   /** Звичайні вороги за розкладом Spawner. */
   spawnEnemies() {
     const r = dueSpawns(this.spawnState, this.elapsedSec, this.bossActive);
@@ -301,6 +322,7 @@ export default class GameScene extends Phaser.Scene {
     this.distancePx += dy;
     this.scrollObjects(dy);
     this.spawnSpikes(dy);
+    if (shouldStartBoss(this.elapsedSec, this.bossState, this.bossAtSec)) this.startBoss();
     this.spawnEnemies();
     this.autoFire(dt);
     this.emitHud();

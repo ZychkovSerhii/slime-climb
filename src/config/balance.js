@@ -54,6 +54,13 @@ export const BALANCE = deepFreeze({
     spawnCount: [2, 3],
     xp: 60,
     points: 1000,
+    strikeChance: 0.6, // імовірність удару прямо над гравцем
+    strikeSpreadPx: 40, // розкид такого удару по x
+    hangY: 140, // на якій висоті павук висить між атаками (px від верху)
+    dropSpeed: 900, // швидкість падіння на павутині (px/s)
+    retreatSpeed: 500, // швидкість підйому (px/s)
+    restMs: 800, // пауза між атаками
+    debugAtSec: 5, // старт боса з параметром ?boss=1 (для перевірки)
   },
 
   // Спавн
