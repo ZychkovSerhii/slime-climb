@@ -1,0 +1,58 @@
+// Гравець-слиз. Кадри: idle1/idle2 — «дихання», jump — витягнутий у стрибку.
+import { C } from '../palette.js';
+
+export default {
+  key: 'slime',
+  w: 48,
+  h: 48,
+  cell: 4,
+  palette: { k: C.outline, g: C.slimeDark, G: C.slime, L: C.slimeLight, w: C.white },
+  frames: {
+    idle1: [
+      '............',
+      '....kkkk....',
+      '..kkGGGGkk..',
+      '.kGLLGGGGGk.',
+      '.kGLGGGGGGk.',
+      'kGGGGwwGwwGk',
+      'kGGGGwkGwkGk',
+      'kGGGGGGGGGGk',
+      'kgGGGGGGGGgk',
+      'kggGGGGGGggk',
+      'kggggggggggk',
+      '.kkkkkkkkkk.',
+    ],
+    idle2: [
+      '............',
+      '............',
+      '...kkkkkk...',
+      '.kkGLLGGGkk.',
+      'kGGLGGGGGGGk',
+      'kGGGGwwGwwGk',
+      'kGGGGwkGwkGk',
+      'kGGGGGGGGGGk',
+      'kgGGGGGGGGgk',
+      'kggGGGGGGggk',
+      'kggggggggggk',
+      '.kkkkkkkkkk.',
+    ],
+    jump: [
+      '....kkkk....',
+      '...kGGGGk...',
+      '..kGLLGGGk..',
+      '..kGLGGGGk..',
+      '.kGGwwGwwGk.',
+      '.kGGwkGwkGk.',
+      '.kGGGGGGGGk.',
+      '.kGGGGGGGGk.',
+      '.kgGGGGGGgk.',
+      '..kgGGGGgk..',
+      '...kggggk...',
+      '....kkkk....',
+    ],
+  },
+  anims: {
+    idle: { frames: ['idle1', 'idle2'], fps: 2.5, repeat: -1 },
+    jump: { frames: ['jump'], fps: 1 },
+  },
+};
