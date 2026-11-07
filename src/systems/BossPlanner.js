@@ -79,3 +79,16 @@ export function nextSwarmSize(survivors) {
   if (survivors <= 0) return 0;
   return Math.min(survivors + B.swarm.growth, B.swarm.max);
 }
+
+/** Чи наступна атака — плювок (кожна spit.every-та, у люті — кожна rageEvery-та), а не удар. attackNo рахується з 1. */
+export function isSpitAttack(attackNo, rage = false) {
+  const every = rage ? B.spit.rageEvery : B.spit.every;
+  return attackNo > 0 && attackNo % every === 0;
+}
+
+/** Кути грудок плювка (радіани): віяло навколо напрямку aim; у люті грудок більше. */
+export function spitAngles(aim, rage) {
+  const n = rage ? B.spit.rageCount : B.spit.count;
+  const d = (B.spit.spreadDeg * Math.PI) / 180;
+  return Array.from({ length: n }, (_, i) => aim + (i - (n - 1) / 2) * d);
+}

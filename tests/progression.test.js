@@ -135,17 +135,46 @@ describe('weapon cards (stage 4a)', () => {
   });
 
   test('progress is kept, full progress makes the weapon main; replaced by the next full one', () => {
+    const steps = (id) => BALANCE.weapons[id].steps;
     let p = createProgression();
     p = applyCard(p, weaponCard('axe'));
     p = applyCard(p, weaponCard('shotgun'));
-    p = applyCard(p, weaponCard('axe'));
-    expect(weaponProgress(p, 'axe')).toBe(2);
+    expect(weaponProgress(p, 'axe')).toBe(1);
     expect(p.arsenal.main).toBeNull();
-    p = applyCard(p, weaponCard('axe'));
+    for (let i = 1; i < steps('axe'); i++) p = applyCard(p, weaponCard('axe'));
     expect(p.arsenal.main).toBe('axe');
-    p = applyCard(applyCard(p, weaponCard('shotgun')), weaponCard('shotgun'));
+    for (let i = 1; i < steps('shotgun'); i++) p = applyCard(p, weaponCard('shotgun'));
     expect(p.arsenal.main).toBe('shotgun');
-    expect(weaponProgress(p, 'axe')).toBe(3);
+    expect(weaponProgress(p, 'axe')).toBe(steps('axe'));
+  });
+
+  test('a taken, not finished weapon is offered again in the next window', () => {
+    let p = createProgression();
+    let r = rollLevelUp(p, Math.random);
+    const w = cardWeapon(r.cards[2]);
+    p = applyCard(r.progression, r.cards[2]);
+    for (let i = 1; i < BALANCE.weapons[w].steps; i++) {
+      r = rollLevelUp(p, Math.random);
+      expect(cardWeapon(r.cards[2])).toBe(w);
+      p = applyCard(r.progression, r.cards[2]);
+    }
+    expect(p.arsenal.main).toBe(w);
+    // вкачана — далі пропонується інша
+    r = rollLevelUp(p, Math.random);
+    expect(cardWeapon(r.cards[2])).not.toBe(w);
+  });
+
+  test('declined weapon: the next window offers a different one', () => {
+    let p = applyCard(createProgression(), weaponCard('axe'));
+    let r = rollLevelUp(p, Math.random);
+    expect(cardWeapon(r.cards[2])).toBe('axe');
+    p = applyCard(r.progression, r.cards[0]); // узяв звичайну картку
+    r = rollLevelUp(p, Math.random);
+    expect(cardWeapon(r.cards[2])).not.toBe('axe');
+  });
+
+  test('every weapon can be finished before the boss: at most 3 windows', () => {
+    for (const id of WEAPON_IDS) expect(BALANCE.weapons[id].steps).toBeLessThanOrEqual(3);
   });
 
   test('fully upgraded weapons are not offered; none left → 3 regular cards', () => {
