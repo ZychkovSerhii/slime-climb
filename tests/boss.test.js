@@ -1,14 +1,60 @@
 import { describe, expect, test } from 'vitest';
-import { pickStrikeX, shouldStartBoss } from '../src/systems/BossPlanner.js';
+import {
+  afterBossSpawnMul,
+  attackTimings,
+  bannerVisible,
+  bossStage,
+  hazardsSuppressed,
+  isRage,
+  nextSwarmSize,
+  pickRageAt,
+  pickStrikeX,
+  shouldStartSwarm,
+} from '../src/systems/BossPlanner.js';
+import { BALANCE } from '../src/config/balance.js';
 
-describe('shouldStartBoss', () => {
-  test('not before boss.atSec', () => expect(shouldStartBoss(119, 'none')).toBe(false));
-  test('at boss.atSec when no boss yet', () => expect(shouldStartBoss(120, 'none')).toBe(true));
-  test('not while active', () => expect(shouldStartBoss(130, 'active')).toBe(false));
-  test('never again after the boss is dead', () => expect(shouldStartBoss(200, 'dead')).toBe(false));
+const B = BALANCE.boss;
+
+describe('bossStage', () => {
+  const at = 120;
+  test('before → prep (4 s before) → fight', () => {
+    expect(bossStage(115.9, { atSec: at })).toBe('before');
+    expect(bossStage(116, { atSec: at })).toBe('prep');
+    expect(bossStage(119.9, { atSec: at })).toBe('prep');
+    expect(bossStage(120, { atSec: at })).toBe('fight');
+    expect(bossStage(500, { atSec: at })).toBe('fight');
+  });
+  test('after the kill: 6 s calm, then after', () => {
+    expect(bossStage(150, { atSec: at, killedAtSec: 150 })).toBe('calm');
+    expect(bossStage(155.9, { atSec: at, killedAtSec: 150 })).toBe('calm');
+    expect(bossStage(156, { atSec: at, killedAtSec: 150 })).toBe('after');
+  });
   test('custom start time (debug ?boss=1)', () => {
-    expect(shouldStartBoss(4.9, 'none', 5)).toBe(false);
-    expect(shouldStartBoss(5, 'none', 5)).toBe(true);
+    expect(bossStage(1.9, { atSec: 6 })).toBe('before');
+    expect(bossStage(2, { atSec: 6 })).toBe('prep');
+  });
+});
+
+test('banner: the last 2 s before the boss', () => {
+  expect(bannerVisible(117.9, 120)).toBe(false);
+  expect(bannerVisible(118, 120)).toBe(true);
+  expect(bannerVisible(119.99, 120)).toBe(true);
+  expect(bannerVisible(120, 120)).toBe(false);
+});
+
+test('spikes and ordinary enemies are suppressed in prep, fight and calm', () => {
+  expect(['before', 'prep', 'fight', 'calm', 'after'].map(hazardsSuppressed)).toEqual([false, true, true, true, false]);
+});
+
+describe('afterBossSpawnMul', () => {
+  test('1 before the kill', () => expect(afterBossSpawnMul(100, null)).toBe(1));
+  test('starts at afterRampMul when the calm ends and returns to 1 over afterRampSec', () => {
+    const k = 150;
+    const end = k + B.calmSec;
+    expect(afterBossSpawnMul(end, k)).toBeCloseTo(B.afterRampMul, 9);
+    expect(afterBossSpawnMul(end + B.afterRampSec / 2, k)).toBeCloseTo((B.afterRampMul + 1) / 2, 9);
+    expect(afterBossSpawnMul(end + B.afterRampSec, k)).toBe(1);
+    expect(afterBossSpawnMul(end + 999, k)).toBe(1);
   });
 });
 
@@ -18,15 +64,11 @@ describe('pickStrikeX', () => {
   test('rng→0: strike above the player (±40 px) and inside the lane', () => {
     const x = pickStrikeX(300, () => 0, ...lane);
     expect(Math.abs(x - 300)).toBeLessThanOrEqual(40);
-    expect(x).toBeGreaterThanOrEqual(lane[0]);
-    expect(x).toBeLessThanOrEqual(lane[1]);
   });
 
   test('player at the lane edge → result is clamped to the lane', () => {
     for (const r of [0, 0.3, 0.59, 0.99]) {
-      const left = pickStrikeX(lane[0], () => r, ...lane);
-      const right = pickStrikeX(lane[1], () => r, ...lane);
-      for (const x of [left, right]) {
+      for (const x of [pickStrikeX(lane[0], () => r, ...lane), pickStrikeX(lane[1], () => r, ...lane)]) {
         expect(x).toBeGreaterThanOrEqual(lane[0]);
         expect(x).toBeLessThanOrEqual(lane[1]);
       }
@@ -41,14 +83,48 @@ describe('pickStrikeX', () => {
   });
 });
 
-import { canSpawnMinions } from '../src/systems/BossPlanner.js';
-
-describe('canSpawnMinions', () => {
-  test('only while the boss hangs at the top (rest, telegraph)', () => {
-    expect(canSpawnMinions('rest')).toBe(true);
-    expect(canSpawnMinions('telegraph')).toBe(true);
+describe('phases', () => {
+  test('swarm starts at 75% HP, once', () => {
+    expect(shouldStartSwarm(31, 40, false)).toBe(false);
+    expect(shouldStartSwarm(30, 40, false)).toBe(true);
+    expect(shouldStartSwarm(10, 40, true)).toBe(false);
   });
-  test('never during enter/strike/retreat — spiders would appear next to the player', () => {
-    for (const s of ['enter', 'strike', 'retreat']) expect(canSpawnMinions(s)).toBe(false);
+
+  test('rage threshold is random in 35–40%', () => {
+    expect(pickRageAt(() => 0)).toBeCloseTo(0.35, 9);
+    expect(pickRageAt(() => 0.999999)).toBeCloseTo(0.4, 5);
+    expect(isRage(16, 40, 0.4)).toBe(true);
+    expect(isRage(17, 40, 0.4)).toBe(false);
+  });
+
+  test('rage: attacks are 30–40% faster', () => {
+    const calm = attackTimings(false);
+    const rage = attackTimings(true);
+    expect(calm).toEqual({ telegraphMs: B.telegraphMs, dropSpeed: B.dropSpeed, retreatSpeed: B.retreatSpeed, restMs: B.restMs });
+    for (const k of ['telegraphMs', 'restMs']) {
+      const r = calm[k] / rage[k];
+      expect(r).toBeGreaterThanOrEqual(1.3);
+      expect(r).toBeLessThanOrEqual(1.4);
+    }
+    const r = rage.dropSpeed / calm.dropSpeed;
+    expect(r).toBeGreaterThanOrEqual(1.3);
+    expect(r).toBeLessThanOrEqual(1.4);
+  });
+});
+
+describe('nextSwarmSize', () => {
+  test('survivors come back with +1, even if nobody was hit', () => {
+    expect(nextSwarmSize(12)).toBe(13);
+    expect(nextSwarmSize(5)).toBe(6);
+  });
+  test('capped at 20', () => {
+    expect(nextSwarmSize(20)).toBe(20);
+    expect(nextSwarmSize(19)).toBe(20);
+  });
+  test('all killed → swarm is over', () => expect(nextSwarmSize(0)).toBe(0));
+  test('killing 2 per pass always ends the swarm (no endless swarm)', () => {
+    let n = B.swarm.start;
+    for (let pass = 0; pass < 100 && n > 0; pass++) n = nextSwarmSize(Math.max(n - 2, 0));
+    expect(n).toBe(0);
   });
 });

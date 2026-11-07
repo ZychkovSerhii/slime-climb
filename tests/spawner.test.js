@@ -57,3 +57,9 @@ describe('dueSpawns', () => {
     expect(after.length).toBeLessThanOrEqual(1);
   });
 });
+
+test('intervalMul stretches the next interval (gradual return after the boss)', () => {
+  const normal = dueSpawns(createSpawnState(), 10, false).state.nextAt.lion - 10;
+  const slow = dueSpawns(createSpawnState(), 10, false, 2).state.nextAt.lion - 10;
+  expect(slow).toBeCloseTo(normal * 2, 9);
+});

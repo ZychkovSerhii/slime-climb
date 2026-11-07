@@ -147,3 +147,22 @@ describe('reaction slack', () => {
     expect(spikeBand(scroll) - tight).toBeCloseTo(scroll * BALANCE.spikeSlackSec, 9);
   });
 });
+
+import { skipSpikes } from '../src/systems/SpikePlanner.js';
+
+describe('skipSpikes (no spikes around the boss)', () => {
+  test('after a long pause spikes come back one by one from above the screen, not as a burst', () => {
+    const rng = mulberry32(7);
+    let state = createSpikeState(0, rng);
+    state = planSpikes(state, 2000, 200, rng).state;
+    // 30 s без шипів: світ проїхав далеко, а планувальник «пропускає» цей відрізок
+    for (let d = 2000; d <= 8000; d += 50) state = skipSpikes(state, d, 200, rng);
+    const r = planSpikes(state, 8000, 200, rng);
+    expect(r.spikes.length).toBeLessThanOrEqual(1);
+    for (const s of r.spikes) expect(s.w).toBeGreaterThanOrEqual(8000);
+    // і далі правило проміжків діє
+    const later = planSpikes(r.state, 9000, 200, rng).spikes;
+    const all = [...r.spikes, ...later];
+    for (let i = 1; i < all.length; i++) expect(all[i].w - all[i - 1].w).toBeGreaterThanOrEqual(spikeBand(200) - 1e-6);
+  });
+});

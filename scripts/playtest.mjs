@@ -23,13 +23,13 @@ function installBot() {
   // безсмертя з чесним підрахунком: справжня логіка шкоди, але життя відновлюються
   const origHurt = s.hurtPlayer.bind(s);
   s.hurtPlayer = function () {
-    if (this.paused || this.dead) return;
+    if (this.paused || this.dead) return false;
     const before = this.health.invulnerableUntil;
     const wouldDie = this.health.lives <= 1 && this.nowMs >= before;
     // перед «смертельним» ударом повертаємо життя — гра йде далі, а смерть записуємо
     if (wouldDie) this.health = { ...this.health, lives: 2 }; // повернули 1 життя, щоб гра йшла далі
-    origHurt();
-    if (this.health.invulnerableUntil === before) return; // невразливість — удару не було
+    const took = origHurt();
+    if (this.health.invulnerableUntil === before) return took; // невразливість — удару не було
     if (wouldDie) report.deaths.push(+this.elapsedSec.toFixed(1));
     const p = this.player;
     let src = '?';
@@ -44,7 +44,19 @@ function installBot() {
       }
     }
     report.hits.push({ t: +this.elapsedSec.toFixed(1), src });
+    return took;
   };
+
+  // фази боса: коли почався і скінчився рій (невразливість), коли лють
+  report.boss = [];
+  let immune = false;
+  s.events.on('hud:boss', (b) => {
+    if (b && b.invulnerable !== immune) {
+      immune = b.invulnerable;
+      report.boss.push(`${immune ? 'swarm' : 'swarmEnd'}@${s.elapsedSec.toFixed(1)}`);
+    }
+  });
+  s.events.on('boss:rage', () => report.boss.push(`rage@${s.elapsedSec.toFixed(1)}`));
 
   const HALF_P = 24;
   const MARGIN = 10; // запас прогнозу, px
@@ -243,7 +255,7 @@ for (const [i, rep] of results.entries()) {
   console.log(`  deaths (with real lives & healing): ${rep.deaths.length ? rep.deaths.join(', ') : 'none'}`);
   console.log(`  hits ${rep.hits.length}:`, JSON.stringify(bySrc));
   console.log(`  hit times:`, rep.hits.map((h) => `${h.t}(${h.src})`).join(' '));
-  console.log(`  boss start ${rep.bossStart ?? '-'}, boss killed ${rep.bossKilled ?? '-'}`);
+  console.log(`  boss start ${rep.bossStart ?? '-'}, boss killed ${rep.bossKilled ?? '-'}, phases: ${rep.boss.join(' ') || '-'}`);
   console.log(`  picks: ${rep.picks.join(', ')}`, 'decisions', JSON.stringify(rep.decisions), 'panicBy', JSON.stringify(rep.panicBy));
   if (rep.errors.length) console.log('  ERRORS:', rep.errors);
 }

@@ -88,6 +88,25 @@ export function planSpikes(state, distancePx, scrollPxPerSec, rng, { combChance 
 }
 
 /**
+ * Пропуск шипів до відстані distancePx (біля боса шипів немає): нічого не ставить,
+ * лише відсуває план, тож після паузи шипи знову йдуть з-над екрана по одному, а не пачкою.
+ */
+export function skipSpikes(state, distancePx, scrollPxPerSec, rng) {
+  const next = { ...state.next };
+  if (next.left < distancePx && next.right < distancePx) {
+    // обидві стіни «прострочені»: одна починає з поточної відстані, друга — щонайменше через band
+    const first = rng() < 0.5 ? 'left' : 'right';
+    const second = first === 'left' ? 'right' : 'left';
+    next[first] = distancePx;
+    next[second] = distancePx + spikeBand(scrollPxPerSec) * (1 + rng());
+  } else {
+    next.left = Math.max(next.left, distancePx);
+    next.right = Math.max(next.right, distancePx);
+  }
+  return { ...state, next };
+}
+
+/**
  * Світова координата, з якої починати планування, щоб на старті екран уже був заповнений шипами,
  * а найнижчий з них дійшов до гравця (playerY) через spikeLeadSec на стартовій швидкості.
  */

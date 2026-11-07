@@ -12,15 +12,16 @@ export function createSpawnState() {
 
 /**
  * Які вороги мають з'явитися на секунді tSec. Не змінює вхідний стан.
- * Під час боса нічого не спавнить і відсуває розклад на один інтервал уперед,
+ * suppressed (біля боса) — нічого не спавнить і відсуває розклад на один інтервал уперед,
  * тож після боса вороги повертаються поступово, а не пачкою.
+ * intervalMul > 1 розтягує інтервали (плавне повернення ворогів після боса).
  */
-export function dueSpawns(state, tSec, bossActive) {
+export function dueSpawns(state, tSec, suppressed, intervalMul = 1) {
   const nextAt = { ...state.nextAt };
   const spawn = [];
   for (const type of TYPES) {
-    const interval = spawnIntervalMs(type, tSec) / 1000;
-    if (bossActive) {
+    const interval = (spawnIntervalMs(type, tSec) / 1000) * intervalMul;
+    if (suppressed) {
       nextAt[type] = Math.max(nextAt[type], tSec + interval);
       continue;
     }

@@ -4,3 +4,4 @@ smoke.png
 .superpowers/
 *.log
 playtest-*.png
+.tmp/
