@@ -25,12 +25,12 @@ import { firstUnavoidableHit, mulberry32 } from './helpers/spikeFeasibility.js';
 /** Генератор шипів так, як його використовує GameScene. */
 const PLAYER_Y = BALANCE.playerYRatio * 1280;
 
-function plannerGenerator(rng) {
+function plannerGenerator(rng, opts) {
   let state = null;
   return ({ tSec, distancePx }) => {
     const scroll = scrollSpeed(tSec, false);
     if (!state) state = createSpikeState(prefillStartWorld(distancePx, PLAYER_Y), rng);
-    const r = planSpikes(state, distancePx, scroll, rng);
+    const r = planSpikes(state, distancePx, scroll, rng, opts);
     state = r.state;
     return r.spikes.map((s) => ({ side: s.side, y: -BALANCE.spikeHeight / 2 + (distancePx - s.w) }));
   };
@@ -70,9 +70,44 @@ describe('two-wall spike planner', () => {
     }
     expect(all.length).toBeGreaterThan(50);
     const band = spikeBand(200);
+    let combs = 0;
     for (let i = 1; i < all.length; i++) {
-      expect(all[i].w).toBeGreaterThanOrEqual(all[i - 1].w); // у порядку появи
-      expect(all[i].w - all[i - 1].w).toBeGreaterThanOrEqual(band - 1e-9);
+      const [a, b] = [all[i - 1], all[i]];
+      expect(b.w).toBeGreaterThanOrEqual(a.w); // у порядку появи
+      if (a.comb && b.comb && a.side === b.side && b.w - a.w === BALANCE.spikeHeight) continue; // всередині гребінки
+      if (b.comb) combs += 1;
+      expect(b.w - a.w).toBeGreaterThanOrEqual(band - 1e-9);
+    }
+    expect(combs).toBeGreaterThan(0);
+  });
+
+  test('comb: 4–6 adjacent spikes on one wall, the other wall stays free around it', () => {
+    const rng = mulberry32(11);
+    let state = createSpikeState(0, rng);
+    const all = [];
+    for (let d = 0; d < 60000; d += 5) {
+      const r = planSpikes(state, d, 200, rng, { combChance: 0.5 });
+      state = r.state;
+      all.push(...r.spikes);
+    }
+    const band = spikeBand(200);
+    const combs = [];
+    for (const sp of all) {
+      const last = combs[combs.length - 1];
+      if (sp.comb && last && last.side === sp.side && sp.w - last.end === BALANCE.spikeHeight) last.end = sp.w;
+      else if (sp.comb) combs.push({ side: sp.side, start: sp.w, end: sp.w });
+    }
+    expect(combs.length).toBeGreaterThan(5);
+    for (const c of combs) {
+      const n = Math.round((c.end - c.start) / BALANCE.spikeHeight) + 1;
+      expect(n).toBeGreaterThanOrEqual(BALANCE.spikeComb.minCount);
+      expect(n).toBeLessThanOrEqual(BALANCE.spikeComb.maxCount);
+      const clash = all.filter((sp) => sp.side !== c.side && sp.w > c.start - band && sp.w < c.end + band);
+      expect(clash).toEqual([]);
+    }
+    // гребінки не частіше ніж раз на minGapSec
+    for (let i = 1; i < combs.length; i++) {
+      expect(combs[i].start - combs[i - 1].end).toBeGreaterThanOrEqual(BALANCE.spikeComb.minGapSec * 200 - 1e-9);
     }
   });
 
@@ -82,6 +117,10 @@ describe('two-wall spike planner', () => {
 
   test.each([1, 2, 3])('perfect play survives 2:05 of spikes (seed %i)', (seed) => {
     expect(firstUnavoidableHit(plannerGenerator(mulberry32(seed)), 125)).toBeNull();
+  }, 60000);
+
+  test.each([4, 5])('perfect play survives 2:05 of spikes with frequent combs (seed %i)', (seed) => {
+    expect(firstUnavoidableHit(plannerGenerator(mulberry32(seed), { combChance: 0.6 }), 125)).toBeNull();
   }, 60000);
 });
 

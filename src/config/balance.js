@@ -11,7 +11,7 @@ function deepFreeze(obj) {
 export const BALANCE = deepFreeze({
   // Прокрутка світу (px/s)
   scrollBase: 120,
-  scrollGrowth: 1.5, // приріст px/s за кожну секунду гри
+  scrollGrowth: 1.1, // приріст px/s за кожну секунду гри (v2: було 1.5 — гравці гинули одразу після 1-ї хвилини)
   maxScrollSpeed: 520,
   bossScrollFactor: 0.3,
 
@@ -23,6 +23,10 @@ export const BALANCE = deepFreeze({
   playerYRatio: 0.7, // частка висоти екрана, на якій тримається гравець
   jumpDurationMs: 380,
   jumpArcPx: 80, // наскільки слизак підлітає вгору посеред стрибка
+  // Утримання пальця: стрибок стартує одразу, а поки палець тримається (до holdMaxMs) — подовжується і росте вгору
+  holdMaxMs: 260,
+  holdDurationMul: 1.6, // політ при повному утриманні: ×1.6 від jumpDurationMs
+  holdArcMul: 2.2, // дуга при повному утриманні: ×2.2 від jumpArcPx
   maxLives: 3, // специфікація: 2; бот-плейтест показав, що з 2 до боса доживає хіба ідеальний гравець
   invulnerableMs: 5000,
   healPerLevel: 1, // скільки життів повертає кожен новий рівень (не більше maxLives)
@@ -33,19 +37,23 @@ export const BALANCE = deepFreeze({
   spikeHeight: 40,
   spikeSlackSec: 0.25, // запас на реакцію людини понад тривалість стрибка між сусідніми шипами
   spikeLeadSec: 2.5, // на старті екран уже заповнений шипами; перший доходить до слизака за стільки секунд
+  // «Гребінка»: кілька шипів впритул на одній стіні, протилежна стіна в цей час вільна — треба лишитися на ній
+  spikeComb: { chance: 0.12, minCount: 4, maxCount: 6, minGapSec: 8 },
 
   // Зброя гравця
   fireIntervalMs: 1000,
   minFireIntervalMs: 250,
   projectileDamage: 1,
-  projectileSpeed: 520,
+  projectileSpeed: 572, // v2: +10% влучності (було 520)
+  projectileHitboxMul: 1.1, // v2: +10% влучності — хітбокс снаряда більший
   offscreenMarginPx: 100, // за цією межею від краю екрана снаряди й вороги знищуються
 
   // Вороги: hp, досвід, очки, з якої секунди з'являються, швидкості
   enemies: {
-    lion: { hp: 4, xp: 5, points: 50, from: 10, speed: 90, lungeSpeed: 420, windupMs: 500 },
-    bat: { hp: 1, xp: 2, points: 20, from: 30, speed: 260 },
-    plant: { hp: 2, xp: 3, points: 30, from: 45, fireMs: 2500, bulletSpeed: 220 },
+    // лев: біг пришвидшено (було 90), ривок стартує, коли лев на lungeBelowPx нижче за гравця (раніше — на середині екрана, і його встигали вбити до ривку)
+    lion: { hp: 4, xp: 5, points: 50, from: 10, speed: 150, lungeSpeed: 480, windupMs: 450, lungeBelowPx: 220, biteRangePx: 130 },
+    bat: { hp: 1, xp: 2, points: 20, from: 30, speed: 312 }, // v2: +20% (було 260)
+    plant: { hp: 4, xp: 3, points: 30, from: 45, fireMs: 2500, bulletSpeed: 264 }, // v2: hp 2→4, куля +20%
     smallSpider: { hp: 1, xp: 1, points: 10, speed: 150 },
   },
   boss: {
@@ -75,7 +83,8 @@ export const BALANCE = deepFreeze({
   xpGrowth: 1.4,
 
   // Картки поліпшень
-  cards: { attackSpeedFactor: 0.85, slowFactor: 0.6, slowBaseMs: 2000, slowStepMs: 1000 },
+  // damageFirst — перше взяття «Урону», damageNext — кожне наступне
+  cards: { attackSpeedFactor: 0.85, slowFactor: 0.6, slowBaseMs: 2000, slowStepMs: 1000, damageFirst: 1, damageNext: 2 },
 
   // Захист від довгих кадрів (повернення з фону)
   maxDeltaMs: 50,

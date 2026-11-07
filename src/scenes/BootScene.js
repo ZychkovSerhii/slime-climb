@@ -7,7 +7,8 @@ const TEXTURES = {
   wall: { w: 60, h: 64, draw: drawWall },
   spike: { w: 40, h: 40, draw: drawSpike },
   projectile: { w: 16, h: 16, draw: (g) => circle(g, 0x9cff57, 8) },
-  lion: { w: 56, h: 56, draw: (g) => box(g, 0xd9a03b, 56, 56) },
+  lion: { w: 56, h: 56, draw: (g) => pixels(g, LIONESS, LION_PAL, 4) },
+  lionBite: { w: 56, h: 56, draw: (g) => pixels(g, LIONESS_BITE, LION_PAL, 4) },
   bat: { w: 40, h: 28, draw: (g) => box(g, 0x6b4f8a, 40, 28) },
   plant: { w: 44, h: 44, draw: (g) => box(g, 0x2f8f3a, 44, 44) },
   plantBullet: { w: 14, h: 14, draw: (g) => circle(g, 0xb7ff3b, 7) },
@@ -16,6 +17,53 @@ const TEXTURES = {
   shadow: { w: 120, h: 40, draw: drawShadow },
   heart: { w: 32, h: 28, draw: drawHeart },
 };
+
+// Левиця боком, мордою праворуч (14×14, піксель = 4 px). Повний піксель-арт — етап 3.
+const LION_PAL = { b: 0xd9a35b, d: 0xa8743a, e: 0x1a1a1a, n: 0x5a3a20, w: 0xffffff, m: 0x8a2020 };
+const LIONESS = [
+  '..............',
+  '..............',
+  '..........dd..',
+  '.........bbbb.',
+  '.d.......bbebb',
+  'd.bbbbbbbbbbbn',
+  '.bbbbbbbbbbbb.',
+  '.bbbbbbbbbbb..',
+  '..bbbbbbbbb...',
+  '..bd.....db...',
+  '..b.......b...',
+  '.dd......dd...',
+  '..............',
+  '..............',
+];
+// у стрибку: паща відкрита, лапи витягнуті
+const LIONESS_BITE = [
+  '..............',
+  '..........dd..',
+  '.........bbbb.',
+  '.d.......bbebb',
+  'd.bbbbbbbbbbbn',
+  '.bbbbbbbbbbww.',
+  '.bbbbbbbbbbm..',
+  '.bbbbbbbbbbww.',
+  'db.......bd...',
+  'b.........bd..',
+  '...........d..',
+  '..............',
+  '..............',
+  '..............',
+];
+
+/** Малює піксель-арт: rows — рядки однакової довжини, символ → колір з pal, '.' — прозоро. */
+function pixels(g, rows, pal, scale) {
+  rows.forEach((row, y) => {
+    [...row].forEach((ch, x) => {
+      if (ch === '.') return;
+      g.fillStyle(pal[ch], 1);
+      g.fillRect(x * scale, y * scale, scale, scale);
+    });
+  });
+}
 
 function box(g, color, w, h) {
   g.fillStyle(color, 1);

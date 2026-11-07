@@ -3,10 +3,10 @@ import { scrollSpeed, spawnIntervalMs } from '../src/systems/Difficulty.js';
 
 describe('scrollSpeed', () => {
   test('starts at scrollBase', () => expect(scrollSpeed(0, false)).toBe(120));
-  test('grows linearly with time', () => expect(scrollSpeed(100, false)).toBe(270));
+  test('grows linearly with time', () => expect(scrollSpeed(100, false)).toBeCloseTo(230, 9));
   test('is capped at maxScrollSpeed', () => expect(scrollSpeed(10000, false)).toBe(520));
   test('is slowed by bossScrollFactor while boss is active', () =>
-    expect(scrollSpeed(100, true)).toBe(81));
+    expect(scrollSpeed(100, true)).toBeCloseTo(69, 9));
 });
 
 describe('spawnIntervalMs', () => {

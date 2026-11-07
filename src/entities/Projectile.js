@@ -15,7 +15,12 @@ export default class Projectile extends Phaser.Physics.Arcade.Image {
   }
 
   /** Запуск у точку (tx, ty). Викликати після додавання у фізичну групу. */
-  launch(tx, ty, speed) {
+  launch(tx, ty, speed, hitboxMul = 1) {
+    if (hitboxMul !== 1) {
+      // коло хітбокса більше за текстуру, з центром там само
+      const r = (Math.min(this.width, this.height) / 2) * hitboxMul;
+      this.body.setCircle(r, this.width / 2 - r, this.height / 2 - r);
+    }
     const angle = Phaser.Math.Angle.Between(this.x, this.y, tx, ty);
     this.scene.physics.velocityFromRotation(angle, speed, this.body.velocity);
     return this;

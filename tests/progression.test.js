@@ -79,8 +79,12 @@ describe('cards', () => {
     expect(applyCard(near, 'attackSpeed').weapon.fireIntervalMs).toBe(250);
   });
 
-  test('damage: +1', () => {
-    expect(applyCard(createProgression(), 'damage').weapon.damage).toBe(2);
+  test('damage: first pick +1, every next pick +2', () => {
+    const p1 = applyCard(createProgression(), 'damage');
+    expect(p1.weapon.damage).toBe(2);
+    const p2 = applyCard(p1, 'damage');
+    expect(p2.weapon.damage).toBe(4);
+    expect(applyCard(p2, 'damage').weapon.damage).toBe(6);
   });
 
   test('slow: first pick 0.6 for 2000 ms, next pick +1000 ms', () => {

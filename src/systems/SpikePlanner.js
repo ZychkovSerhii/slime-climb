@@ -32,16 +32,30 @@ export function createSpikeState(startWorld, rng) {
   return {
     next: { left: startWorld, right: startWorld + spikeBand(BALANCE.scrollBase) * (1 + rng()) },
     lastW: -Infinity,
+    // перша гребінка — не раніше ніж через minGapSec від старту
+    lastCombW: startWorld,
   };
+}
+
+/**
+ * «Гребінка»: count шипів впритул на стіні side, починаючи з w. Для правил проміжків уся гребінка —
+ * як один довгий шип: перед нею і після неї — щонайменше band, а протилежна стіна вільна на весь її час.
+ */
+function combSpikes(side, w, count) {
+  const out = [];
+  for (let i = 0; i < count; i++) out.push({ side, w: w + i * BALANCE.spikeHeight, comb: true });
+  return out;
 }
 
 /**
  * Шипи, що мають з'явитися до відстані distancePx, у порядку появи: [{ side, w }].
  * Сусідні шипи (будь-яких стін) розділені щонайменше spikeBand; на одній стіні — 1×…2× band.
  */
-export function planSpikes(state, distancePx, scrollPxPerSec, rng) {
+export function planSpikes(state, distancePx, scrollPxPerSec, rng, { combChance = BALANCE.spikeComb.chance } = {}) {
   const next = { ...state.next };
   let lastW = state.lastW;
+  let lastCombW = state.lastCombW ?? -Infinity;
+  const C = BALANCE.spikeComb;
   const band = spikeBand(scrollPxPerSec);
   const spikes = [];
   for (;;) {
@@ -54,11 +68,23 @@ export function planSpikes(state, distancePx, scrollPxPerSec, rng) {
       next[side] = lastW + band;
       continue;
     }
+    const other = side === 'left' ? 'right' : 'left';
+    if (w - lastCombW >= C.minGapSec * scrollPxPerSec && rng() < combChance) {
+      const count = C.minCount + Math.floor(rng() * (C.maxCount - C.minCount + 1));
+      const comb = combSpikes(side, w, count);
+      spikes.push(...comb);
+      lastW = comb[comb.length - 1].w;
+      lastCombW = lastW;
+      // протилежна стіна вільна від початку гребінки до її кінця + band
+      next[other] = Math.max(next[other], lastW + band);
+      next[side] = lastW + nextSpikeGap(scrollPxPerSec, rng);
+      continue;
+    }
     spikes.push({ side, w });
     lastW = w;
     next[side] = w + nextSpikeGap(scrollPxPerSec, rng);
   }
-  return { state: { next, lastW }, spikes };
+  return { state: { next, lastW, lastCombW }, spikes };
 }
 
 /**
