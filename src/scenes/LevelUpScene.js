@@ -1,16 +1,17 @@
 import * as Phaser from 'phaser';
 import { BALANCE } from '../config/balance.js';
+import { damageCardBonus } from '../systems/Progression.js';
 
 // Верстка карток (px базової роздільності)
 const CARD = { w: 560, h: 190, gap: 36 };
 
-function cardText(id) {
+function cardText(id, picks) {
   const c = BALANCE.cards;
   switch (id) {
     case 'attackSpeed':
       return { title: 'Швидкість атаки', desc: `постріл частіше на ${Math.round((1 - c.attackSpeedFactor) * 100)}%` };
     case 'damage':
-      return { title: 'Урон', desc: '+1 шкоди кожним пострілом' };
+      return { title: 'Урон', desc: `+${damageCardBonus({ picks })} шкоди кожним пострілом` };
     case 'slow':
       return {
         title: 'Сповільнення',
@@ -27,7 +28,7 @@ export default class LevelUpScene extends Phaser.Scene {
     super('LevelUp');
   }
 
-  create({ cards = [] } = {}) {
+  create({ cards = [], picks = {} } = {}) {
     // зміна розміру екрана → перебудувати екран
     const onResize = () => this.scene.restart(this.sys.settings.data);
     this.scale.once(Phaser.Scale.Events.RESIZE, onResize);
@@ -44,7 +45,7 @@ export default class LevelUpScene extends Phaser.Scene {
     // перші tapGuardMs тапи ігноруються: другий тап «подвійного тапу» не має вибрати картку наосліп
     const openedAt = this.game.loop.time;
     for (const id of cards) {
-      const { title, desc } = cardText(id);
+      const { title, desc } = cardText(id, picks);
       const bg = this.add.rectangle(width / 2, y, CARD.w, CARD.h, 0x24402a).setStrokeStyle(4, 0x9cff57);
       this.add.text(width / 2, y - 40, title, { fontFamily: 'sans-serif', fontSize: '44px', color: '#ffffff' }).setOrigin(0.5);
       this.add

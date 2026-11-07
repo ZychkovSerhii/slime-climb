@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
 import { browserStorage, loadHighScore } from '../systems/HighScore.js';
+import { isMuted, setMuted, sfx } from '../systems/Audio.js';
 
 /** Стартовий екран: назва, рекорд, «Тапни, щоб почати». */
 export default class MenuScene extends Phaser.Scene {
@@ -24,6 +25,23 @@ export default class MenuScene extends Phaser.Scene {
     const hint = this.add.text(cx, height * 0.7, 'Тапни, щоб почати', style(44)).setOrigin(0.5);
     this.tweens.add({ targets: hint, alpha: 0.35, duration: 700, yoyo: true, repeat: -1 });
 
-    this.input.once('pointerdown', () => this.scene.start('Game'));
+    const soundLabel = () => `Звук: ${isMuted() ? 'вимк.' : 'увімк.'}`;
+    const soundBtn = this.add
+      .text(cx, height * 0.86, soundLabel(), { ...style(36, '#cfe8cf'), backgroundColor: '#00000066', padding: { x: 24, y: 12 } })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
+    soundBtn.on('pointerdown', () => {
+      setMuted(!isMuted());
+      soundBtn.setText(soundLabel());
+      sfx('jump');
+    });
+
+    // тап будь-де, крім кнопки звуку, — старт гри
+    let started = false;
+    this.input.on('pointerdown', (pointer, over) => {
+      if (started || over.includes(soundBtn)) return;
+      started = true;
+      this.scene.start('Game');
+    });
   }
 }

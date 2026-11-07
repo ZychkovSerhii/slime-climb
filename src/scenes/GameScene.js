@@ -9,6 +9,7 @@ import { applyDamage, createHealth, heal } from '../systems/Health.js';
 import { createSpikeState, planSpikes, prefillStartWorld } from '../systems/SpikePlanner.js';
 import { heightPoints, killPoints } from '../systems/Score.js';
 import { interceptPoint, pickNearest } from '../systems/Targeting.js';
+import { sfx } from '../systems/Audio.js';
 import Player from '../entities/Player.js';
 import Spike from '../entities/Spike.js';
 import Projectile from '../entities/Projectile.js';
@@ -82,10 +83,12 @@ export default class GameScene extends Phaser.Scene {
       if (this.paused || !proj.active || !enemy.active) return;
       enemy.takeHit(proj.damage, proj.slow, this.nowMs);
       proj.destroy();
+      if (enemy.active) sfx('hit');
     });
 
     const onKilled = ({ type }) => {
       if (this.dead) return;
+      sfx('kill');
       this.killScore += killPoints(type);
       if (type === 'boss') this.onBossKilled();
       const r = addXp(this.progression, killXp(type));
@@ -107,8 +110,12 @@ export default class GameScene extends Phaser.Scene {
 
     this.input.on('pointerdown', () => {
       if (this.paused || this.dead || this.game.loop.time < this.inputBlockedUntil) return;
-      this.player.jump();
+      this.player.press();
     });
+    // відпускання рахуємо завжди: інакше утримання «застрягне», якщо палець підняли під час паузи
+    this.input.on('pointerup', () => this.player.release());
+    this.player.on('jumped', () => sfx('jump'));
+    this.player.on('reversed', () => sfx('reverse'));
 
     this.spawnSpikes(); // шипи видно з першого кадру
 
@@ -153,7 +160,8 @@ export default class GameScene extends Phaser.Scene {
   openLevelUp() {
     this.levelUpOpen = true;
     this.setPaused(true);
-    this.scene.launch('LevelUp', { cards: rollCards(this.progression, Math.random) });
+    sfx('levelUp');
+    this.scene.launch('LevelUp', { cards: rollCards(this.progression, Math.random), picks: this.progression.picks });
   }
 
   onCardPicked(id) {
@@ -162,7 +170,7 @@ export default class GameScene extends Phaser.Scene {
     this.levelUpQueue = Math.max(this.levelUpQueue - 1, 0);
     this.emitHud();
     if (this.levelUpQueue > 0) {
-      this.scene.launch('LevelUp', { cards: rollCards(this.progression, Math.random) });
+      this.scene.launch('LevelUp', { cards: rollCards(this.progression, Math.random), picks: this.progression.picks });
       return;
     }
     this.levelUpOpen = false;
@@ -226,11 +234,13 @@ export default class GameScene extends Phaser.Scene {
     if (!r.tookDamage) return;
     if (r.died) {
       this.dead = true;
+      sfx('gameOver');
       this.emitHud();
       this.scene.stop('Hud');
       this.scene.start('GameOver', { score: this.score, timeSec: this.elapsedSec });
       return;
     }
+    sfx('hurt');
     this.blink();
   }
 
@@ -286,7 +296,8 @@ export default class GameScene extends Phaser.Scene {
     this.playerProjectiles.add(proj);
     const { vx, vy } = target.screenVelocity(this.currentScroll);
     const aim = interceptPoint(this.player, { x: target.x, y: target.y, vx, vy }, BALANCE.projectileSpeed);
-    proj.launch(aim.x, aim.y, BALANCE.projectileSpeed);
+    proj.launch(aim.x, aim.y, BALANCE.projectileSpeed, BALANCE.projectileHitboxMul);
+    sfx('shoot');
     this.fireCooldownMs = this.weapon.fireIntervalMs;
   }
 
@@ -360,6 +371,7 @@ export default class GameScene extends Phaser.Scene {
     this.currentScroll = scrollSpeed(this.elapsedSec, this.bossActive);
     const dy = (this.currentScroll * dt) / 1000;
     this.distancePx += dy;
+    this.player.step(dt);
     this.scrollObjects(dy);
     this.spawnSpikes();
     if (shouldStartBoss(this.elapsedSec, this.bossState, this.bossAtSec)) this.startBoss();

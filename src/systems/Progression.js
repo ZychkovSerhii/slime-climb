@@ -44,6 +44,11 @@ export function rollCards(p, rng, n = 3) {
   return out;
 }
 
+/** Скільки шкоди додасть наступна картка «Урон»: перша +damageFirst, кожна наступна +damageNext. */
+export function damageCardBonus(p) {
+  return (p.picks.damage ?? 0) === 0 ? BALANCE.cards.damageFirst : BALANCE.cards.damageNext;
+}
+
 /** Застосовує картку до зброї. Не змінює вхід. */
 export function applyCard(p, id) {
   const w = { ...p.weapon };
@@ -51,7 +56,7 @@ export function applyCard(p, id) {
   if (id === 'attackSpeed') {
     w.fireIntervalMs = Math.max(Math.round(w.fireIntervalMs * c.attackSpeedFactor), BALANCE.minFireIntervalMs);
   } else if (id === 'damage') {
-    w.damage += 1;
+    w.damage += damageCardBonus(p);
   } else if (id === 'slow') {
     w.slow = w.slow
       ? { ...w.slow, durationMs: w.slow.durationMs + c.slowStepMs }
