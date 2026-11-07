@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 import { BALANCE } from '../config/balance.js';
 import Enemy from './Enemy.js';
+import { animKey } from '../art/sprites/index.js';
 
 const CFG = BALANCE.enemies.bat;
 
@@ -8,11 +9,13 @@ const CFG = BALANCE.enemies.bat;
 export default class Bat extends Enemy {
   constructor(scene) {
     const { width } = scene.scale;
-    const tex = scene.textures.get('bat').getSourceImage();
+    const tex = scene.textures.getFrame('bat');
     const minX = BALANCE.wallWidth + tex.width / 2;
     const x = Phaser.Math.FloatBetween(minX, width - minX);
     super(scene, x, -tex.height / 2, 'bat', 'bat');
     this.scrollsWithWorld = false;
+    // різний стартовий кадр — зграя не махає крилами синхронно
+    this.play({ key: animKey('bat', 'fly'), startFrame: Phaser.Math.Between(0, 1) });
   }
 
   preUpdate(time, delta) {

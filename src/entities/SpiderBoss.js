@@ -3,6 +3,7 @@ import { attackTimings, isRage, pickRageAt, pickStrikeX, shouldStartSwarm } from
 import { sfx } from '../systems/Audio.js';
 import Enemy from './Enemy.js';
 import Swarm from './Swarm.js';
+import { animKey } from '../art/sprites/index.js';
 
 const B = BALANCE.boss;
 const WEB_COLOR = 0xdddddd;
@@ -22,7 +23,7 @@ const ARRIVE_PX = 6;
 export default class SpiderBoss extends Enemy {
   constructor(scene) {
     const { width } = scene.scale;
-    const tex = scene.textures.get('spider').getSourceImage();
+    const tex = scene.textures.getFrame('spider');
     super(scene, width / 2, -tex.height / 2, 'spider', 'boss');
     this.scrollsWithWorld = false;
     this.maxHp = this.hp;
@@ -36,6 +37,7 @@ export default class SpiderBoss extends Enemy {
     this.swarm = new Swarm(scene, () => this.endSwarm());
     this.state = 'enter';
     this.stateUntil = 0;
+    this.play(animKey('spider', 'legs'));
   }
 
   get laneMin() {

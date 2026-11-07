@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 import { BALANCE } from '../config/balance.js';
 import Enemy from './Enemy.js';
+import { animKey } from '../art/sprites/index.js';
 
 const CFG = BALANCE.enemies.smallSpider;
 
@@ -14,6 +15,7 @@ export default class SmallSpider extends Enemy {
     this.scrollsWithWorld = false;
     this.controlled = controlled;
     this.poisons = controlled;
+    this.play({ key: animKey('smallSpider', 'crawl'), startFrame: Phaser.Math.Between(0, 1) });
   }
 
   preUpdate(time, delta) {

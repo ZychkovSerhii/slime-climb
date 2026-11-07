@@ -18,6 +18,7 @@ import Lion from '../entities/Lion.js';
 import Bat from '../entities/Bat.js';
 import Plant from '../entities/Plant.js';
 import SpiderBoss from '../entities/SpiderBoss.js';
+import { background } from '../art/textures.js';
 
 const POISON_TINT = 0xb0d040; // слизак і так зелений — під отрутою він темніший, болотний
 const FADE_MS = 600; // шипи й вороги плавно зникають перед босом
@@ -32,6 +33,8 @@ export default class GameScene extends Phaser.Scene {
 
     // Clock.paused не скидається Phaser при перезапуску сцени — скидаємо самі
     this.time.paused = false;
+    // менеджер анімацій спільний для всієї гри — після виходу з паузи в меню його треба відпустити
+    this.anims.resumeAll();
     this.elapsedSec = 0;
     this.distancePx = 0;
     this.currentScroll = scrollSpeed(0, false);
@@ -62,8 +65,12 @@ export default class GameScene extends Phaser.Scene {
     // рослини сідають на місце чергового запланованого шипа — так на них теж діють правила проміжків
     this.pendingPlants = 0;
 
-    // Стіни — тайлові спрайти, «рух» імітується зсувом текстури
+    // Фон біому між стінами: тайловий, їде повільніше за стіни (паралакс)
     const w = BALANCE.wallWidth;
+    this.bgInfo = background('bg');
+    this.bg = this.add.tileSprite(width / 2, height / 2, width - 2 * w, height, 'bg');
+
+    // Стіни — тайлові спрайти, «рух» імітується зсувом текстури
     this.walls = this.add.group();
     const left = this.add.tileSprite(w / 2, height / 2, w, height, 'wall');
     const right = this.add.tileSprite(width - w / 2, height / 2, w, height, 'wall').setFlipX(true);
@@ -211,9 +218,11 @@ export default class GameScene extends Phaser.Scene {
     if (paused) {
       this.physics.pause();
       this.tweens.pauseAll();
+      this.anims.pauseAll();
     } else {
       this.physics.resume();
       this.tweens.resumeAll();
+      this.anims.resumeAll();
     }
     this.time.paused = paused;
   }
@@ -231,6 +240,7 @@ export default class GameScene extends Phaser.Scene {
     }
     const w = BALANCE.wallWidth;
     const [left, right] = this.walls.getChildren();
+    this.bg.setSize(width - 2 * w, height).setPosition(width / 2, height / 2);
     left.setSize(w, height).setPosition(w / 2, height / 2);
     right.setSize(w, height).setPosition(width - w / 2, height / 2);
     this.player.relayout();
@@ -441,6 +451,7 @@ export default class GameScene extends Phaser.Scene {
     for (const wall of this.walls.getChildren()) {
       wall.tilePositionY -= dy;
     }
+    this.bg.tilePositionY -= dy * this.bgInfo.parallax;
   }
 
   update(time, delta) {

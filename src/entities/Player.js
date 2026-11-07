@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
 import { BALANCE } from '../config/balance.js';
+import { animKey } from '../art/sprites/index.js';
 import { createJump, jumpPosition, releaseJump, reverseJump, stepJump } from '../systems/Jump.js';
 
 /**
@@ -21,6 +22,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     this.speedMul = 1; // > 1 — стрибки швидші (картки, ефекти)
     this.baseY = this.y;
     this.x = this.wallX(this.side);
+    this.play(animKey('slime', 'idle'));
   }
 
   get isJumping() {
@@ -66,6 +68,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
 
   startJump(holding) {
     this.jumpState = createJump(this.side, { holding });
+    this.play(animKey('slime', 'jump'));
     this.emit('jumped');
   }
 
@@ -78,6 +81,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
       this.x = this.wallX(this.side);
       this.y = this.baseY;
       this.setFlipX(this.side === 'right');
+      this.play(animKey('slime', 'idle'));
       this.emit('landed');
       return;
     }
