@@ -1,12 +1,15 @@
 import * as Phaser from 'phaser';
 import { BALANCE } from '../config/balance.js';
-import { scrollSpeed } from '../systems/Difficulty.js';
+import { scrollSpeed, spawnIntervalMs } from '../systems/Difficulty.js';
 import { clampDelta } from '../systems/Time.js';
 import { applyDamage, createHealth } from '../systems/Health.js';
 import { minSpikeGap, nextSpikeGap } from '../systems/SpikePlanner.js';
-import { heightPoints } from '../systems/Score.js';
+import { heightPoints, killPoints } from '../systems/Score.js';
+import { interceptPoint, pickNearest } from '../systems/Targeting.js';
 import Player from '../entities/Player.js';
 import Spike from '../entities/Spike.js';
+import Projectile from '../entities/Projectile.js';
+import Lion from '../entities/Lion.js';
 
 // Межа під екраном, за якою об'єкти знищуються (px)
 const DESPAWN_MARGIN = 100;
@@ -31,6 +34,11 @@ export default class GameScene extends Phaser.Scene {
     this.xpToNext = BALANCE.xpBase;
     this.lastHud = '';
     this.dead = false;
+    // Зброя гравця; картки поліпшень (Task 8) змінюють ці поля
+    this.weapon = { fireIntervalMs: BALANCE.fireIntervalMs, damage: BALANCE.projectileDamage, slow: null };
+    this.fireCooldownMs = 0;
+    // Тимчасовий спавн лева (у Task 7 переїде в Spawner)
+    this.nextLionAt = BALANCE.enemies.lion.from;
     // y наступного шипа для кожної стіни (координати екрана; їде вниз разом зі світом)
     this.nextSpikeY = { left: -BALANCE.spikeHeight, right: -BALANCE.spikeHeight - minSpikeGap(this.currentScroll) * Math.random() };
 
@@ -54,6 +62,18 @@ export default class GameScene extends Phaser.Scene {
     this.physics.add.overlap(this.player, this.hazards, hurt);
     this.physics.add.overlap(this.player, this.enemies, hurt);
     this.physics.add.overlap(this.player, this.enemyProjectiles, hurt);
+
+    this.physics.add.overlap(this.playerProjectiles, this.enemies, (proj, enemy) => {
+      if (!proj.active || !enemy.active) return;
+      enemy.takeHit(proj.damage, proj.slow, this.nowMs);
+      proj.destroy();
+    });
+
+    const onKilled = ({ type }) => {
+      this.killScore += killPoints(type);
+    };
+    this.events.on('enemy:killed', onKilled);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.events.off('enemy:killed', onKilled));
 
     this.scene.launch('Hud');
 
@@ -161,6 +181,40 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
+  /** Вороги, видимі на екрані й живі — кандидати в цілі. */
+  visibleEnemies() {
+    return this.enemies.getChildren().filter((e) => e.active && e.hp > 0 && e.isOnScreen());
+  }
+
+  autoFire(dt) {
+    this.fireCooldownMs = Math.max(this.fireCooldownMs - dt, 0);
+    if (this.fireCooldownMs > 0) return;
+    const target = pickNearest(this.player, this.visibleEnemies());
+    if (!target) return; // без ворогів не стріляємо; постріл одразу, щойно ворог з'явиться
+    const proj = new Projectile(this, this.player.x, this.player.y, 'projectile', {
+      damage: this.weapon.damage,
+      slow: this.weapon.slow,
+    });
+    this.playerProjectiles.add(proj);
+    const { vx, vy } = target.screenVelocity(this.currentScroll);
+    const aim = interceptPoint(this.player, { x: target.x, y: target.y, vx, vy }, BALANCE.projectileSpeed);
+    proj.launch(aim.x, aim.y, BALANCE.projectileSpeed);
+    this.fireCooldownMs = this.weapon.fireIntervalMs;
+  }
+
+  spawnEnemy(enemy) {
+    this.enemies.add(enemy);
+    enemy.spawned();
+    return enemy;
+  }
+
+  /** Тимчасово: лев кожні spawnIntervalMs('lion') з enemies.lion.from. */
+  spawnLions() {
+    if (this.elapsedSec < this.nextLionAt) return;
+    this.spawnEnemy(new Lion(this, Math.random() < 0.5 ? 'left' : 'right'));
+    this.nextLionAt = this.elapsedSec + spawnIntervalMs('lion', this.elapsedSec) / 1000;
+  }
+
   emitHud() {
     const s = {
       timeSec: this.elapsedSec,
@@ -181,6 +235,7 @@ export default class GameScene extends Phaser.Scene {
     const limit = this.scale.height + DESPAWN_MARGIN;
     for (const group of this.scrollingGroups) {
       for (const obj of group.getChildren().slice()) {
+        if (obj.scrollsWithWorld === false) continue;
         obj.y += dy;
         if (obj.y > limit) obj.destroy();
       }
@@ -199,6 +254,8 @@ export default class GameScene extends Phaser.Scene {
     this.distancePx += dy;
     this.scrollObjects(dy);
     this.spawnSpikes(dy);
+    this.spawnLions();
+    this.autoFire(dt);
     this.emitHud();
   }
 }
