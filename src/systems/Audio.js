@@ -2,6 +2,8 @@
 // AudioContext створюється ліниво на першому sfx(): браузер/WebView дозволяє звук лише після дотику,
 // а перший звук у грі завжди йде після тапу.
 
+import { TRACKS, parsePattern, trackSteps } from './Music.js';
+
 const MUTE_KEY = 'slime-climb:muted';
 
 /** Частота ноти за номером MIDI (69 = A4 = 440 Гц). */
@@ -30,6 +32,22 @@ export const SOUNDS = {
     { noise: true, ms: 60, vol: 0.14 },
     { wave: 'square', from: 160, to: 90, ms: 90, vol: 0.12, at: 20 },
   ],
+  // поява боса: низьке зловісне «вууу»
+  bossAppear: [
+    { wave: 'sawtooth', from: 110, to: 55, ms: 900, vol: 0.18 },
+    { wave: 'triangle', from: 220, to: 110, ms: 700, vol: 0.2, at: 250 },
+  ],
+  // павучисі боляче: вереск униз + шум
+  bossPain: [
+    { wave: 'sawtooth', from: 1100, to: 300, ms: 420, vol: 0.14, vibrato: 18 },
+    { noise: true, ms: 180, vol: 0.1 },
+  ],
+  // рій вилітає: дзижчання
+  swarm: [{ wave: 'square', from: 170, to: 230, ms: 450, vol: 0.06, vibrato: 40 }],
+  poison: [
+    { wave: 'triangle', from: 420, to: 210, ms: 160, vol: 0.14 },
+    { wave: 'triangle', from: 300, to: 150, ms: 220, vol: 0.12, at: 140 },
+  ],
   levelUp: [60, 64, 67, 72].map((n, i) => ({ wave: 'square', from: midiToHz(n), to: midiToHz(n), ms: 90, vol: 0.1, at: i * 85 })),
   // сумне «ту-ту-ту-туууу»: три короткі ноти вниз по півтону і довга остання з вібрато
   gameOver: [
@@ -47,6 +65,7 @@ export function soundLengthMs(name) {
 
 let ctx = null;
 let master = null;
+let musicBus = null;
 let noiseBuf = null;
 let muted = null;
 const lastPlayed = {};
@@ -84,18 +103,20 @@ function ensureContext() {
   master = ctx.createGain();
   master.gain.value = isMuted() ? 0 : 1;
   master.connect(ctx.destination);
+  musicBus = ctx.createGain();
+  musicBus.connect(master);
   noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 0.5, ctx.sampleRate);
   const data = noiseBuf.getChannelData(0);
   for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
   return ctx;
 }
 
-function playTone(t, start) {
+function playTone(t, start, out = master) {
   const end = start + t.ms / 1000;
   const gain = ctx.createGain();
   gain.gain.setValueAtTime(t.vol, start);
   gain.gain.exponentialRampToValueAtTime(0.0001, end);
-  gain.connect(master);
+  gain.connect(out);
   if (t.noise) {
     const src = ctx.createBufferSource();
     src.buffer = noiseBuf;
@@ -133,4 +154,100 @@ export function sfx(name) {
   lastPlayed[name] = nowMs;
   const start = c.currentTime + 0.005;
   for (const t of SOUNDS[name]) playTone(t, start + (t.at ?? 0) / 1000);
+}
+
+/** Пауза/продовження всього звуку разом із грою (згорнутий застосунок): час WebAudio теж стоїть. */
+export function suspendAudio() {
+  if (ctx && ctx.state === 'running') ctx.suspend();
+}
+
+export function resumeAudio() {
+  if (ctx && ctx.state === 'suspended') ctx.resume();
+}
+
+// ---- Музика: планувальник з невеликим запасом наперед (стандартний підхід WebAudio) ----
+
+const LOOKAHEAD_SEC = 0.25;
+const TICK_MS = 60;
+const FADE_SEC = 0.15;
+
+let music = null; // { name, track, events, steps, stepSec, step, nextTime, out, timer }
+
+/** Стан треку name від моменту atTime. out — вихідний вузол (новий, якщо не передано). */
+function startTrack(name, atTime, out = null) {
+  const track = TRACKS[name];
+  if (!out) {
+    out = ctx.createGain();
+    out.connect(musicBus);
+  }
+  const stepSec = 60 / track.bpm / 4;
+  const events = track.voices.map((v) => ({ voice: v, list: parsePattern(v.pattern) }));
+  return { name, track, events, steps: trackSteps(track), stepSec, step: 0, nextTime: atTime, out };
+}
+
+function scheduleStep(m, step, time) {
+  for (const { voice, list } of m.events) {
+    for (const e of list) {
+      if (e.step !== step) continue;
+      const ms = e.len * m.stepSec * 1000 * (e.noise ? 0.5 : 0.95);
+      const tone = e.noise
+        ? { noise: true, ms: Math.min(ms, 60), vol: voice.vol }
+        : { wave: voice.wave, from: midiToHz(e.midi), to: midiToHz(e.midi), ms, vol: voice.vol };
+      playTone(tone, time, m.out);
+    }
+  }
+}
+
+function tick() {
+  if (!music || !ctx) return;
+  while (music.nextTime < ctx.currentTime + LOOKAHEAD_SEC) {
+    if (music.step >= music.steps) {
+      if (music.track.loop) {
+        music.step = 0;
+      } else {
+        // кінець одноразового треку — далі наступний, без паузи і в тому ж вихідному вузлі
+        const { out, nextTime, timer } = music;
+        const nextName = music.track.next;
+        if (!nextName) {
+          stopMusic();
+          return;
+        }
+        music = { ...startTrack(nextName, nextTime, out), timer };
+      }
+    }
+    scheduleStep(music, music.step, music.nextTime);
+    music.step += 1;
+    music.nextTime += music.stepSec;
+  }
+}
+
+/** Вмикає трек name (з початку). Той самий трек, що вже грає, не перезапускається. */
+export function playMusic(name) {
+  if (!TRACKS[name]) return;
+  if (music?.name === name) return;
+  const c = ensureContext();
+  if (!c) return;
+  if (c.state === 'suspended') c.resume();
+  stopMusic();
+  music = startTrack(name, c.currentTime + 0.05);
+  music.timer = setInterval(tick, TICK_MS);
+  tick();
+}
+
+/** Зупиняє музику: уже заплановані ноти швидко затихають. */
+export function stopMusic() {
+  if (!music) return;
+  clearInterval(music.timer);
+  const { out } = music;
+  music = null;
+  if (!ctx) return;
+  const t = ctx.currentTime;
+  out.gain.setValueAtTime(out.gain.value, t);
+  out.gain.linearRampToValueAtTime(0, t + FADE_SEC);
+  setTimeout(() => out.disconnect(), (FADE_SEC + LOOKAHEAD_SEC) * 1000 + 50);
+}
+
+/** Назва треку, що грає зараз (для тестів і перевірок у браузері). */
+export function currentMusic() {
+  return music?.name ?? null;
 }

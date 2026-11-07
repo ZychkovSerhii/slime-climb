@@ -2,14 +2,15 @@ import * as Phaser from 'phaser';
 import { BALANCE } from '../config/balance.js';
 import { scrollSpeed } from '../systems/Difficulty.js';
 import { createSpawnState, dueSpawns } from '../systems/Spawner.js';
-import { shouldStartBoss } from '../systems/BossPlanner.js';
+import { afterBossSpawnMul, bannerVisible, bossStage, hazardsSuppressed } from '../systems/BossPlanner.js';
+import { createStatus, isPoisoned, playerSpeedMul, poison } from '../systems/Status.js';
 import { addXp, applyCard, createProgression, killXp, rollCards, xpToNext } from '../systems/Progression.js';
 import { clampDelta } from '../systems/Time.js';
 import { applyDamage, createHealth, heal } from '../systems/Health.js';
-import { createSpikeState, planSpikes, prefillStartWorld } from '../systems/SpikePlanner.js';
+import { createSpikeState, planSpikes, prefillStartWorld, skipSpikes } from '../systems/SpikePlanner.js';
 import { heightPoints, killPoints } from '../systems/Score.js';
 import { interceptPoint, pickNearest } from '../systems/Targeting.js';
-import { sfx } from '../systems/Audio.js';
+import { playMusic, resumeAudio, sfx, stopMusic, suspendAudio } from '../systems/Audio.js';
 import Player from '../entities/Player.js';
 import Spike from '../entities/Spike.js';
 import Projectile from '../entities/Projectile.js';
@@ -17,6 +18,9 @@ import Lion from '../entities/Lion.js';
 import Bat from '../entities/Bat.js';
 import Plant from '../entities/Plant.js';
 import SpiderBoss from '../entities/SpiderBoss.js';
+
+const POISON_TINT = 0xb0d040; // слизак і так зелений — під отрутою він темніший, болотний
+const FADE_MS = 600; // шипи й вороги плавно зникають перед босом
 
 export default class GameScene extends Phaser.Scene {
   constructor() {
@@ -30,7 +34,6 @@ export default class GameScene extends Phaser.Scene {
     this.time.paused = false;
     this.elapsedSec = 0;
     this.distancePx = 0;
-    this.bossActive = false;
     this.currentScroll = scrollSpeed(0, false);
     this.paused = false;
     this.health = createHealth();
@@ -45,8 +48,13 @@ export default class GameScene extends Phaser.Scene {
     this.weapon = this.progression.weapon;
     this.fireCooldownMs = 0;
     this.spawnState = createSpawnState();
-    this.bossState = 'none'; // 'none' | 'active' | 'dead'
-    // ?boss=1 у адресі — бос на 5-й секунді (для перевірки)
+    // бос: етап забігу рахує bossStage (before → prep → fight → calm → after)
+    this.stage = 'before';
+    this.bossSpawned = false;
+    this.bannerShown = false;
+    this.killedAtSec = null;
+    this.status = createStatus();
+    // ?boss=1 у адресі — бос на debugAtSec секунді (для перевірки)
     const debugBoss = new URLSearchParams(window.location.search).get('boss') === '1';
     this.bossAtSec = debugBoss ? BALANCE.boss.debugAtSec : BALANCE.boss.atSec;
     // Планувальник шипів для обох стін разом (світові координати = distancePx)
@@ -66,13 +74,18 @@ export default class GameScene extends Phaser.Scene {
     this.enemies = this.physics.add.group();
     this.playerProjectiles = this.physics.add.group();
     this.enemyProjectiles = this.physics.add.group();
-    this.scrollingGroups = [this.hazards, this.enemies, this.playerProjectiles, this.enemyProjectiles];
+    // те, що зникає перед босом: без зіткнень, але ще їде разом зі світом, поки не розтане
+    this.fading = this.add.group();
+    this.scrollingGroups = [this.hazards, this.enemies, this.playerProjectiles, this.enemyProjectiles, this.fading];
 
     this.player = new Player(this);
 
     const hurt = () => this.hurtPlayer();
     this.physics.add.overlap(this.player, this.hazards, hurt);
-    this.physics.add.overlap(this.player, this.enemies, hurt);
+    this.physics.add.overlap(this.player, this.enemies, (player, enemy) => {
+      // отрута — лише коли удар справді пройшов (не під час невразливості)
+      if (this.hurtPlayer() && enemy.poisons) this.poisonPlayer();
+    });
     this.physics.add.overlap(this.player, this.enemyProjectiles, (player, bullet) => {
       if (this.paused || !bullet.active) return;
       bullet.destroy();
@@ -80,7 +93,8 @@ export default class GameScene extends Phaser.Scene {
     });
 
     this.physics.add.overlap(this.playerProjectiles, this.enemies, (proj, enemy) => {
-      if (this.paused || !proj.active || !enemy.active) return;
+      // крізь невразливого боса снаряди пролітають
+      if (this.paused || !proj.active || !enemy.active || enemy.invulnerable) return;
       enemy.takeHit(proj.damage, proj.slow, this.nowMs);
       proj.destroy();
       if (enemy.active) sfx('hit');
@@ -98,12 +112,16 @@ export default class GameScene extends Phaser.Scene {
       if (this.levelUpQueue > 0 && !this.levelUpOpen) this.openLevelUp();
     };
     const onPicked = (id) => this.onCardPicked(id);
+    const onRage = () => playMusic('rage');
     this.events.on('enemy:killed', onKilled);
     this.events.on('levelup:picked', onPicked);
+    this.events.on('boss:rage', onRage);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.events.off('enemy:killed', onKilled);
       this.events.off('levelup:picked', onPicked);
+      this.events.off('boss:rage', onRage);
       this.scene.stop('LevelUp');
+      stopMusic();
     });
 
     this.scene.launch('Hud');
@@ -150,6 +168,7 @@ export default class GameScene extends Phaser.Scene {
     this.pauseOverlay.on('pointerdown', (pointer, x, y, event) => {
       event?.stopPropagation?.();
       this.pauseOverlay.setVisible(false);
+      resumeAudio();
       this.inputBlockedUntil = this.game.loop.time + BALANCE.tapGuardMs;
       // під час вибору картки гра лишається на паузі, доки картку не оберуть
       if (!this.levelUpOpen) this.setPaused(false);
@@ -182,6 +201,7 @@ export default class GameScene extends Phaser.Scene {
   /** Пауза з кнопкою «Продовжити» (згортання застосунку / вкладки). */
   pauseWithOverlay() {
     this.setPaused(true);
+    suspendAudio();
     this.pauseOverlay.setVisible(true);
   }
 
@@ -226,22 +246,44 @@ export default class GameScene extends Phaser.Scene {
     return heightPoints(this.distancePx) + this.killScore;
   }
 
+  /** Удар по гравцю. Повертає true, якщо життя справді знято. */
   hurtPlayer() {
     // фізика може зробити ще кілька кроків у кадрі, де гру поставили на паузу (вікно рівня)
-    if (this.dead || this.paused) return;
+    if (this.dead || this.paused) return false;
     const r = applyDamage(this.health, this.nowMs);
     this.health = r.health;
-    if (!r.tookDamage) return;
+    if (!r.tookDamage) return false;
     if (r.died) {
       this.dead = true;
+      stopMusic();
       sfx('gameOver');
       this.emitHud();
       this.scene.stop('Hud');
       this.scene.start('GameOver', { score: this.score, timeSec: this.elapsedSec });
-      return;
+      return true;
     }
     sfx('hurt');
     this.blink();
+    return true;
+  }
+
+  /** Отруєння від павучка рою: слизак повільніший і болотного кольору. */
+  poisonPlayer() {
+    if (this.dead) return;
+    this.status = poison(this.status, this.nowMs);
+    sfx('poison');
+  }
+
+  /** Швидкість і колір слизака за станами (щокадру). */
+  applyStatus() {
+    const now = this.nowMs;
+    this.player.speedMul = playerSpeedMul(this.status, now);
+    const poisoned = isPoisoned(this.status, now);
+    if (poisoned !== this.player.poisonTinted) {
+      this.player.poisonTinted = poisoned;
+      if (poisoned) this.player.setTint(POISON_TINT);
+      else this.player.clearTint();
+    }
   }
 
   blink() {
@@ -263,6 +305,11 @@ export default class GameScene extends Phaser.Scene {
       // перший виклик: одразу заповнюємо екран, щоб не чекати перших шипів
       this.spikeState = createSpikeState(prefillStartWorld(this.distancePx, this.player.y), Math.random);
     }
+    if (hazardsSuppressed(this.stage)) {
+      // біля боса шипів немає; план просто «проїжджає» цей відрізок, щоб потім не висипати пачку
+      this.spikeState = skipSpikes(this.spikeState, this.distancePx, scrollSpeed(this.elapsedSec, false), Math.random);
+      return;
+    }
     // проміжки рахуємо за швидкістю БЕЗ сповільнення боса: шип, поставлений під час боса,
     // може доїхати до гравця вже після нього, на повній швидкості
     const r = planSpikes(this.spikeState, this.distancePx, scrollSpeed(this.elapsedSec, false), Math.random);
@@ -281,7 +328,7 @@ export default class GameScene extends Phaser.Scene {
 
   /** Вороги, видимі на екрані й живі — кандидати в цілі. */
   visibleEnemies() {
-    return this.enemies.getChildren().filter((e) => e.active && e.hp > 0 && e.isOnScreen());
+    return this.enemies.getChildren().filter((e) => e.active && e.hp > 0 && !e.invulnerable && e.isOnScreen());
   }
 
   autoFire(dt) {
@@ -307,23 +354,55 @@ export default class GameScene extends Phaser.Scene {
     return enemy;
   }
 
-  startBoss() {
-    this.bossState = 'active';
-    this.bossActive = true;
-    const boss = this.spawnEnemy(new SpiderBoss(this));
-    this.events.emit('hud:boss', { hp: boss.hp, maxHp: boss.maxHp });
+  /** Іде бій з босом: світ сповільнений (scrollSpeed), шипів і звичайних ворогів немає. */
+  get bossActive() {
+    return this.stage === 'fight';
   }
 
-  /** Після боса: швидкість і звичайний спавн відновлюються, павучки, що лишились, живуть далі. */
+  /** Перехід між етапами забігу навколо боса. */
+  onStage(stage) {
+    this.stage = stage;
+    if (stage === 'prep') this.clearMap();
+  }
+
+  /** Перед босом: шипи, звичайні вороги й їхні кулі плавно зникають (без нагород, без зіткнень). */
+  clearMap() {
+    this.pendingPlants = 0;
+    for (const group of [this.hazards, this.enemies, this.enemyProjectiles]) {
+      for (const obj of group.getChildren().slice()) {
+        group.remove(obj);
+        if (obj.body) obj.body.enable = false;
+        obj.setActive(false); // зупиняє preUpdate: рослина не стріляє, лев не стрибає
+        this.fading.add(obj);
+        this.tweens.add({ targets: obj, alpha: 0, duration: FADE_MS, onComplete: () => obj.destroy() });
+      }
+    }
+  }
+
+  showBossBanner() {
+    this.bannerShown = true;
+    sfx('bossAppear');
+    this.events.emit('hud:banner', { text: `БОС: ${BALANCE.boss.name}`, ms: BALANCE.boss.bannerSec * 1000 });
+  }
+
+  startBoss() {
+    this.bossSpawned = true;
+    const boss = this.spawnEnemy(new SpiderBoss(this));
+    boss.emitHud();
+    playMusic('boss');
+  }
+
+  /** Після боса: calmSec нічого небезпечного, далі вороги повертаються поступово. */
   onBossKilled() {
-    this.bossState = 'dead';
-    this.bossActive = false;
+    this.killedAtSec = this.elapsedSec;
     this.events.emit('hud:boss', null);
+    playMusic('victory');
   }
 
   /** Звичайні вороги за розкладом Spawner. */
   spawnEnemies() {
-    const r = dueSpawns(this.spawnState, this.elapsedSec, this.bossActive);
+    const mul = afterBossSpawnMul(this.elapsedSec, this.killedAtSec);
+    const r = dueSpawns(this.spawnState, this.elapsedSec, hazardsSuppressed(this.stage), mul);
     this.spawnState = r.state;
     for (const type of r.spawn) {
       // лев біжить по стіні, де гравця НЕМАЄ: загроза — ривок, від якого можна відскочити,
@@ -368,13 +447,17 @@ export default class GameScene extends Phaser.Scene {
     if (this.paused || this.dead) return;
     const dt = clampDelta(delta);
     this.elapsedSec += dt / 1000;
+    const stage = bossStage(this.elapsedSec, { atSec: this.bossAtSec, killedAtSec: this.killedAtSec });
+    if (stage !== this.stage) this.onStage(stage);
+    if (!this.bannerShown && bannerVisible(this.elapsedSec, this.bossAtSec)) this.showBossBanner();
+    if (stage === 'fight' && !this.bossSpawned) this.startBoss();
     this.currentScroll = scrollSpeed(this.elapsedSec, this.bossActive);
     const dy = (this.currentScroll * dt) / 1000;
     this.distancePx += dy;
+    this.applyStatus();
     this.player.step(dt);
     this.scrollObjects(dy);
     this.spawnSpikes();
-    if (shouldStartBoss(this.elapsedSec, this.bossState, this.bossAtSec)) this.startBoss();
     this.spawnEnemies();
     this.autoFire(dt);
     this.emitHud();

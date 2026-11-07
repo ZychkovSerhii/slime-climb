@@ -57,20 +57,35 @@ export const BALANCE = deepFreeze({
     smallSpider: { hp: 1, xp: 1, points: 10, speed: 150 },
   },
   boss: {
+    name: 'Твоя мамаша',
     atSec: 120,
-    hp: 30,
-    telegraphMs: 1000,
-    spawnMs: 4000,
-    spawnCount: [2, 3],
+    hp: 40, // v2: було 30
     xp: 60,
     points: 1000,
+    // Підготовка: за prepSec до боса шипи й вороги зникають і не з'являються; плашка — останні bannerSec
+    prepSec: 4,
+    bannerSec: 2,
+    calmSec: 6, // після смерті боса стільки секунд нічого небезпечного
+    // далі інтервали спавну ворогів ×rampMul і за rampSec плавно повертаються до звичайних
+    afterRampMul: 2,
+    afterRampSec: 20,
+    // Фаза 1: тінь-попередження, потім удар на павутині
+    telegraphMs: 1000,
     strikeChance: 0.6, // імовірність удару прямо над гравцем
     strikeSpreadPx: 40, // розкид такого удару по x
     hangY: 260, // на якій висоті павук висить між атаками (px від верху) — нижче смуги HP у HUD
     dropSpeed: 900, // швидкість падіння на павутині (px/s)
     retreatSpeed: 500, // швидкість підйому (px/s)
     restMs: 800, // пауза між атаками
-    debugAtSec: 5, // старт боса з параметром ?boss=1 (для перевірки)
+    // Фаза 2 — рій: на swarmAt частці HP павучиха стає по центру, невразлива, і випускає рій
+    swarmAt: 0.75,
+    swarm: { start: 12, growth: 1, max: 20, pauseMs: 1500, speed: 330, homingStopPx: 260, spreadPx: 70 },
+    poison: { durationMs: 10000, speedMul: 0.85 }, // дотик павучка рою: слизак повільніший
+    // Лють: поріг випадковий у [rageMin, rageMax] частки HP; атаки швидші в rageSpeedMul раз
+    rageMin: 0.35,
+    rageMax: 0.4,
+    rageSpeedMul: 1.35,
+    debugAtSec: 6, // старт боса з параметром ?boss=1 (для перевірки)
   },
 
   // Спавн

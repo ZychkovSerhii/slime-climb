@@ -7,6 +7,8 @@ const SLOW_TINT = 0x6fa8ff;
  * Базовий ворог. Після додавання в групу enemies викликай spawned().
  * scrollsWithWorld: true — ворог «прикріплений» до світу і їде вниз разом зі стінами;
  * false — рухається відносно екрана (сам керує швидкістю).
+ * invulnerable: true — влучання не шкодять, снаряди пролітають крізь, автоприціл ігнорує.
+ * baseTint — власний відтінок (лють боса), поверх нього синій під сповільненням.
  * Подія сцени 'enemy:killed' { type, x, y } — коли hp ≤ 0.
  */
 export default class Enemy extends Phaser.Physics.Arcade.Sprite {
@@ -18,6 +20,13 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
     this.slowUntil = 0;
     this.slowFactor = 1;
     this.scrollsWithWorld = true;
+    this.invulnerable = false;
+    this.baseTint = null;
+  }
+
+  setBaseTint(color) {
+    this.baseTint = color;
+    this.tintedSlow = undefined; // перерахувати відтінок на наступному кадрі
   }
 
   preUpdate(time, delta) {
@@ -27,6 +36,7 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
     if (slowed !== this.tintedSlow) {
       this.tintedSlow = slowed;
       if (slowed) this.setTint(SLOW_TINT);
+      else if (this.baseTint !== null) this.setTint(this.baseTint);
       else this.clearTint();
     }
   }
@@ -39,7 +49,7 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
   }
 
   takeHit(damage, slow, nowMs) {
-    if (!this.active || this.hp <= 0) return;
+    if (!this.active || this.hp <= 0 || this.invulnerable) return;
     this.hp -= damage;
     if (slow) {
       this.slowFactor = slow.factor;
