@@ -21,6 +21,10 @@ npm run smoke    # після build: відкриває гру в headless Chrom
 Для `npm run smoke` потрібен браузер Playwright: `npx playwright install chromium`
 (або вказати свій Chrome змінною `CHROME_PATH`).
 
+## Android
+
+Як зібрати APK і що перевірити на телефоні — `docs/android-build.md`.
+
 ## Структура
 
 ```
