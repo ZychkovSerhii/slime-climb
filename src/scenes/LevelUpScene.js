@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser';
 import { BALANCE } from '../config/balance.js';
-import { cardWeapon, damageCardBonus } from '../systems/Progression.js';
+import { cardUpgrade, cardWeapon, damageCardBonus, iceStats } from '../systems/Progression.js';
 import { cardLoot, hatStats, invisStats, maxLivesFor } from '../systems/Skills.js';
 
 // Верстка карток (px базової роздільності)
@@ -29,6 +29,34 @@ function weaponText(weaponId, arsenal) {
   return { title: `${w.name}  ${done}/${w.steps}`, desc: `${WEAPON_DESC[weaponId](w)}\n${outcome}` };
 }
 
+const pct = (x) => Math.round(x * 100);
+const num = (x) => String(Math.round(x * 100) / 100).replace('.', ',');
+
+/** Що дасть наступна прокачка основної зброї (фідбек-2). */
+const UPGRADE_DESC = {
+  axe: (n, U) => {
+    const a = U.axe;
+    const extra = n === a.miniAxeAt ? '\n+ міні-сокира-помічниця!' : '';
+    return `+${num(U.damageAdd)} шкоди, радіус +${pct(a.radiusStep - 1)}%,\nрозмах частіше на ${pct(1 - a.intervalStep)}%${extra}`;
+  },
+  shotgun: (n, U) => {
+    const a = U.shotgun;
+    const extra = n === a.extraAt ? '\n+ ще 2 кулі ширшим віялом!' : '';
+    return `+${num(U.damageAdd)} шкоди кожній кулі,\nшвидкість атаки +${pct(a.speedStep - 1)}%${extra}`;
+  },
+  chakra: (n, U) => {
+    const a = U.chakra;
+    const extra = n === a.extraAt ? `\n+ черга довша на ${a.extraBurst} постріли!` : '';
+    return `+${num(U.damageAdd)} шкоди кожному пострілу,\nшвидкість атаки +${pct(a.speedStep - 1)}%${extra}`;
+  },
+};
+
+function upgradeText(weaponId, arsenal) {
+  const U = BALANCE.weaponUpgrades;
+  const n = (arsenal?.upgrades?.[weaponId] ?? 0) + 1;
+  return { title: `${BALANCE.weapons[weaponId].name} +${n}/${U.max}`, desc: UPGRADE_DESC[weaponId](n, U) };
+}
+
 const LOOT_TEXT = {
   armor: () => ({ title: 'Зробити кожух з павучихи', desc: `чорне життя-броня знімається першим,\nвідновлюється через ${BALANCE.bossLoot.armor.regenMs / 1000} с` }),
   venom: () => {
@@ -46,6 +74,8 @@ const LOOT_TEXT = {
 function cardText(id, picks, arsenal) {
   const weaponId = cardWeapon(id);
   if (weaponId) return weaponText(weaponId, arsenal);
+  const upId = cardUpgrade(id);
+  if (upId) return upgradeText(upId, arsenal);
   const loot = cardLoot(id);
   if (loot) return LOOT_TEXT[loot]();
   const c = BALANCE.cards;
@@ -58,8 +88,9 @@ function cardText(id, picks, arsenal) {
     }
     case 'hat': {
       const st = hatStats(n);
-      const two = st.count > hatStats(n - 1).count && n > 1 ? 'другий капелюх!\n' : '';
-      return { title: `Модний капелюх${n > 1 ? ` ${n}` : ''}`, desc: `${two}злітає на ворога і завжди влучає:\n${st.damage} шкоди за удар` };
+      const two = st.count > hatStats(n - 1).count && n > 1 ? 'друга шляпа!\n' : '';
+      const name = BALANCE.skills.hat.name;
+      return { title: `${name}${n > 1 ? ` ${n}` : ''}`, desc: `${two}злітає на ворога і завжди влучає:\n${st.damage} шкоди за удар` };
     }
     case 'extraLife':
       return { title: 'Додаткове життя', desc: `+1 серце (до ${maxLivesFor(n)} з ${BALANCE.skills.extraLife.maxLives})` };
@@ -67,11 +98,14 @@ function cardText(id, picks, arsenal) {
       return { title: 'Швидкість атаки', desc: `постріл частіше на ${Math.round((1 - c.attackSpeedFactor) * 100)}%` };
     case 'damage':
       return { title: 'Урон', desc: `+${damageCardBonus({ picks })} шкоди кожним пострілом` };
-    case 'slow':
+    case 'slow': {
+      const st = iceStats(n);
+      const I = BALANCE.ice;
       return {
-        title: 'Сповільнення',
-        desc: `влучання сповільнює ворога на ${Math.round((1 - c.slowFactor) * 100)}%\nна ${c.slowBaseMs / 1000} с (повторно: +${c.slowStepMs / 1000} с)`,
+        title: `Крижана атака${n > 1 ? ` ${n}` : ''}`,
+        desc: `заморожує на ${st.durationMs / 1000} с: −${pct(1 - st.factor)}% швидкості\nі ${num(st.dps)} шкоди/с (боса лише −${pct(1 - I.bossFactor)}%)`,
       };
+    }
     default:
       return { title: id, desc: '' };
   }
@@ -101,7 +135,7 @@ export default class LevelUpScene extends Phaser.Scene {
     const openedAt = this.game.loop.time;
     for (const id of cards) {
       const { title, desc } = cardText(id, picks, arsenal);
-      const st = cardLoot(id) ? STYLE.loot : cardWeapon(id) ? STYLE.weapon : STYLE.card;
+      const st = cardLoot(id) ? STYLE.loot : cardWeapon(id) || cardUpgrade(id) ? STYLE.weapon : STYLE.card;
       const bg = this.add.rectangle(width / 2, y, CARD.w, CARD.h, st.fill).setStrokeStyle(4, st.stroke);
       this.add.text(width / 2, y - 58, title, { fontFamily: 'sans-serif', fontSize: '40px', color: '#ffffff' }).setOrigin(0.5);
       this.add

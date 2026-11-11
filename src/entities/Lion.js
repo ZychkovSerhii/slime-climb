@@ -10,7 +10,7 @@ const CFG = BALANCE.enemies.lion;
  * Левиця: з'являється під нижнім краєм на стіні, де гравця немає, і біжить по ній угору (відносно екрана).
  * Коли вона на lungeBelowPx нижче за гравця — завмирає і блимає windupMs (попередження),
  * потім стрибає в точку, де гравець у момент стрибка, і на відстані biteRangePx клацає пащею.
- * Промахнулась — летить далі за екран.
+ * Промахнулась — летить далі за екран і returns разів (фідбек-2) повертається знизу на стіні, де гравця немає.
  */
 export default class Lion extends Enemy {
   constructor(scene, side) {
@@ -22,9 +22,27 @@ export default class Lion extends Enemy {
     this.scrollsWithWorld = false;
     this.lunging = false;
     this.bitten = false;
+    this.returnsLeft = CFG.returns;
     // спрайт намальований боком (морда праворуч); на стіні — мордою вгору, лапами до стіни
     this.setRotation(-Math.PI / 2);
     this.setFlipY(side === 'left');
+    this.play(animKey('lion', 'run'));
+  }
+
+  /** Повернення після промаху: знизу, на стіні без гравця, знову біг угору і ривок. */
+  comeBack() {
+    const { width, height } = this.scene.scale;
+    const tex = this.scene.textures.getFrame('lion');
+    this.returnsLeft -= 1;
+    this.side = this.scene.player.side === 'left' ? 'right' : 'left';
+    this.x = this.side === 'left' ? BALANCE.wallWidth + tex.height / 2 : width - BALANCE.wallWidth - tex.height / 2;
+    this.y = height + tex.width / 2;
+    this.lunging = false;
+    this.bitten = false;
+    this.windupUntil = undefined;
+    this.body.setVelocity(0, 0);
+    this.setRotation(-Math.PI / 2);
+    this.setFlipY(this.side === 'left');
     this.play(animKey('lion', 'run'));
   }
 
@@ -60,7 +78,10 @@ export default class Lion extends Enemy {
         this.play(animKey('lion', 'bite'));
         sfx('bite');
       }
-      if (this.isOffscreen()) this.destroy();
+      if (this.isOffscreen()) {
+        if (this.returnsLeft > 0) this.comeBack();
+        else this.destroy();
+      }
     }
   }
 }

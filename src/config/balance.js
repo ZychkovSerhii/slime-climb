@@ -50,10 +50,18 @@ export const BALANCE = deepFreeze({
 
   // Вороги: hp, досвід, очки, з якої секунди з'являються, швидкості
   enemies: {
+    // returns — фідбек-2: левиця, що промахнулась, раз повертається знизу на іншій стіні
     // лев: біг пришвидшено (було 90), ривок стартує, коли лев на lungeBelowPx нижче за гравця (раніше — на середині екрана, і його встигали вбити до ривку)
-    lion: { hp: 4, xp: 5, points: 50, from: 10, speed: 150, lungeSpeed: 480, windupMs: 450, lungeBelowPx: 220, biteRangePx: 130 },
-    bat: { hp: 1, xp: 2, points: 20, from: 30, speed: 312 }, // v2: +20% (було 260)
-    plant: { hp: 4, xp: 3, points: 30, from: 45, fireMs: 2500, bulletSpeed: 264 }, // v2: hp 2→4, куля +20%
+    lion: { returns: 1, hp: 4, xp: 5, points: 50, from: 10, speed: 150, lungeSpeed: 480, windupMs: 450, lungeBelowPx: 220, biteRangePx: 130 },
+    // v2: +20% (було 260); фідбек-2: +15% (було 312).
+    // scrollK [рішення]: кажан летить відносно екрана, а світ пізніше мчить униз швидше — на фоні стін кажан
+    // ніби завмирав. Тепер до швидкості додається scrollK × (прокрутка − scrollBase).
+    bat: { hp: 1, xp: 2, points: 20, from: 30, speed: 359, scrollK: 0.35 },
+    // v2: hp 2→4, куля +20%. Фідбек-2 [рішення]: hp 4→3, постріл раз на 2,8 с (було 2,5);
+    // стріляє лише коли вище за гравця на minAbovePx (крута траєкторія — від неї рятує стрибок, а не ловить на льоту);
+    // перед пострілом windupMs блимає; перший постріл — firstShotMs після появи на екрані (раніше таймер
+    // «згорав» за екраном, і на швидкій прокрутці квітка не встигала вистрілити).
+    plant: { hp: 3, xp: 3, points: 30, from: 45, fireMs: 2800, firstShotMs: 500, windupMs: 350, minAbovePx: 200, bulletSpeed: 264 },
     smallSpider: { hp: 1, xp: 1, points: 10, speed: 150 },
   },
   boss: {
@@ -73,16 +81,20 @@ export const BALANCE = deepFreeze({
     telegraphMs: 850, // правки після 4a: було 1000
     strikeChance: 0.6, // імовірність удару прямо над гравцем
     strikeSpreadPx: 40, // розкид такого удару по x
+    strikeToFeet: true, // фідбек-2: павучиха падає до низу спрайта гравця, а не до його центру (не «долітала» до голови)
     hangY: 260, // на якій висоті павук висить між атаками (px від верху) — нижче смуги HP у HUD
-    dropSpeed: 1100, // (було 900) швидкість падіння на павутині (px/s)
+    dropSpeed: 1265, // (було 900 → 1100; фідбек-2 +15%) швидкість падіння на павутині (px/s)
     retreatSpeed: 500, // швидкість підйому (px/s)
     restMs: 550, // пауза між атаками (було 800)
     // Плювок павутиною (правки після 4a): кожна every-та атака замість удару — віяло грудок у гравця.
     // Після плювка павучиха чекає recoverMs, щоб удар не збігся з грудками в польоті (інакше може не бути безпечної стіни).
     spit: { every: 3, rageEvery: 2, count: 3, rageCount: 5, spreadDeg: 14, speed: 330, recoverMs: 1500 },
+    // Фідбек-2: рій 14 → 12 (макс 20 → 18); випустивши рій, павучиха не стоїть, а атакує як звичайно
+    // (лишаючись невразливою, доки рій живий). flailMs — скільки триває «розмахування лапами» при випуску.
+    swarmFlailMs: 700,
     // Фаза 2 — рій: на swarmAt частці HP павучиха стає по центру, невразлива, і випускає рій
     swarmAt: 0.75,
-    swarm: { start: 14, growth: 1, max: 20, pauseMs: 1200, speed: 370, homingStopPx: 260, spreadPx: 70 },
+    swarm: { start: 12, growth: 1, max: 18, pauseMs: 1200, speed: 370, homingStopPx: 260, spreadPx: 70 },
     poison: { durationMs: 10000, speedMul: 0.85 }, // дотик павучка рою: слизак повільніший
     // Лють: поріг випадковий у [rageMin, rageMax] частки HP; атаки швидші в rageSpeedMul раз
     rageMin: 0.35,
@@ -92,7 +104,7 @@ export const BALANCE = deepFreeze({
   },
 
   // Спавн
-  spawnBaseMs: { lion: 6000, bat: 4000, plant: 9000 },
+  spawnBaseMs: { lion: 6300, bat: 4200, plant: 9450 }, // фідбек-2: −5% частоти (було 6000/4000/9000); перші появи — як були
   spawnMinFactor: 0.4, // інтервал спавну падає до цієї частки за spawnRampSec
   spawnRampSec: 180,
 
@@ -101,8 +113,12 @@ export const BALANCE = deepFreeze({
   xpGrowth: 1.4,
 
   // Картки поліпшень
-  // damageFirst — перше взяття «Урону», damageNext — кожне наступне
-  cards: { attackSpeedFactor: 0.85, slowFactor: 0.6, slowBaseMs: 2000, slowStepMs: 1000, damageFirst: 1, damageNext: 2 },
+  // damageFirst — перше взяття «Урону», damageNext — кожне наступне (фідбек-2: завжди +1, було +2)
+  cards: { attackSpeedFactor: 0.85, damageFirst: 1, damageNext: 1 },
+  // «Крижана атака» (фідбек-2, замість «Сповільнення»): влучання сповільнює на 1−factor і морозить dps шкоди/с
+  // протягом durationMs. Кожне наступне взяття: −factorStep (≥ minFactor, тобто сповільнення ≤ 60%) і +dpsStep.
+  // Боса лише сповільнює до bossFactor (−5%), заморозка шкодить як звичайно.
+  ice: { factor: 0.6, factorStep: 0.05, minFactor: 0.4, dps: 0.5, dpsStep: 0.5, durationMs: 3000, bossFactor: 0.95 },
 
   // Зброя з прогресом (етап 4a). Кроки 2/3/2 (специфікація: 3/5/3) — інакше до боса вкачувалась хіба одна зброя.
   // Повністю вкачана зброя стає основною й замінює попередню.
@@ -119,12 +135,28 @@ export const BALANCE = deepFreeze({
     shotgun: { name: 'Дробовик Хулігана', steps: 2, damageMul: 1.25, spreadDeg: 25 },
   },
 
+  // Прокачка основної зброї (фідбек-2). Коли зброя стала основною, інші зброї більше не пропонуються,
+  // 3-тя картка вікна рівня — прокачка основної, до max разів. Кожна прокачка: +damageAdd шкоди за удар/кулю.
+  // [рішення] max 5 для всіх (у фідбеку рубіж 5 названо лише для сокири); швидкість — множник інтервалу атаки.
+  weaponUpgrades: {
+    max: 5,
+    damageAdd: 0.35,
+    // сокира: радіус ×radiusStep і інтервал ×intervalStep за прокачку; на miniAxeAt — міні-сокира-помічниця,
+    // слабша за шляпу (1 шкоди раз на restMs)
+    axe: { radiusStep: 1.06, intervalStep: 0.92, miniAxeAt: 5, miniAxe: { damage: 1, restMs: 1600, speed: 800 } },
+    // дробовик: +8% швидкості атаки; на extraAt — ще 2 кулі під ±extraDeg («нижче» від бічних)
+    shotgun: { speedStep: 1.08, extraAt: 3, extraDeg: 50 },
+    // ворота чакри: +10% швидкості атаки; на extraAt — черга довша на extraBurst
+    chakra: { speedStep: 1.1, extraAt: 3, extraBurst: 4 },
+  },
+
   // Скіли (етап 4b) — звичайні картки вікна рівня
   skills: {
     // окрема кнопка; кожне наступне взяття: −cdStepMs перезарядки (не менше cdMinMs), +durStepMs тривалості
     invisibility: { durationMs: 8000, durStepMs: 2000, cooldownMs: 60000, cdStepMs: 5000, cdMinMs: 30000, alpha: 0.3 },
-    // капелюх-конус: летить на видимого ворога, влучає завжди, повертається; шкода за взяттями 1, +3, +5, +5; 5-те — другий капелюх
-    hat: { damageSteps: [1, 3, 5, 5], maxPicks: 5, speed: 900, restMs: 1000 }, // restMs — [рішення]: з 250 мс 2 капелюхи по 14 вбивали боса за секунди
+    // шляпа: летить на видимого ворога, влучає завжди, повертається; шкода за взяттями 1, +1, +1, +1
+    // (фідбек-2, було +3/+5/+5 — надто сильна); 5-те — друга шляпа
+    hat: { name: "Солом'яна шляпа", damageSteps: [1, 1, 1, 1], maxPicks: 5, speed: 900, restMs: 1000 }, // restMs — [рішення]: з 250 мс 2 капелюхи по 14 вбивали боса за секунди
     extraLife: { maxLives: 5 },
   },
 

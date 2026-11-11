@@ -119,9 +119,9 @@ describe('nextSwarmSize', () => {
     expect(nextSwarmSize(12)).toBe(13);
     expect(nextSwarmSize(5)).toBe(6);
   });
-  test('capped at 20', () => {
-    expect(nextSwarmSize(20)).toBe(20);
-    expect(nextSwarmSize(19)).toBe(20);
+  test('capped at 18 (feedback-2: 20 → 18)', () => {
+    expect(nextSwarmSize(18)).toBe(18);
+    expect(nextSwarmSize(17)).toBe(18);
   });
   test('all killed → swarm is over', () => expect(nextSwarmSize(0)).toBe(0));
   test('killing 2 per pass always ends the swarm (no endless swarm)', () => {

@@ -14,6 +14,8 @@ import {
   rollWeapon,
   weaponCard,
   weaponProgress,
+  upgradeCard,
+  weaponUpgrades,
 } from '../src/systems/Progression.js';
 import { BALANCE } from '../src/config/balance.js';
 
@@ -94,18 +96,24 @@ describe('cards', () => {
     expect(applyCard(near, 'attackSpeed').weapon.fireIntervalMs).toBe(250);
   });
 
-  test('damage: first pick +1, every next pick +2', () => {
+  test('damage: every pick +1 (feedback-2)', () => {
     const p1 = applyCard(createProgression(), 'damage');
     expect(p1.weapon.damage).toBe(2);
     const p2 = applyCard(p1, 'damage');
-    expect(p2.weapon.damage).toBe(4);
-    expect(applyCard(p2, 'damage').weapon.damage).toBe(6);
+    expect(p2.weapon.damage).toBe(3);
+    expect(applyCard(p2, 'damage').weapon.damage).toBe(4);
   });
 
-  test('slow: first pick 0.6 for 2000 ms, next pick +1000 ms', () => {
+  test('ice attack: 40% slow + 0.5 dps for 3 s; each pick +5% slow (max 60%) and +0.5 dps', () => {
     const once = applyCard(createProgression(), 'slow');
-    expect(once.weapon.slow).toEqual({ factor: 0.6, durationMs: 2000 });
-    expect(applyCard(once, 'slow').weapon.slow.durationMs).toBe(3000);
+    expect(once.weapon.slow).toMatchObject({ factor: 0.6, durationMs: 3000, dps: 0.5, bossFactor: 0.95, ice: true });
+    const twice = applyCard(once, 'slow');
+    expect(twice.weapon.slow.factor).toBeCloseTo(0.55);
+    expect(twice.weapon.slow.dps).toBe(1);
+    let p = twice;
+    for (let i = 0; i < 6; i++) p = applyCard(p, 'slow');
+    expect(p.weapon.slow.factor).toBe(0.4);
+    expect(p.weapon.slow.dps).toBe(4);
   });
 
   test('picks are counted', () => {
@@ -185,15 +193,16 @@ describe('weapon cards (stage 4a)', () => {
     for (const id of WEAPON_IDS) expect(BALANCE.weapons[id].steps).toBeLessThanOrEqual(3);
   });
 
-  test('fully upgraded weapons are not offered; none left → 3 regular cards', () => {
+  test('all weapons maxed: no weapon cards, the 3rd card upgrades the main one', () => {
     let p = createProgression();
     for (const id of WEAPON_IDS) {
       for (let i = 0; i < BALANCE.weapons[id].steps; i++) p = applyCard(p, weaponCard(id));
     }
     expect(rollWeapon(p, Math.random)).toBeNull();
+    // основна — остання вкачана: 3-тя картка — її прокачка
     const { cards } = rollLevelUp(p, seq(0, 0, 0));
     expect(cards).toHaveLength(3);
-    expect(cards.every((c) => CARD_IDS.includes(c))).toBe(true);
+    expect(cards[2]).toBe(upgradeCard(p.arsenal.main));
   });
 
   test('a single remaining weapon is offered even twice in a row', () => {
@@ -208,5 +217,37 @@ describe('weapon cards (stage 4a)', () => {
   test('weapon card does not touch the base weapon stats', () => {
     const p = applyCard(createProgression(), weaponCard('chakra'));
     expect(p.weapon).toEqual(createProgression().weapon);
+  });
+});
+
+describe('weapon upgrades (feedback-2)', () => {
+  const maxed = (id) => {
+    let p = createProgression();
+    for (let i = 0; i < BALANCE.weapons[id].steps; i++) p = applyCard(p, weaponCard(id));
+    return p;
+  };
+  const seq = (...xs) => () => (xs.length ? xs.shift() : 0);
+
+  test('once a weapon is main, the 3rd card is its upgrade and other weapons are never offered', () => {
+    const p = maxed('axe');
+    for (let i = 0; i < 20; i++) {
+      const { cards } = rollLevelUp(p, Math.random);
+      expect(cards[2]).toBe(upgradeCard('axe'));
+      expect(cards.filter((c) => c.startsWith('weapon:'))).toHaveLength(0);
+    }
+  });
+
+  test('upgrades stop at max → 3 regular cards', () => {
+    let p = maxed('shotgun');
+    for (let i = 0; i < BALANCE.weaponUpgrades.max + 2; i++) p = applyCard(p, upgradeCard('shotgun'));
+    expect(weaponUpgrades(p, 'shotgun')).toBe(BALANCE.weaponUpgrades.max);
+    const { cards } = rollLevelUp(p, seq(0, 0, 0));
+    expect(cards.every((c) => CARD_IDS.includes(c))).toBe(true);
+  });
+
+  test('a partly upgraded other weapon is not offered once a main exists', () => {
+    let p = applyCard(createProgression(), weaponCard('chakra'));
+    p = { ...p, arsenal: { ...p.arsenal, progress: { ...p.arsenal.progress, axe: 2 }, main: 'axe' } };
+    expect(rollLevelUp(p, Math.random).cards[2]).toBe(upgradeCard('axe'));
   });
 });

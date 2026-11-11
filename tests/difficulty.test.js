@@ -10,8 +10,8 @@ describe('scrollSpeed', () => {
 });
 
 describe('spawnIntervalMs', () => {
-  test('starts at spawnBaseMs', () => expect(spawnIntervalMs('bat', 0)).toBe(4000));
-  test('reaches spawnMinFactor at 180 s', () => expect(spawnIntervalMs('bat', 180)).toBe(1600));
-  test('stays constant after 180 s', () => expect(spawnIntervalMs('bat', 999)).toBe(1600));
-  test('is linear in between', () => expect(spawnIntervalMs('bat', 90)).toBe(2800));
+  test('starts at spawnBaseMs', () => expect(spawnIntervalMs('bat', 0)).toBe(4200));
+  test('reaches spawnMinFactor at 180 s', () => expect(spawnIntervalMs('bat', 180)).toBe(1680));
+  test('stays constant after 180 s', () => expect(spawnIntervalMs('bat', 999)).toBe(1680));
+  test('is linear in between', () => expect(spawnIntervalMs('bat', 90)).toBe(2940));
 });

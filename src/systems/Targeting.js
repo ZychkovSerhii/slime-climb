@@ -1,3 +1,4 @@
+import { BALANCE } from '../config/balance.js';
 /** Найближча активна ціль до точки from або null. При рівній відстані — перша в масиві. */
 export function pickNearest(from, targets) {
   let best = null;
@@ -43,4 +44,9 @@ export function interceptPoint(from, target, speed) {
   }
   if (!(t > 0)) return { x: target.x, y: target.y };
   return { x: target.x + vx * t, y: target.y + vy * t };
+}
+
+/** Чи може рослина на висоті plantY стріляти в гравця на висоті playerY: лише коли вона вище на minAbovePx. */
+export function plantMayFire(plantY, playerY) {
+  return playerY - plantY >= BALANCE.enemies.plant.minAbovePx;
 }

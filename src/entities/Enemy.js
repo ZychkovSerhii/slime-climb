@@ -3,6 +3,8 @@ import { BALANCE } from '../config/balance.js';
 import { applyDot, stepDot } from '../systems/Skills.js';
 
 const SLOW_TINT = 0x6fa8ff;
+const ICE_TINT = 0xa8ecff; // «Крижана атака»: ворог блідо-блакитний, «у кризі»
+const ICE_ANIM_SPEED = 0.25; // і рухи майже завмирають
 const ROOT_TINT = 0xe8e8e8; // приклеєний павутиною — білястий
 const ROOT_MIN_MUL = 0; // приклеєний стоїть на місці
 
@@ -27,6 +29,8 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
     this.baseTint = null;
     this.rootUntil = 0;
     this.dot = null;
+    this.iceUntil = 0;
+    this.frost = null;
   }
 
   setBaseTint(color) {
@@ -46,14 +50,41 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
     }
     // під сповільненням ворог тонується синім, приклеєний павутиною — білим
     const rooted = now < this.rootUntil;
-    const slowed = rooted ? 'root' : this.speedMul(now) < 1;
+    const iced = now < this.iceUntil;
+    const slowed = rooted ? 'root' : iced ? 'ice' : this.speedMul(now) < 1;
     if (slowed !== this.tintedSlow) {
       this.tintedSlow = slowed;
+      if (this.anims) this.anims.timeScale = slowed === 'ice' ? ICE_ANIM_SPEED : 1;
+      this.setFrost(slowed === 'ice');
       if (slowed === 'root') this.setTint(ROOT_TINT);
+      else if (slowed === 'ice') this.setTint(ICE_TINT);
       else if (slowed) this.setTint(SLOW_TINT);
       else if (this.baseTint !== null) this.setTint(this.baseTint);
       else this.clearTint();
     }
+    this.postUpdateFrost();
+  }
+
+  /** Кірка льоду поверх ворога (спрайт frost), поки діє «Крижана атака». */
+  setFrost(on) {
+    if (on && !this.frost) {
+      this.frost = this.scene.add.image(this.x, this.y, 'frost').setDepth(this.depth + 1).setAlpha(0.8);
+      const s = Math.max(this.displayWidth, this.displayHeight) / this.frost.width;
+      this.frost.setScale(Math.min(s, 3));
+    } else if (!on && this.frost) {
+      this.frost.destroy();
+      this.frost = null;
+    }
+  }
+
+  postUpdateFrost() {
+    if (this.frost) this.frost.setPosition(this.x, this.y);
+  }
+
+  destroy(fromScene) {
+    this.frost?.destroy();
+    this.frost = null;
+    super.destroy(fromScene);
   }
 
   /** Викликається після додавання у фізичну групу (група скидає швидкість тіла). */
@@ -72,8 +103,11 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
     if (!this.active || this.hp <= 0 || this.invulnerable) return;
     this.hp -= damage;
     if (fx?.slow) {
-      this.slowFactor = fx.slow.factor;
+      // бос лише трішки сповільнюється (крига — на 5%)
+      this.slowFactor = this.type === 'boss' ? Math.max(fx.slow.factor, fx.slow.bossFactor ?? fx.slow.factor) : fx.slow.factor;
       this.slowUntil = nowMs + fx.slow.durationMs;
+      // «заморожений» вигляд — лише звичайним ворогам: бос сповільнюється на 5%, застиглі лапи вводили б в оману
+      if (fx.slow.ice && this.type !== 'boss') this.iceUntil = this.slowUntil;
     }
     if (fx?.dot) this.dot = applyDot(this.dot, fx.dot, nowMs);
     if (fx?.root && nowMs >= this.rootUntil) this.rootUntil = nowMs + (this.type === 'boss' ? fx.root.bossMs : fx.root.ms);

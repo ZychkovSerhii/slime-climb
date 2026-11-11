@@ -40,7 +40,7 @@ export function invisCharge(inv, stats, nowMs) {
   return 1 - (inv.readyAt - nowMs) / stats.cooldownMs;
 }
 
-/** Капелюхи після n взять: { count, damage }. Шкода — сума кроків damageSteps за перші min(n, 4) взять. */
+/** Шляпи після n взять: { count, damage }. Шкода — сума кроків damageSteps за перші min(n, 4) взять. */
 export function hatStats(n) {
   if (!n) return { count: 0, damage: 0 };
   const steps = S.hat.damageSteps;
@@ -101,15 +101,20 @@ export function breakArmor(a, nowMs) {
 /**
  * Ефекти одного влучання основною зброєю: картка «Сповільнення» (slow), «Ядовита морда» (venom → slow + dot),
  * «Дупа павучихи» (web → root). Сповільнення не складаються: береться сильніше.
+ * Бос сповільнюється лише до slow.bossFactor (крига — −5%).
  */
 export function hitEffects(slowCard, relics) {
-  let slow = slowCard;
-  let dot = null;
+  // «Крижана атака» (картка slow): сповільнення + заморозка; боса лише на bossFactor
+  let slow = slowCard ? { factor: slowCard.factor, durationMs: slowCard.durationMs, bossFactor: slowCard.bossFactor } : null;
+  let dot = slowCard?.dps ? { dps: slowCard.dps, durationMs: slowCard.durationMs } : null;
+  const ice = Boolean(slowCard?.ice);
   if (relics.includes('venom')) {
     const v = L.venom;
-    if (!slow || slow.factor > v.slowFactor) slow = { factor: v.slowFactor, durationMs: v.slowMs };
-    dot = { dps: v.dps, durationMs: v.durationMs };
+    if (!slow || slow.factor > v.slowFactor) slow = { factor: v.slowFactor, durationMs: v.slowMs, bossFactor: v.slowFactor };
+    // [рішення] заморозка й отрута складаються в одну шкоду за секунду
+    dot = { dps: (dot?.dps ?? 0) + v.dps, durationMs: Math.max(dot?.durationMs ?? 0, v.durationMs) };
   }
+  if (slow) slow.ice = ice;
   const root = relics.includes('web') ? { ms: L.web.rootMs, bossMs: L.web.bossRootMs } : null;
   return { slow, dot, root };
 }
