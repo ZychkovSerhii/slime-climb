@@ -12,6 +12,7 @@
 | Готові PNG замість намальованого | `png/<key>.png` |
 | Зброя на слизакові: `axe`, `shotgun`, вени чакри `chakraVeins` | `sprites/<key>.js`; розмах сокири малює `entities/WeaponView.js` |
 | Солом'яна шляпа `hat`, кірка льоду `frost` (поверх замороженого ворога, масштабується під його розмір) | `sprites/<key>.js` |
+| Бос 2: `shkodko` (кадри `dance1/dance2/laugh/stun`), подарунок-бомба `giftBomb`, потяг `loco` і `wagon` (`sprites/train.js`; паровоз дивиться ліворуч) | `sprites/<key>.js` |
 | Скіни магазину: `skinAssassin`, `skinCommander`, `skinRaccoon`, `skinMurzik` (той самий розмір і кадри `idle1/idle2/jump`, що в `slime`; ціни й назви — `BALANCE.meta.skins`) | `sprites/<key>.js` |
 | Генерація текстур і анімацій у Phaser | `textures.js` (зазвичай не чіпати) |
 
