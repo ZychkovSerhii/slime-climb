@@ -1,19 +1,11 @@
 import { describe, expect, test } from 'vitest';
 import { BALANCE } from '../src/config/balance.js';
 import {
-  biomeAt, createGiftState, createSantaState, giftDue, giftX, penguinGroup, penguinHp, roarReaches, santaDue, wrapAxis, xpToLevelUp,
+  createGiftState, createSantaState, giftDue, giftX, penguinGroup, penguinHp, roarReaches, santaDue, wrapAxis, xpToLevelUp,
 } from '../src/systems/Biome.js';
 import { createSpawnState, dueSpawns } from '../src/systems/Spawner.js';
 import { spawnIntervalMs } from '../src/systems/Difficulty.js';
 import { createStatus, fireIntervalMul, isRoared, playerSpeedMul, poison, roar } from '../src/systems/Status.js';
-
-describe('biomeAt', () => {
-  test('печера до смерті павучихи, зима після', () => {
-    expect(biomeAt({ killedAtSec: null })).toBe('cave');
-    expect(biomeAt({ killedAtSec: 140 })).toBe('winter');
-  });
-  test('?winter=1 — зима з першої секунди', () => expect(biomeAt({ startWinter: true })).toBe('winter'));
-});
 
 describe('wrapAxis', () => {
   test('на екрані — без змін', () => expect(wrapAxis(500, 0, 1280, 100, 2)).toEqual({ pos: 500, wrapsLeft: 2, wrapped: false, gone: false }));

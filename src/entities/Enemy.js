@@ -2,6 +2,10 @@ import * as Phaser from 'phaser';
 import { BALANCE } from '../config/balance.js';
 import { applyDot, stepDot } from '../systems/Skills.js';
 import { wrapAxis } from '../systems/Biome.js';
+import { loopMul, scaledHp } from '../systems/Cycle.js';
+
+// боси: свої блоки балансу, трішки сповільнюються, не «замерзають» (див. takeHit)
+const BOSS_CFG = { boss: BALANCE.boss, shkodko: BALANCE.shkodko };
 
 const SLOW_TINT = 0x6fa8ff;
 const ICE_TINT = 0xa8ecff; // «Крижана атака»: ворог блідо-блакитний, «у кризі»
@@ -22,7 +26,11 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
     super(scene, x, y, texture);
     scene.add.existing(this);
     this.type = type;
-    this.hp = type === 'boss' ? BALANCE.boss.hp : BALANCE.enemies[type].hp;
+    this.isBoss = type in BOSS_CFG;
+    // коло біомів (етап 6b): HP ×1,35ⁿ і швидкість руху ×1,08ⁿ; scene.loop — номер кола з 0
+    const loop = scene.loop ?? 0;
+    this.hp = scaledHp((BOSS_CFG[type] ?? BALANCE.enemies[type]).hp, loop);
+    this.loopSpeed = loopMul(loop).speed;
     this.slowUntil = 0;
     this.slowFactor = 1;
     this.scrollsWithWorld = true;
@@ -118,7 +126,7 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
 
   speedMul(nowMs) {
     if (nowMs < this.rootUntil) return ROOT_MIN_MUL;
-    return nowMs < this.slowUntil ? this.slowFactor : 1;
+    return (nowMs < this.slowUntil ? this.slowFactor : 1) * this.loopSpeed;
   }
 
   /**
@@ -130,13 +138,13 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
     this.hp -= damage;
     if (fx?.slow) {
       // бос лише трішки сповільнюється (крига — на 5%)
-      this.slowFactor = this.type === 'boss' ? Math.max(fx.slow.factor, fx.slow.bossFactor ?? fx.slow.factor) : fx.slow.factor;
+      this.slowFactor = this.isBoss ? Math.max(fx.slow.factor, fx.slow.bossFactor ?? fx.slow.factor) : fx.slow.factor;
       this.slowUntil = nowMs + fx.slow.durationMs;
       // «заморожений» вигляд — лише звичайним ворогам: бос сповільнюється на 5%, застиглі лапи вводили б в оману
-      if (fx.slow.ice && this.type !== 'boss') this.iceUntil = this.slowUntil;
+      if (fx.slow.ice && !this.isBoss) this.iceUntil = this.slowUntil;
     }
     if (fx?.dot) this.dot = applyDot(this.dot, fx.dot, nowMs);
-    if (fx?.root && nowMs >= this.rootUntil) this.rootUntil = nowMs + (this.type === 'boss' ? fx.root.bossMs : fx.root.ms);
+    if (fx?.root && nowMs >= this.rootUntil) this.rootUntil = nowMs + (this.isBoss ? fx.root.bossMs : fx.root.ms);
     if (this.hp <= 0) {
       this.scene.events.emit('enemy:killed', { type: this.type, x: this.x, y: this.y });
       this.destroy();

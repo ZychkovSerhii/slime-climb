@@ -72,6 +72,19 @@ export const SOUNDS = {
   gift: [76, 83].map((n, i) => ({ wave: 'square', from: midiToHz(n), to: midiToHz(n), ms: 70, vol: 0.08, at: i * 70 })),
   // Санта летить: дзвіночки
   jingle: [84, 88, 84, 88, 91].map((n, i) => ({ wave: 'triangle', from: midiToHz(n), to: midiToHz(n), ms: 90, vol: 0.1, at: i * 110 })),
+  // ---- Шкодько (етап 6b)
+  // вибух подарунка-бомби: глухий бах із шумом
+  boom: [
+    { noise: true, ms: 260, vol: 0.18 },
+    { wave: 'square', from: 140, to: 40, ms: 260, vol: 0.12 },
+  ],
+  // свисток потяга: два гудки
+  whistle: [
+    { wave: 'square', from: 880, to: 900, ms: 260, vol: 0.08, vibrato: 8 },
+    { wave: 'square', from: 740, to: 760, ms: 420, vol: 0.08, vibrato: 8, at: 300 },
+  ],
+  // Шкодько сміється: «хе-хе-хе» вниз
+  laugh: [72, 70, 68, 65].map((n, i) => ({ wave: 'sawtooth', from: midiToHz(n), to: midiToHz(n - 2), ms: 90, vol: 0.09, at: i * 120 })),
   levelUp: [60, 64, 67, 72].map((n, i) => ({ wave: 'square', from: midiToHz(n), to: midiToHz(n), ms: 90, vol: 0.1, at: i * 85 })),
   // сумне «ту-ту-ту-туууу»: три короткі ноти вниз по півтону і довга остання з вібрато
   gameOver: [

@@ -81,6 +81,8 @@ export const BALANCE = deepFreeze({
     // hp 5 = «5 влучань» лише стартовою зброєю; сокира чи дробовик зіб'ють швидше — [рішення], так і має бути.
     // Нагорода: Шаги (meta.stepsPerKill.santa) і рівень (досвід до наступного рівня).
     santa: { hp: 5, xp: 0, points: 300, speed: 170, y: 210, wraps: 2, chancePerMin: 0.1 },
+    // Вагон потяга Шкодька (етап 6b): окреме HP; паровоз невразливий
+    wagon: { hp: 6, xp: 2, points: 60 },
   },
   // Біоми. Біом 1 (cave) — як був: його спавн — spawnBaseMs і enemies.<type>.from нижче.
   // Зима настає після смерті павучихи (у 6b — далі Шкодько і чергування). from — секунди від початку зими.
@@ -135,6 +137,47 @@ export const BALANCE = deepFreeze({
     rageSpeedMul: 1.35,
     debugAtSec: 6, // старт боса з параметром ?boss=1 (для перевірки)
   },
+  // ---- Бос 2 «Шкодько» (етап 6b, специфікація §6, рішення §6.2). Частки HP — від maxHp.
+  shkodko: {
+    name: 'Шкодько',
+    scale: 1.5, // розмір спрайта на екрані (хітбокс теж)
+    afterSec: 180, // через стільки секунд після смерті павучихи (у зимі)
+    hp: 85, // рішення користувача: +50% до павучихи (55); вагони — окремо
+    xp: 90,
+    points: 1600,
+    phases: { p2: 0.8, p3: 0.5, p4: 0.3 },
+    zone: { top: 200, bottomGap: 90 }, // танцює між y=top і (y гравця − bottomGap)
+    // танець: пауза на точці, швидкість, кожна aimEvery-та точка — там, де гравець
+    dance: {
+      p1: { speed: 260, pauseMs: 700, aimEvery: 4 },
+      p2: { speed: 340, pauseMs: 550, aimEvery: 2, bombs: 2 },
+      p3: { speed: 380, pauseMs: 450, aimEvery: 2, bombs: 2 },
+      rage: { speed: 440, pauseMs: 350, aimEvery: 2, bombs: 2 },
+    },
+    // фаза 2+: раз на everyMs — угору по центру, невразливий holdMs, залп з count бомб
+    volley: { everyMs: 12000, holdMs: 3000, count: 6, centerY: 220 },
+    bomb: { flightMs: 650, fuseMinMs: 2000, fuseMaxMs: 3000, radiusPx: 75, nearPlayerShare: 0.5, nearSpreadPx: 90 },
+    // фаза 3: подарунковий дощ; heal — частка maxHp за кожен незібраний, якщо ціль не виконано
+    rush: { count: 10, durationMs: 8000, goal: 6, xp: 3, healEach: 0.05, healCap: 0.65, fallSpeed: 260 },
+    candy: { everyMs: 1600, count: 3, spreadDeg: 16, speed: 320 },
+    train: {
+      sitMs: 1000, // поки сідає — невразливий
+      wagons: 5,
+      // Вагони на довгій зчіпці: на екрані ~1 вагон за раз, кожен перестрибується окремо.
+      // Суцільний потяг (~750 px) проїжджав би повз слизака ~1,5 с, а стрибок тримає його вгорі лише ~0,5 с.
+      speed: 600, // px/s
+      wagonGapPx: 480, // проміжок між вагонами (зчіпка)
+      warnMs: 1200, // свисток і стрілка перед проїздом
+      pauseMs: 900, // між проїздами
+      peekEveryMs: 3500, peekMs: 1200, // Шкодько визирає з паровоза — тоді вразливий
+      peekFloor: 0.15, // нижче цієї частки HP визирання не збиває
+    },
+    stunMs: 3000, // після потяга
+    rageHpCap: 0.15, // після потяга HP = min(поточне, rageHpCap)
+    debugAtSec: 6, // ?shkodko=1
+  },
+  // Коло біомів (етап 6b): печера (павучиха) → зима (Шкодько) → печера… Коло n (з 0): HP ×hpMul^n, швидкість ×speedMul^n
+  cycle: { hpMul: 1.35, speedMul: 1.08 },
 
   // Спавн
   spawnBaseMs: { lion: 6300, bat: 4200, plant: 9450 }, // фідбек-2: −5% частоти (було 6000/4000/9000); перші появи — як були
@@ -208,7 +251,7 @@ export const BALANCE = deepFreeze({
   // Ціль специфікації: ~120–180 Шагів за нормальний забіг (боса вбито, смерть на 3:00–3:30) — ще не перевірено плейтестом.
   meta: {
     // Шаги за вбивство. smallSpider — павучки рою павучихи: їх за бій десятки, тому 0 [рішення], інакше рій давав би більше за саму павучиху
-    stepsPerKill: { lion: 2, bat: 1, plant: 2, smallSpider: 0, boss: 60, elf: 1, penguin: 1, bear: 4, santa: 40 },
+    stepsPerKill: { lion: 2, bat: 1, plant: 2, smallSpider: 0, boss: 60, elf: 1, penguin: 1, bear: 4, santa: 40, shkodko: 100, wagon: 0 },
     // Скіни лише візуальні. sprite — ключ спрайта в src/art/sprites (однаковий розмір полотна → хітбокс той самий)
     skins: [
       { id: 'slime', name: 'Слизак', price: 0, sprite: 'slime' },
@@ -232,6 +275,9 @@ export const BALANCE = deepFreeze({
       { id: 'penguin50', stat: 'penguin', count: 50, reward: 50, title: '50 пінгвінів', caption: 'Лід тепер вільний.' },
       { id: 'bear10', stat: 'bear', count: 10, reward: 80, title: '10 білих ведмедів', caption: 'Ричати більше нікому.' },
       { id: 'santa1', stat: 'santa', count: 1, reward: 100, title: 'Збити Санту', caption: 'Цього року подарунків не буде.' },
+      // етап 6b
+      { id: 'shkodko1', stat: 'shkodko', count: 1, reward: 150, title: 'Вбивство Шкодька', caption: 'Як ти міг...' },
+      { id: 'shkodko5', stat: 'shkodko', count: 5, reward: 400, title: '5 разів вбити Шкодька', caption: 'Ти і вправду паскуда!' },
     ],
     toastMs: 2500,
   },

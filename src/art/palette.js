@@ -77,4 +77,19 @@ export const C = {
   beak: 0xf29a2e,
   sledWood: 0x7a4a24,
   sledDark: 0x4e2c12,
+
+  // ---- Шкодько (етап 6b): пухкий зелений гоблін-злодюга. Шапка-ялинка, шарф із мішури, латаний мішок
+  goblin: 0x7cbf3e,
+  goblinDark: 0x4f8a24,
+  goblinLight: 0xb4e06a,
+  treeHat: 0x1f7a3a,
+  treeHatDark: 0x125226,
+  sack: 0x9a6a3a,
+  sackDark: 0x63401f,
+  bombWrap: 0x7a3fa0,
+  bombWrapDark: 0x4e2468,
+  trainRed: 0xc2302f,
+  trainRedDark: 0x7d1a1c,
+  boiler: 0x2f5e7a,
+  boilerDark: 0x1c3b4f,
 };

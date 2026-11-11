@@ -2,18 +2,6 @@ import { BALANCE } from '../config/balance.js';
 
 const B = BALANCE.boss;
 
-/**
- * Етап забігу відносно боса:
- * 'before' → 'prep' (за prepSec до боса: шипи й вороги зникають) → 'fight' → 'calm' (calmSec після смерті) → 'after'.
- * killedAtSec — секунда смерті боса або null.
- */
-export function bossStage(tSec, { atSec = B.atSec, killedAtSec = null } = {}) {
-  if (killedAtSec !== null) return tSec < killedAtSec + B.calmSec ? 'calm' : 'after';
-  if (tSec >= atSec) return 'fight';
-  if (tSec >= atSec - B.prepSec) return 'prep';
-  return 'before';
-}
-
 /** Плашка «БОС: …» — останні bannerSec перед появою боса. */
 export function bannerVisible(tSec, atSec = B.atSec) {
   return tSec >= atSec - B.bannerSec && tSec < atSec;

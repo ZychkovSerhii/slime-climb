@@ -3,7 +3,6 @@ import {
   afterBossSpawnMul,
   attackTimings,
   bannerVisible,
-  bossStage,
   hazardsSuppressed,
   isRage,
   nextSwarmSize,
@@ -16,26 +15,6 @@ import {
 import { BALANCE } from '../src/config/balance.js';
 
 const B = BALANCE.boss;
-
-describe('bossStage', () => {
-  const at = 120;
-  test('before → prep (4 s before) → fight', () => {
-    expect(bossStage(115.9, { atSec: at })).toBe('before');
-    expect(bossStage(116, { atSec: at })).toBe('prep');
-    expect(bossStage(119.9, { atSec: at })).toBe('prep');
-    expect(bossStage(120, { atSec: at })).toBe('fight');
-    expect(bossStage(500, { atSec: at })).toBe('fight');
-  });
-  test('after the kill: 6 s calm, then after', () => {
-    expect(bossStage(150, { atSec: at, killedAtSec: 150 })).toBe('calm');
-    expect(bossStage(155.9, { atSec: at, killedAtSec: 150 })).toBe('calm');
-    expect(bossStage(156, { atSec: at, killedAtSec: 150 })).toBe('after');
-  });
-  test('custom start time (debug ?boss=1)', () => {
-    expect(bossStage(1.9, { atSec: 6 })).toBe('before');
-    expect(bossStage(2, { atSec: 6 })).toBe('prep');
-  });
-});
 
 test('banner: the last 2 s before the boss', () => {
   expect(bannerVisible(117.9, 120)).toBe(false);

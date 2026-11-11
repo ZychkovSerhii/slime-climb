@@ -2,9 +2,10 @@ import * as Phaser from 'phaser';
 import { BALANCE } from '../config/balance.js';
 import { scrollSpeed } from '../systems/Difficulty.js';
 import { createSpawnState, dueSpawns } from '../systems/Spawner.js';
-import { afterBossSpawnMul, bannerVisible, bossStage, hazardsSuppressed } from '../systems/BossPlanner.js';
+import { afterBossSpawnMul, bannerVisible, hazardsSuppressed } from '../systems/BossPlanner.js';
+import { firstSegment, nextSegment, runStage } from '../systems/Cycle.js';
 import { createStatus, fireIntervalMul, isPoisoned, isRoared, playerSpeedMul, poison, roar } from '../systems/Status.js';
-import { biomeAt, createGiftState, createSantaState, giftDue, giftX, penguinGroup, penguinHp, santaDue, xpToLevelUp } from '../systems/Biome.js';
+import { createGiftState, createSantaState, giftDue, giftX, penguinGroup, penguinHp, santaDue, xpToLevelUp } from '../systems/Biome.js';
 import { loadSettings } from '../systems/Settings.js';
 import { addXp, applyCard, cardUpgrade, createProgression, killXp, rollLevelUp, weaponCard, weaponUpgrades, xpToNext } from '../systems/Progression.js';
 import { attackDamage, axeRadius, createFireState, hasMiniAxe, inRadius, shotgunAngles, stepFire, weaponJumpMul } from '../systems/Weapons.js';
@@ -29,6 +30,7 @@ import Lion from '../entities/Lion.js';
 import Bat from '../entities/Bat.js';
 import Plant from '../entities/Plant.js';
 import SpiderBoss from '../entities/SpiderBoss.js';
+import ShkodkoBoss from '../entities/ShkodkoBoss.js';
 import WeaponView from '../entities/WeaponView.js';
 import Elf from '../entities/Elf.js';
 import Bear from '../entities/Bear.js';
@@ -92,18 +94,18 @@ export default class GameScene extends Phaser.Scene {
     this.weapon = this.progression.weapon;
     this.fireState = createFireState();
     this.spawnState = createSpawnState();
-    // бос: етап забігу рахує bossStage (before → prep → fight → calm → after)
+    // Коло біомів (етап 6b, systems/Cycle): відрізок — біом і бос наприкінці; етап рахує runStage
+    // (calm → before/after → prep → fight). killedAtSec — секунда смерті попереднього боса (тиша й плавний спавн).
+    // Перевірка: ?boss=1 — павучиха на 6-й с, ?winter=1 — зима без боса, ?shkodko=1 — зима і Шкодько на 6-й с.
+    const q = new URLSearchParams(window.location.search);
+    const start = q.get('shkodko') === '1' ? 'shkodko' : q.get('winter') === '1' ? 'winter' : q.get('boss') === '1' ? 'spider' : 'cave';
+    this.seg = firstSegment(start);
+    this.loop = 0; // номер кола з 0: вороги й боси міцніші (Enemy читає scene.loop)
     this.stage = 'before';
     this.bossSpawned = false;
     this.bannerShown = false;
     this.killedAtSec = null;
     this.status = createStatus();
-    // ?boss=1 у адресі — бос на debugAtSec секунді (для перевірки)
-    const debugBoss = new URLSearchParams(window.location.search).get('boss') === '1';
-    this.bossAtSec = debugBoss ? BALANCE.boss.debugAtSec : BALANCE.boss.atSec;
-    // ?winter=1 — одразу зима без павучихи (для перевірки етапу 6a)
-    this.startWinter = new URLSearchParams(window.location.search).get('winter') === '1';
-    if (this.startWinter) this.killedAtSec = -1e6; // «павучиха давно вбита»: бій не почнеться
     this.biome = 'cave';
     this.settings = loadSettings(browserStorage());
     this.snow = null;
@@ -138,7 +140,8 @@ export default class GameScene extends Phaser.Scene {
     // те, що зникає перед босом: без зіткнень, але ще їде разом зі світом, поки не розтане
     this.fading = this.add.group();
     this.pickups = this.physics.add.group(); // подарунки зими
-    this.scrollingGroups = [this.hazards, this.enemies, this.playerProjectiles, this.enemyProjectiles, this.fading, this.pickups];
+    this.bombs = this.add.group(); // подарунки-бомби Шкодька (вибух перевіряє відстань сам)
+    this.scrollingGroups = [this.hazards, this.enemies, this.playerProjectiles, this.enemyProjectiles, this.fading, this.pickups, this.bombs];
 
     this.player = new Player(this);
     this.player.setSkin(skinSprite(this.meta));
@@ -178,7 +181,7 @@ export default class GameScene extends Phaser.Scene {
       sfx('kill');
       this.killScore += killPoints(type);
       this.onMetaKill(type);
-      if (type === 'boss') this.onBossKilled();
+      if (type === 'boss' || type === 'shkodko') this.onBossKilled(type);
       // Санта дає рівень: рівно стільки досвіду, скільки бракує до наступного
       const xp = type === 'santa' ? xpToLevelUp(this.progression.xp, xpToNext(this.progression.level)) : killXp(type);
       this.gainXp(xp);
@@ -212,7 +215,7 @@ export default class GameScene extends Phaser.Scene {
     this.player.on('jumped', () => sfx('jump'));
     this.player.on('reversed', () => sfx('reverse'));
 
-    if (this.startWinter) this.enterBiome('winter'); // до перших шипів — щоб одразу були бурульки
+    if (this.seg.biome !== 'cave') this.enterBiome(this.seg.biome); // до перших шипів — щоб одразу були бурульки
     this.spawnSpikes(); // шипи видно з першого кадру
 
     this.createPauseOverlay();
@@ -573,7 +576,7 @@ export default class GameScene extends Phaser.Scene {
   /** Перед босом: шипи, звичайні вороги й їхні кулі плавно зникають (без нагород, без зіткнень). */
   clearMap() {
     this.pendingPlants = 0;
-    for (const group of [this.hazards, this.enemies, this.enemyProjectiles, this.pickups]) {
+    for (const group of [this.hazards, this.enemies, this.enemyProjectiles, this.pickups, this.bombs]) {
       for (const obj of group.getChildren().slice()) {
         group.remove(obj);
         if (obj.body) obj.body.enable = false;
@@ -587,22 +590,34 @@ export default class GameScene extends Phaser.Scene {
   showBossBanner() {
     this.bannerShown = true;
     sfx('bossAppear');
-    this.events.emit('hud:banner', { text: `БОС: ${BALANCE.boss.name}`, ms: BALANCE.boss.bannerSec * 1000 });
+    const name = this.seg.boss === 'shkodko' ? BALANCE.shkodko.name : BALANCE.boss.name;
+    this.events.emit('hud:banner', { text: `БОС: ${name}`, ms: BALANCE.boss.bannerSec * 1000 });
   }
 
   startBoss() {
     this.bossSpawned = true;
-    const boss = this.spawnEnemy(new SpiderBoss(this));
+    const boss = this.spawnEnemy(this.seg.boss === 'shkodko' ? new ShkodkoBoss(this) : new SpiderBoss(this));
     boss.emitHud();
     playMusic('boss');
   }
 
-  /** Після боса: calmSec нічого небезпечного, далі вороги повертаються поступово. */
-  onBossKilled() {
+  /**
+   * Після боса: calmSec нічого небезпечного, далі вороги повертаються поступово. Наступний відрізок кола:
+   * після павучихи — зима і Шкодько, після Шкодька — печера наступного кола (вороги й боси міцніші).
+   */
+  onBossKilled(type) {
     this.killedAtSec = this.elapsedSec;
-    // унікальні картки павучихи: 2 з ще не взятих (кожна — раз за забіг)
-    const loot = rollLoot(this.progression.relics, Math.random);
-    this.lootCards = loot.length ? loot : null;
+    this.seg = nextSegment(this.seg, this.elapsedSec);
+    this.loop = this.seg.loop;
+    this.bossSpawned = false;
+    this.bannerShown = false;
+    // бомби, що ще лежать, гаснуть разом з босом
+    for (const b of this.bombs.getChildren().slice()) b.destroy();
+    // унікальні картки павучихи: 2 з ще не взятих (кожна — раз за забіг). Картки Шкодька — етап 6c.
+    if (type === 'boss') {
+      const loot = rollLoot(this.progression.relics, Math.random);
+      this.lootCards = loot.length ? loot : null;
+    }
     this.events.emit('hud:boss', null);
     playMusic('victory');
   }
@@ -661,7 +676,8 @@ export default class GameScene extends Phaser.Scene {
     if (this.paused || this.dead || !gift.active) return;
     gift.destroy();
     sfx('gift');
-    this.gainXp(BALANCE.winter.gift.xp);
+    gift.onCollect?.(); // подарунковий дощ Шкодька рахує зібрані
+    this.gainXp(gift.xp ?? BALANCE.winter.gift.xp);
   }
 
   /** Ричання ведмедя дістало слизака (невидимого — ні). */
@@ -674,17 +690,20 @@ export default class GameScene extends Phaser.Scene {
   enterBiome(biome) {
     const from = this.biome;
     this.biome = biome;
-    // після павучихи — тиша calmSec; перші появи зими рахуються від її кінця
-    const startSec = this.startWinter ? 0 : this.elapsedSec + BALANCE.boss.calmSec;
+    // після боса — тиша calmSec; перші появи біому рахуються від її кінця
+    const startSec = this.elapsedSec < 0.5 ? 0 : this.elapsedSec + BALANCE.boss.calmSec;
     this.spawnState = createSpawnState(biome, startSec);
     if (biome === 'winter') {
       this.santaState = createSantaState(startSec);
       this.giftState = createGiftState(startSec * 1000);
       if (this.settings.snow && !this.snow) this.snow = new Snow(this);
+    } else if (this.snow) {
+      this.snow.destroy();
+      this.snow = null;
     }
     const instant = from === biome || this.elapsedSec < 0.5;
     this.swapTiles(TEX[biome], instant ? 0 : BALANCE.winter.transitionMs);
-    if (!instant) this.events.emit('hud:banner', { text: biome === 'winter' ? 'Зима' : '', ms: 1800 });
+    if (!instant) this.events.emit('hud:banner', { text: biome === 'winter' ? 'Зима' : `Коло ${this.loop + 1}`, ms: 1800 });
   }
 
   /** Нові фон і стіни проявляються поверх старих за ms, старі потім знищуються. */
@@ -761,11 +780,10 @@ export default class GameScene extends Phaser.Scene {
     if (this.paused || this.dead) return;
     const dt = clampDelta(delta);
     this.elapsedSec += dt / 1000;
-    const stage = bossStage(this.elapsedSec, { atSec: this.bossAtSec, killedAtSec: this.killedAtSec });
+    const stage = runStage(this.elapsedSec, this.seg, this.killedAtSec);
     if (stage !== this.stage) this.onStage(stage);
-    const biome = biomeAt({ killedAtSec: this.killedAtSec, startWinter: this.startWinter });
-    if (biome !== this.biome) this.enterBiome(biome);
-    if (!this.bannerShown && bannerVisible(this.elapsedSec, this.bossAtSec)) this.showBossBanner();
+    if (this.seg.biome !== this.biome) this.enterBiome(this.seg.biome);
+    if (this.seg.boss && !this.bannerShown && bannerVisible(this.elapsedSec, this.seg.atSec)) this.showBossBanner();
     if (stage === 'fight' && !this.bossSpawned) this.startBoss();
     this.currentScroll = scrollSpeed(this.elapsedSec, this.bossActive);
     const dy = (this.currentScroll * dt) / 1000;

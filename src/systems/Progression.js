@@ -197,8 +197,9 @@ function applyWeaponCard(p, weaponId, cardId) {
   return { ...p, arsenal, picks: { ...p.picks, [cardId]: (p.picks[cardId] ?? 0) + 1 } };
 }
 
-/** Досвід за вбивство ворога типу type ('boss' — бос). */
+/** Досвід за вбивство ворога типу type ('boss' — павучиха, 'shkodko' — Шкодько). */
 export function killXp(type) {
   if (type === 'boss') return BALANCE.boss.xp;
+  if (type === 'shkodko') return BALANCE.shkodko.xp;
   return BALANCE.enemies[type]?.xp ?? 0;
 }
