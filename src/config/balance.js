@@ -88,7 +88,8 @@ export const BALANCE = deepFreeze({
   // коли множник уже ~0,6 — тому бази більші, ніж у біомі 1.
   winter: {
     from: { elf: 3, bat: 8, penguin: 12, bear: 22 },
-    spawnBaseMs: { elf: 6500, bat: 7000, penguin: 11000, bear: 17000 },
+    // Фідбек після 6a: «забагато мобів» — інтервали ×1,25 (було elf 6500, bat 7000, penguin 11000, bear 17000)
+    spawnBaseMs: { elf: 8100, bat: 8750, penguin: 13750, bear: 21000 },
     bat: { hp: 2, speedMul: 1.15 }, // кажан у зимі: HP 2, ще +15% швидкості
     // подарунок: летить разом зі світом посеред коридору, у смузі стрибка; дотик — досвід
     gift: { everyMs: 9000, jitter: 0.35, xp: 4, firstMs: 4000 },
