@@ -3,9 +3,10 @@ import { BALANCE } from '../config/balance.js';
 import { scrollSpeed } from '../systems/Difficulty.js';
 import { createSpawnState, dueSpawns } from '../systems/Spawner.js';
 import { afterBossSpawnMul, bannerVisible, hazardsSuppressed } from '../systems/BossPlanner.js';
-import { firstSegment, nextSegment, runStage } from '../systems/Cycle.js';
+import { firstSegment, loopMul, nextSegment, runStage } from '../systems/Cycle.js';
 import { createStatus, fireIntervalMul, isPoisoned, isRoared, playerSpeedMul, poison, roar } from '../systems/Status.js';
-import { createGiftState, createSantaState, giftDue, giftX, penguinGroup, penguinHp, santaDue, xpToLevelUp } from '../systems/Biome.js';
+import { createGiftState, createSantaState, giftDue, giftX, giftXp, penguinGroup, penguinHp, rollGift, santaDue, xpToLevelUp } from '../systems/Biome.js';
+import { meetInterval, spikesBlock, walkerSide, walkerSpeedRange, worldOf } from '../systems/WallWalkers.js';
 import { loadSettings } from '../systems/Settings.js';
 import { addXp, applyCard, cardUpgrade, createProgression, killXp, rollLevelUp, weaponCard, weaponUpgrades, xpToNext } from '../systems/Progression.js';
 import { attackDamage, axeRadius, createFireState, hasMiniAxe, inRadius, shotgunAngles, stepFire, weaponJumpMul } from '../systems/Weapons.js';
@@ -17,7 +18,7 @@ import {
 } from '../systems/Skills.js';
 import { inInvisButton } from '../systems/Layout.js';
 import Familiar from '../entities/Familiar.js';
-import { createSpikeState, planSpikes, prefillStartWorld, skipSpikes } from '../systems/SpikePlanner.js';
+import { createSpikeState, planSpikes, prefillStartWorld, reserveFree, skipSpikes } from '../systems/SpikePlanner.js';
 import { heightPoints, killPoints } from '../systems/Score.js';
 import { loadMeta, recordKill, saveMeta, skinSprite } from '../systems/Meta.js';
 import { browserStorage } from '../systems/HighScore.js';
@@ -47,8 +48,6 @@ import { background } from '../art/textures.js';
 
 const POISON_TINT = 0xb0d040; // слизак і так зелений — під отрутою він темніший, болотний
 const ROAR_TINT = 0x9fb4c8; // приголомшений ричанням — сірувато-блакитний
-const PENGUIN_GAP_Y = 56; // пінгвіни групи — «потягом» один за одним
-const PENGUIN_SPREAD_X = 30;
 // глибини фону: фон −3, сніг −2 (Snow.js), стіни −1, усе інше 0
 const BG_DEPTH = -3;
 const WALL_DEPTH = -1;
@@ -108,6 +107,8 @@ export default class GameScene extends Phaser.Scene {
     const q = new URLSearchParams(window.location.search);
     const start = q.get('shkodko') === '1' ? 'shkodko' : q.get('winter') === '1' ? 'winter' : q.get('boss') === '1' ? 'spider' : 'cave';
     this.seg = firstSegment(start);
+    this.walkerSeq = 0;
+    this.walkerQueue = []; // ходоки по стінах, що чекають, поки на безпечній стіні розійдуться шипи (фідбек-3)
     this.loop = 0; // номер кола з 0: вороги й боси міцніші (Enemy читає scene.loop)
     this.stage = 'before';
     this.bossSpawned = false;
@@ -192,7 +193,7 @@ export default class GameScene extends Phaser.Scene {
       this.onMetaKill(type);
       if (type === 'boss' || type === 'shkodko') this.onBossKilled(type);
       // Санта дає рівень: рівно стільки досвіду, скільки бракує до наступного
-      const xp = type === 'santa' ? xpToLevelUp(this.progression.xp, xpToNext(this.progression.level)) : killXp(type);
+      const xp = type === 'santa' ? xpToLevelUp(this.progression.xp, xpToNext(this.progression.level)) : killXp(type, this.loop);
       this.gainXp(xp);
     };
     const onPicked = (id) => this.onCardPicked(id);
@@ -645,23 +646,70 @@ export default class GameScene extends Phaser.Scene {
       else if (type === 'bat') this.spawnEnemy(new Bat(this, { winter: this.biome === 'winter' }));
       else if (type === 'plant') this.pendingPlants += 1;
       else if (type === 'elf') this.spawnEnemy(new Elf(this));
-      else if (type === 'bear') this.spawnEnemy(new Bear(this));
-      else if (type === 'penguin') this.spawnPenguins();
+      else if (type === 'bear' || type === 'penguin') this.requestWalker(type);
     }
+    this.stepWalkers();
     if (this.biome === 'winter') this.spawnWinterExtras();
   }
 
-  /** Пінгвіни групою 1–3: один за одним згори, з невеликим розкидом по x. */
-  spawnPenguins() {
-    const { width } = this.scale;
-    const tex = this.textures.getFrame('penguin');
-    const minX = BALANCE.wallWidth + tex.width / 2;
-    const x0 = Phaser.Math.FloatBetween(minX + PENGUIN_SPREAD_X, width - minX - PENGUIN_SPREAD_X);
-    const n = penguinGroup(Math.random);
-    for (let i = 0; i < n; i++) {
-      const x = x0 + Phaser.Math.FloatBetween(-PENGUIN_SPREAD_X, PENGUIN_SPREAD_X);
-      this.spawnEnemy(new Penguin(this, x, -tex.height / 2 - i * PENGUIN_GAP_Y, penguinHp(Math.random)));
+  // ---------- Ходоки по стінах (фідбек-3): ведмідь і пінгвіни ----------
+
+  /** Стіна, яку вже займають ходоки (активні чи в черзі), або null. */
+  walkerWall() {
+    const active = this.enemies.getChildren().find((e) => e.active && e.walker);
+    return active?.side ?? this.walkerQueue[0]?.side ?? null;
+  }
+
+  /** Ходок у чергу: з'явиться, коли на протилежній стіні не буде шипів у зоні зустрічі. */
+  requestWalker(type) {
+    const side = walkerSide(this.player.side, this.walkerWall());
+    const n = type === 'penguin' ? penguinGroup(Math.random) : 1;
+    this.walkerQueue.push({ type, side, n, until: this.nowMs + BALANCE.wallWalk.maxWaitMs, id: `walk${++this.walkerSeq}` });
+  }
+
+  /** Інтервал світу, який має лишатися без шипів на протилежній стіні, якщо ходок з'явиться зараз. */
+  walkerPlan(q) {
+    const tex = this.textures.getFrame(q.type);
+    const halfLen = tex.width / 2;
+    const y0 = -halfLen - 4;
+    const gap = BALANCE.enemies.penguin.groupGapPx;
+    const tail = (q.n - 1) * gap;
+    const scroll = scrollSpeed(this.elapsedSec, false);
+    const iv = meetInterval({
+      w0: worldOf(this.distancePx, y0), tail, halfLen, d0: this.distancePx,
+      zoneY: this.player.baseY, scroll, ...walkerSpeedRange(q.type, loopMul(this.loop).speed),
+    });
+    return { y0, gap, iv };
+  }
+
+  /**
+   * Щокадру: для кожного ходка в черзі резервуємо протилежну стіну (нових шипів там не буде) і, щойно
+   * вже поставлені шипи вийшли з зони зустрічі, випускаємо його. Не дочекався maxWaitMs — не з'являється.
+   */
+  stepWalkers() {
+    if (!this.walkerQueue.length) return;
+    if (hazardsSuppressed(this.stage)) {
+      this.walkerQueue = [];
+      return;
     }
+    const spikes = this.hazards.getChildren().filter((h) => h.active && h.side).map((h) => ({ side: h.side, y: h.y }));
+    const rest = [];
+    for (const q of this.walkerQueue) {
+      const safe = q.side === 'left' ? 'right' : 'left';
+      const { y0, gap, iv } = this.walkerPlan(q);
+      // резерв з тим самим id оновлюється, а не накопичується
+      this.spikeState = reserveFree(this.spikeState, safe, iv.from, iv.to, this.distancePx, q.id);
+      if (spikesBlock(spikes, safe, iv, this.distancePx)) {
+        if (this.nowMs < q.until) rest.push(q);
+        else this.spikeState = reserveFree(this.spikeState, safe, 0, -1, this.distancePx, q.id); // зняти резерв
+        continue;
+      }
+      for (let i = 0; i < q.n; i++) {
+        const y = y0 - i * gap;
+        this.spawnEnemy(q.type === 'bear' ? new Bear(this, q.side, y) : new Penguin(this, q.side, y, penguinHp(Math.random)));
+      }
+    }
+    this.walkerQueue = rest;
   }
 
   /** Зима: Санта (шанс щохвилини) і подарунки на траєкторії стрибка. */
@@ -688,7 +736,54 @@ export default class GameScene extends Phaser.Scene {
     gift.destroy();
     sfx('gift');
     gift.onCollect?.(); // подарунковий дощ Шкодька рахує зібрані
-    this.gainXp(gift.xp ?? BALANCE.winter.gift.xp);
+    // подарунковий дощ Шкодька дає фіксований досвід; звичайний зимовий подарунок — випадковий бонус (фідбек-3)
+    if (gift.xp !== undefined) {
+      this.gainXp(gift.xp);
+      return;
+    }
+    this.giftBonus(rollGift(Math.random, { livesFull: this.health.lives >= this.maxLives }));
+  }
+
+  /** Бонус подарунка з написом над слизаком. */
+  giftBonus(kind) {
+    const G = BALANCE.winter.gift;
+    if (kind === 'steps') {
+      this.meta = { ...this.meta, steps: this.meta.steps + G.steps };
+      this.runSteps += G.steps;
+      saveMeta(this.storage, this.meta);
+      this.floatText(`+${G.steps} Шаги`, '#f2c440');
+    } else if (kind === 'shield') {
+      this.health = { ...this.health, invulnerableUntil: Math.max(this.health.invulnerableUntil, this.nowMs + G.shieldMs) };
+      this.showShield(G.shieldMs);
+      this.floatText('Щит!', '#9fe0ff');
+    } else if (kind === 'life') {
+      this.health = heal(this.health, 1, this.maxLives);
+      this.floatText('+1 життя', '#ff7a8a');
+    } else {
+      const xp = giftXp(xpToNext(this.progression.level));
+      this.floatText(`+${xp} досвіду`, '#b4e06a');
+      this.gainXp(xp); // після напису: новий рівень ставить гру на паузу
+    }
+  }
+
+  /** Бульбашка щита навколо слизака на ms (сам захист — невразливість у health). */
+  showShield(ms) {
+    this.shieldFx?.destroy();
+    const r = BALANCE.playerSize * 0.8;
+    const fx = this.add.circle(this.player.x, this.player.y, r, 0x9fe0ff, 0.18).setStrokeStyle(3, 0x9fe0ff, 0.8).setDepth(40);
+    this.shieldFx = fx;
+    this.shieldUntil = this.nowMs + ms;
+  }
+
+  /** Щокадру: бульбашка йде за слизаком і зникає, коли щит скінчився. */
+  stepShield() {
+    if (!this.shieldFx) return;
+    this.shieldFx.setPosition(this.player.x, this.player.y);
+    const left = this.shieldUntil - this.nowMs;
+    if (left <= 0) {
+      this.shieldFx.destroy();
+      this.shieldFx = null;
+    } else if (left < 600) this.shieldFx.setAlpha(Math.floor(left / 100) % 2 ? 1 : 0.3); // блимає перед кінцем
   }
 
   /** Ричання ведмедя дістало слизака (невидимого — ні). */
@@ -811,6 +906,7 @@ export default class GameScene extends Phaser.Scene {
     this.oksana?.step(dt);
     this.miniAxe?.step(dt);
     this.stepShkodkoLoot();
+    this.stepShield();
     this.emitHud();
   }
 

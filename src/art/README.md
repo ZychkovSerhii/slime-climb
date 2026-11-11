@@ -8,7 +8,7 @@
 | Спрайт: сітки кадрів, палітра, анімації | `sprites/<key>.js` (один файл — одна істота) |
 | Список спрайтів | `sprites/index.js` |
 | Фон біому | печера `backgrounds/slimeCave.js`, зима `backgrounds/winterNight.js` (параметри в `CFG`) |
-| Зима: стіна `wallIce`, бурулька `icicle` (той самий розмір, що `wall`/`spike`), `elf`, `candy`, `bear` (кадр `rear` — ричить), `penguin`, `santa`, `gift`, `snowflake` | `sprites/<key>.js` |
+| Зима: стіна `wallIce`, бурулька `icicle` (той самий розмір, що `wall`/`spike`), `elf` (на крильцях, кадри `fly1/fly2`), `candy`, `bear` (кадр `rear` — ричить), `penguin`, `santa`, `gift`, `snowflake` | `sprites/<key>.js` |
 | Готові PNG замість намальованого | `png/<key>.png` |
 | Зброя на слизакові: `axe`, `shotgun`, вени чакри `chakraVeins` | `sprites/<key>.js`; розмах сокири малює `entities/WeaponView.js` |
 | Солом'яна шляпа `hat`, кірка льоду `frost` (поверх замороженого ворога, масштабується під його розмір) | `sprites/<key>.js` |
