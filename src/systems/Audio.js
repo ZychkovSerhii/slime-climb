@@ -60,6 +60,18 @@ export const SOUNDS = {
   ],
   // зброя вкачана повністю і стала основною
   weaponReady: [55, 62, 67, 74].map((n, i) => ({ wave: 'sawtooth', from: midiToHz(n), to: midiToHz(n), ms: 110, vol: 0.08, at: i * 70 })),
+  // ---- Зима (етап 6a)
+  // ведмідь ричить: низький рик із шумом
+  roar: [
+    { wave: 'sawtooth', from: 140, to: 60, ms: 700, vol: 0.2, vibrato: 12 },
+    { noise: true, ms: 400, vol: 0.12, at: 60 },
+  ],
+  // ельф кидає льодяник
+  throw: [{ wave: 'triangle', from: 600, to: 900, ms: 70, vol: 0.06 }],
+  // подарунок підібрано
+  gift: [76, 83].map((n, i) => ({ wave: 'square', from: midiToHz(n), to: midiToHz(n), ms: 70, vol: 0.08, at: i * 70 })),
+  // Санта летить: дзвіночки
+  jingle: [84, 88, 84, 88, 91].map((n, i) => ({ wave: 'triangle', from: midiToHz(n), to: midiToHz(n), ms: 90, vol: 0.1, at: i * 110 })),
   levelUp: [60, 64, 67, 72].map((n, i) => ({ wave: 'square', from: midiToHz(n), to: midiToHz(n), ms: 90, vol: 0.1, at: i * 85 })),
   // сумне «ту-ту-ту-туууу»: три короткі ноти вниз по півтону і довга остання з вібрато
   gameOver: [

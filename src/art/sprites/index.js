@@ -24,8 +24,18 @@ import skinAssassin from './skinAssassin.js';
 import skinCommander from './skinCommander.js';
 import skinRaccoon from './skinRaccoon.js';
 import skinMurzik from './skinMurzik.js';
+import wallIce from './wallIce.js';
+import icicle from './icicle.js';
+import elf from './elf.js';
+import candy from './candy.js';
+import bear from './bear.js';
+import penguin from './penguin.js';
+import santa from './santa.js';
+import gift from './gift.js';
+import snowflake from './snowflake.js';
 
-export const SPRITES = [slime, wall, spike, projectile, plantBullet, heart, bat, plant, lion, spider, smallSpider, shadow, axe, shotgun, chakraVeins, webBall, hat, webShot, slimeSpider, frost, skinAssassin, skinCommander, skinRaccoon, skinMurzik];
+export const SPRITES = [slime, wall, spike, projectile, plantBullet, heart, bat, plant, lion, spider, smallSpider, shadow, axe, shotgun, chakraVeins, webBall, hat, webShot, slimeSpider, frost, skinAssassin, skinCommander, skinRaccoon, skinMurzik,
+  wallIce, icicle, elf, candy, bear, penguin, santa, gift, snowflake];
 
 /** Ключ анімації в Phaser: 'slime:idle'. */
 export const animKey = (spriteKey, anim) => `${spriteKey}:${anim}`;

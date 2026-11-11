@@ -1,13 +1,20 @@
 import { BALANCE } from '../config/balance.js';
 import { spawnIntervalMs } from './Difficulty.js';
 
-const TYPES = ['lion', 'bat', 'plant'];
+/** Хто з'являється в біомі. Біом 1 (cave) — з BALANCE.enemies.<type>.from; зима — з BALANCE.winter.from. */
+export const BIOME_TYPES = { cave: ['lion', 'bat', 'plant'], winter: ['elf', 'bat', 'penguin', 'bear'] };
 
-/** Стан розкладу: коли (секунда гри) наступна поява кожного типу. */
-export function createSpawnState() {
+/**
+ * Стан розкладу: коли (секунда гри) наступна поява кожного типу.
+ * biome — 'cave' | 'winter'; startSec — секунда гри, коли біом почався (перші появи рахуються від неї).
+ */
+export function createSpawnState(biome = 'cave', startSec = 0) {
   const nextAt = {};
-  for (const t of TYPES) nextAt[t] = BALANCE.enemies[t].from;
-  return { nextAt };
+  for (const t of BIOME_TYPES[biome]) {
+    const from = biome === 'winter' ? BALANCE.winter.from[t] : BALANCE.enemies[t].from;
+    nextAt[t] = startSec + from;
+  }
+  return { nextAt, biome };
 }
 
 /**
@@ -19,8 +26,9 @@ export function createSpawnState() {
 export function dueSpawns(state, tSec, suppressed, intervalMul = 1) {
   const nextAt = { ...state.nextAt };
   const spawn = [];
-  for (const type of TYPES) {
-    const interval = (spawnIntervalMs(type, tSec) / 1000) * intervalMul;
+  const biome = state.biome ?? 'cave';
+  for (const type of Object.keys(nextAt)) {
+    const interval = (spawnIntervalMs(type, tSec, biome) / 1000) * intervalMul;
     if (suppressed) {
       nextAt[type] = Math.max(nextAt[type], tSec + interval);
       continue;
@@ -30,5 +38,5 @@ export function dueSpawns(state, tSec, suppressed, intervalMul = 1) {
       nextAt[type] = tSec + interval;
     }
   }
-  return { state: { nextAt }, spawn };
+  return { state: { nextAt, biome }, spawn };
 }

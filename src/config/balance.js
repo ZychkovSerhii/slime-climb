@@ -63,6 +63,36 @@ export const BALANCE = deepFreeze({
     // «згорав» за екраном, і на швидкій прокрутці квітка не встигала вистрілити).
     plant: { hp: 3, xp: 3, points: 30, from: 45, fireMs: 2800, firstShotMs: 500, windupMs: 350, minAbovePx: 200, bulletSpeed: 264 },
     smallSpider: { hp: 1, xp: 1, points: 10, speed: 150 },
+    // ---- Зима (етап 6a, специфікація §6). wraps — скільки разів ворог, що вилетів за край, з'являється з протилежного боку.
+    // Ельф: летить на гравця, на homingStopPx перестає доворачувати (інакше не промахнеться ніколи) і кидає льодяник.
+    elf: { hp: 2, xp: 3, points: 30, speed: 250, homingStopPx: 240, throwMs: 2600, firstThrowMs: 700, windupMs: 300, candySpeed: 300, wraps: 2 },
+    // Білий ведмідь: таранить у точку, де гравець був; на екрані інколи стає на задні лапи (warnMs — попередження)
+    // і ричить: хто в roarRadiusPx — stun на roar.durationMs (стрибок ×speedMul, інтервал пострілу ÷fireMul).
+    bear: {
+      hp: 12, xp: 10, points: 120, speed: 170, wraps: 2,
+      rearFirstMs: 1200, rearEveryMs: 4500, warnMs: 800, roarRadiusPx: 300,
+      roar: { durationMs: 5000, speedMul: 0.3, fireMul: 0.7 },
+    },
+    // Пінгвін: ковзає на пузі в точку, де був гравець; з'являються групою до groupMax
+    penguin: { hp: 3, hpMax: 4, xp: 3, points: 30, speed: 320, groupMax: 3, groupGapMs: 350, wraps: 2 },
+    // Санта: шанс chancePerMin щохвилини в зимі, пролітає поперек екрана на висоті y, гравця не б'є.
+    // hp 5 = «5 влучань» лише стартовою зброєю; сокира чи дробовик зіб'ють швидше — [рішення], так і має бути.
+    // Нагорода: Шаги (meta.stepsPerKill.santa) і рівень (досвід до наступного рівня).
+    santa: { hp: 5, xp: 0, points: 300, speed: 170, y: 210, wraps: 2, chancePerMin: 0.1 },
+  },
+  // Біоми. Біом 1 (cave) — як був: його спавн — spawnBaseMs і enemies.<type>.from нижче.
+  // Зима настає після смерті павучихи (у 6b — далі Шкодько і чергування). from — секунди від початку зими.
+  // spawnBaseMs зими [рішення]: інтервали ще й падають з часом гри (spawnRampSec), а зима починається на ~2:10,
+  // коли множник уже ~0,6 — тому бази більші, ніж у біомі 1.
+  winter: {
+    from: { elf: 3, bat: 8, penguin: 12, bear: 22 },
+    spawnBaseMs: { elf: 6500, bat: 7000, penguin: 11000, bear: 17000 },
+    bat: { hp: 2, speedMul: 1.15 }, // кажан у зимі: HP 2, ще +15% швидкості
+    // подарунок: летить разом зі світом посеред коридору, у смузі стрибка; дотик — досвід
+    gift: { everyMs: 9000, jitter: 0.35, xp: 4, firstMs: 4000 },
+    // сніг: мало, повільно, низький контраст; вимикається в меню
+    snow: { count: 26, alpha: 0.32, minSpeed: 22, maxSpeed: 55, drift: 14 },
+    transitionMs: 1500, // перехід фону і стін з печери в зиму
   },
   boss: {
     name: 'Твоя мамаша',
@@ -175,7 +205,7 @@ export const BALANCE = deepFreeze({
   // Ціль специфікації: ~120–180 Шагів за нормальний забіг (боса вбито, смерть на 3:00–3:30) — ще не перевірено плейтестом.
   meta: {
     // Шаги за вбивство. smallSpider — павучки рою павучихи: їх за бій десятки, тому 0 [рішення], інакше рій давав би більше за саму павучиху
-    stepsPerKill: { lion: 2, bat: 1, plant: 2, smallSpider: 0, boss: 60 },
+    stepsPerKill: { lion: 2, bat: 1, plant: 2, smallSpider: 0, boss: 60, elf: 1, penguin: 1, bear: 4, santa: 40 },
     // Скіни лише візуальні. sprite — ключ спрайта в src/art/sprites (однаковий розмір полотна → хітбокс той самий)
     skins: [
       { id: 'slime', name: 'Слизак', price: 0, sprite: 'slime' },
@@ -186,7 +216,7 @@ export const BALANCE = deepFreeze({
     ],
     // Досягнення: поки не отримане — «???». stat — тип ворога ('boss' — павучиха), count — скільки вбити.
     // Нагорода в Шагах [рішення: у специфікації сум немає] забирається в меню досягнень.
-    // Шкодько і вороги зими (ельф, ведмідь, пінгвін) додаються на етапі 6 — разом із ними самими.
+    // Шкодько додається на етапі 6b — разом із ним самим.
     achievements: [
       { id: 'boss1', stat: 'boss', count: 1, reward: 100, title: 'Вбивство Мамаши', caption: 'Я не очікував від тебе такого...' },
       { id: 'boss5', stat: 'boss', count: 5, reward: 300, title: '5 разів вбити Мамашу', caption: 'Ти її справді так не любиш?' },
@@ -194,6 +224,11 @@ export const BALANCE = deepFreeze({
       { id: 'bat50', stat: 'bat', count: 50, reward: 50, title: '50 кажанів', caption: 'Ночі стали тихішими.' },
       { id: 'plant50', stat: 'plant', count: 50, reward: 50, title: '50 квіток', caption: 'Садівник з тебе так собі.' },
       { id: 'smallSpider50', stat: 'smallSpider', count: 50, reward: 50, title: '50 павучків', caption: 'Мамаша це запам\'ятає.' },
+      // етап 6a — зима. [рішення] ведмедів 10, а не 50: їх мало й вони живучі
+      { id: 'elf50', stat: 'elf', count: 50, reward: 50, title: '50 ельфів', caption: 'Хтось лишиться без подарунків.' },
+      { id: 'penguin50', stat: 'penguin', count: 50, reward: 50, title: '50 пінгвінів', caption: 'Лід тепер вільний.' },
+      { id: 'bear10', stat: 'bear', count: 10, reward: 80, title: '10 білих ведмедів', caption: 'Ричати більше нікому.' },
+      { id: 'santa1', stat: 'santa', count: 1, reward: 100, title: 'Збити Санту', caption: 'Цього року подарунків не буде.' },
     ],
     toastMs: 2500,
   },
