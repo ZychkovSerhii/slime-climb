@@ -63,3 +63,11 @@ test('intervalMul stretches the next interval (gradual return after the boss)', 
   const slow = dueSpawns(createSpawnState(), 10, false, 2).state.nextAt.lion - 10;
   expect(slow).toBeCloseTo(normal * 2, 9);
 });
+
+describe('бамбук (етап 9)', () => {
+  test('перші появи — з BALANCE.bamboo.from від початку біому', () => {
+    const st = createSpawnState('bamboo', 400);
+    expect(st.nextAt).toEqual({ lantern: 403, bat: 408, ninja: 410 });
+    expect(dueSpawns(st, 403, false).spawn).toEqual(['lantern']);
+  });
+});

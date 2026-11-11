@@ -1,17 +1,17 @@
 import { BALANCE } from '../config/balance.js';
 import { spawnIntervalMs } from './Difficulty.js';
 
-/** Хто з'являється в біомі. Біом 1 (cave) — з BALANCE.enemies.<type>.from; зима — з BALANCE.winter.from. */
-export const BIOME_TYPES = { cave: ['lion', 'bat', 'plant'], winter: ['elf', 'bat', 'penguin', 'bear'] };
+/** Хто з'являється в біомі. Біом 1 (cave) — з BALANCE.enemies.<type>.from; зима й бамбук — з BALANCE.<біом>.from. */
+export const BIOME_TYPES = { cave: ['lion', 'bat', 'plant'], winter: ['elf', 'bat', 'penguin', 'bear'], bamboo: ['lantern', 'bat', 'ninja'] };
 
 /**
  * Стан розкладу: коли (секунда гри) наступна поява кожного типу.
- * biome — 'cave' | 'winter'; startSec — секунда гри, коли біом почався (перші появи рахуються від неї).
+ * biome — 'cave' | 'winter' | 'bamboo'; startSec — секунда гри, коли біом почався (перші появи рахуються від неї).
  */
 export function createSpawnState(biome = 'cave', startSec = 0) {
   const nextAt = {};
   for (const t of BIOME_TYPES[biome]) {
-    const from = biome === 'winter' ? BALANCE.winter.from[t] : BALANCE.enemies[t].from;
+    const from = biome === 'cave' ? BALANCE.enemies[t].from : BALANCE[biome].from[t];
     nextAt[t] = startSec + from;
   }
   return { nextAt, biome };

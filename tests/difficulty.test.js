@@ -15,3 +15,14 @@ describe('spawnIntervalMs', () => {
   test('stays constant after 180 s', () => expect(spawnIntervalMs('bat', 999)).toBe(1680));
   test('is linear in between', () => expect(spawnIntervalMs('bat', 90)).toBe(2940));
 });
+
+test('бамбук: інтервали ×0,9 від зими (на ~10% більше ворогів)', async () => {
+  const { BALANCE } = await import('../src/config/balance.js');
+  const { spawnIntervalMs } = await import('../src/systems/Difficulty.js');
+  const W = BALANCE.winter.spawnBaseMs;
+  const B = BALANCE.bamboo.spawnBaseMs;
+  expect(B.lantern).toBe(Math.round(W.elf * 0.9));
+  expect(B.bat).toBe(Math.round(W.bat * 0.9));
+  expect(B.ninja).toBe(Math.round(W.penguin * 0.9));
+  expect(spawnIntervalMs('ninja', 0, 'bamboo')).toBe(B.ninja);
+});
