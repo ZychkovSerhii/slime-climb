@@ -2,6 +2,7 @@ import * as Phaser from 'phaser';
 import { BALANCE } from './config/balance.js';
 import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
+import { codex, codexOpen } from './codex/index.js';
 import { backAction } from './systems/Navigation.js';
 import BootScene from './scenes/BootScene.js';
 import MenuScene from './scenes/MenuScene.js';
@@ -63,8 +64,9 @@ if (Capacitor.isNativePlatform()) {
   App.addListener('backButton', () => {
     const active = game.scene.getScenes(true).map((s) => s.sys.settings.key);
     const gameScene = game.scene.getScene('Game');
-    const action = backAction(active, Boolean(gameScene?.paused));
-    if (action === 'pause') gameScene.pauseWithOverlay();
+    const action = backAction(active, Boolean(gameScene?.paused), codexOpen());
+    if (action === 'closeCodex') codex().close();
+    else if (action === 'pause') gameScene.pauseWithOverlay();
     else if (action === 'menu') {
       for (const key of ['GameOver', 'Shop', 'Achievements']) game.scene.stop(key);
       game.scene.start('Menu');

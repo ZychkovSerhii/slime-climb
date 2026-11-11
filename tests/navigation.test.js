@@ -15,3 +15,6 @@ test('back in the shop or achievements goes to the menu', () => {
   expect(backAction(['Shop'], false)).toBe('menu');
   expect(backAction(['Achievements'], false)).toBe('menu');
 });
+test('back with the codex open closes it instead of quitting', () => {
+  expect(backAction(['Menu'], false, true)).toBe('closeCodex');
+});
