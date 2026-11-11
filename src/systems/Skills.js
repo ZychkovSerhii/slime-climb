@@ -62,11 +62,11 @@ export function cardLoot(cardId) {
   return cardId.startsWith(LOOT_PREFIX) ? cardId.slice(LOOT_PREFIX.length) : null;
 }
 
-/** offer випадкових ще не взятих трофеїв (може бути менше або 0, якщо майже все взято). */
-export function rollLoot(taken, rng) {
-  const pool = LOOT_IDS.filter((id) => !taken.includes(id));
+/** offer випадкових ще не взятих трофеїв з ids (павучиха — LOOT_IDS, Шкодько — SHKODKO_LOOT_IDS); може бути менше або 0. */
+export function rollLoot(taken, rng, ids = LOOT_IDS, offer = L.offer) {
+  const pool = ids.filter((id) => !taken.includes(id));
   const out = [];
-  while (out.length < L.offer && pool.length) {
+  while (out.length < offer && pool.length) {
     const i = Math.min(Math.floor(rng() * pool.length), pool.length - 1);
     out.push(pool.splice(i, 1)[0]);
   }
