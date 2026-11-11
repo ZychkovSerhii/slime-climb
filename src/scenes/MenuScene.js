@@ -1,8 +1,10 @@
 import * as Phaser from 'phaser';
 import { browserStorage, loadHighScore } from '../systems/HighScore.js';
+import { loadMeta, skinSprite, unclaimedCount } from '../systems/Meta.js';
 import { isMuted, setMuted, sfx } from '../systems/Audio.js';
+import { button, textStyle } from './ui.js';
 
-/** Стартовий екран: назва, рекорд, «Тапни, щоб почати». */
+/** Стартовий екран: назва, рекорд, Шаги, «Тапни, щоб почати», магазин, досягнення, звук. */
 export default class MenuScene extends Phaser.Scene {
   constructor() {
     super('Menu');
@@ -16,30 +18,33 @@ export default class MenuScene extends Phaser.Scene {
 
     const { width, height } = this.scale;
     const cx = width / 2;
-    const style = (size, color = '#ffffff') => ({ fontFamily: 'sans-serif', fontSize: `${size}px`, color, align: 'center' });
-    const best = loadHighScore(browserStorage());
+    const storage = browserStorage();
+    const best = loadHighScore(storage);
+    const meta = loadMeta(storage);
 
-    this.add.image(cx, height * 0.3, 'slime').setScale(3);
-    this.add.text(cx, height * 0.42, 'Slime Climb', style(88, '#9cff57')).setOrigin(0.5);
-    this.add.text(cx, height * 0.52, best > 0 ? `Рекорд ${best}` : 'Рекорду ще немає', style(44)).setOrigin(0.5);
-    const hint = this.add.text(cx, height * 0.7, 'Тапни, щоб почати', style(44)).setOrigin(0.5);
+    this.add.image(cx, height * 0.24, skinSprite(meta)).setScale(3);
+    this.add.text(cx, height * 0.36, 'Slime Climb', textStyle(88, '#9cff57')).setOrigin(0.5);
+    this.add.text(cx, height * 0.45, best > 0 ? `Рекорд ${best}` : 'Рекорду ще немає', textStyle(44)).setOrigin(0.5);
+    this.add.text(cx, height * 0.51, `Шаги: ${meta.steps}`, textStyle(40, '#ffd84a')).setOrigin(0.5);
+    const hint = this.add.text(cx, height * 0.61, 'Тапни, щоб почати', textStyle(44)).setOrigin(0.5);
     this.tweens.add({ targets: hint, alpha: 0.35, duration: 700, yoyo: true, repeat: -1 });
 
+    const shopBtn = button(this, cx, height * 0.72, 'Магазин', () => this.scene.start('Shop'));
+    const waiting = unclaimedCount(meta);
+    const achBtn = button(this, cx, height * 0.8, waiting > 0 ? `Досягнення (${waiting}!)` : 'Досягнення', () => this.scene.start('Achievements'), waiting > 0 ? '#ffd84a' : undefined);
+
     const soundLabel = () => `Звук: ${isMuted() ? 'вимк.' : 'увімк.'}`;
-    const soundBtn = this.add
-      .text(cx, height * 0.86, soundLabel(), { ...style(36, '#cfe8cf'), backgroundColor: '#00000066', padding: { x: 24, y: 12 } })
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
-    soundBtn.on('pointerdown', () => {
+    const soundBtn = button(this, cx, height * 0.88, soundLabel(), () => {
       setMuted(!isMuted());
       soundBtn.setText(soundLabel());
       sfx('jump');
     });
 
-    // тап будь-де, крім кнопки звуку, — старт гри
+    // тап будь-де, крім кнопок, — старт гри
+    const buttons = [shopBtn, achBtn, soundBtn];
     let started = false;
     this.input.on('pointerdown', (pointer, over) => {
-      if (started || over.includes(soundBtn)) return;
+      if (started || over.some((o) => buttons.includes(o))) return;
       started = true;
       this.scene.start('Game');
     });

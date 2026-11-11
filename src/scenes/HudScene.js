@@ -22,6 +22,17 @@ const BANNER_STYLE = {
 const BOSS_COLOR = 0xff3b5c;
 const BOSS_IMMUNE_COLOR = 0x8a8a8a; // невразлива — смуга сіра
 const BANNER_FADE_MS = 250;
+const STEPS_STYLE = { fontFamily: 'monospace', fontSize: '24px', color: '#ffd84a', stroke: '#000000', strokeThickness: 4 };
+const TOAST_STYLE = {
+  fontFamily: 'sans-serif',
+  fontSize: '30px',
+  fontStyle: 'bold',
+  color: '#ffd84a',
+  backgroundColor: '#1b1408dd',
+  padding: { x: 22, y: 12 },
+  align: 'center',
+};
+const TOAST_FADE_MS = 200;
 
 /**
  * Відступ вирізу камери зверху в CSS px. Capacitor 8 на Android передає його змінною
@@ -56,6 +67,7 @@ export default class HudScene extends Phaser.Scene {
     this.top = top;
     this.timeText = this.add.text(width - PAD, top, '00:00', TEXT_STYLE).setOrigin(1, 0);
     this.scoreText = this.add.text(width - PAD, top + 44, 'SCORE 0', TEXT_STYLE).setOrigin(1, 0);
+    this.stepsText = this.add.text(width - PAD, top + 88, '', STEPS_STYLE).setOrigin(1, 0);
 
     // серця до максимуму картки «Додаткове життя»; зайві сховані. Останнє місце — чорне серце броні
     this.hearts = [];
@@ -72,11 +84,17 @@ export default class HudScene extends Phaser.Scene {
     this.bossBar = this.add.graphics();
     this.bossLabel = this.add.text(width / 2, this.bossBarY() - 4, '', SMALL_STYLE).setOrigin(0.5, 1).setVisible(false);
     this.banner = this.add.text(width / 2, height * 0.38, '', BANNER_STYLE).setOrigin(0.5).setAlpha(0).setDepth(10);
+    // тост досягнення: угорі під смугою боса, тапи не ловить (не interactive); кілька — по черзі
+    this.toast = this.add.text(width / 2, this.toastY(), '', TOAST_STYLE).setOrigin(0.5, 0).setAlpha(0).setDepth(9);
+    this.toastQueue = [];
+    this.toastBusy = false;
 
     const onResize = () => {
       const w = this.scale.width;
       this.timeText.setX(w - PAD);
       this.scoreText.setX(w - PAD);
+      this.stepsText.setX(w - PAD);
+      this.toast.setX(w / 2);
       this.bossLabel.setX(w / 2);
       this.banner.setPosition(w / 2, this.scale.height * 0.38);
       this.updateBoss(this.lastBoss);
@@ -92,10 +110,13 @@ export default class HudScene extends Phaser.Scene {
     game.events.on('hud:update', onUpdate);
     game.events.on('hud:boss', onBoss);
     game.events.on('hud:banner', onBanner);
+    const onToast = (title) => this.queueToast(title);
+    game.events.on('hud:toast', onToast);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       game.events.off('hud:update', onUpdate);
       game.events.off('hud:boss', onBoss);
       game.events.off('hud:banner', onBanner);
+      game.events.off('hud:toast', onToast);
     });
   }
 
@@ -113,6 +134,26 @@ export default class HudScene extends Phaser.Scene {
     this.banner.setText(text).setAlpha(0).setScale(0.8);
     this.tweens.add({ targets: this.banner, alpha: 1, scale: 1, duration: BANNER_FADE_MS, ease: 'Back.Out' });
     this.tweens.add({ targets: this.banner, alpha: 0, delay: ms - BANNER_FADE_MS, duration: BANNER_FADE_MS });
+  }
+
+  toastY() {
+    return this.bossBarY() + BOSS_BAR.h + 16;
+  }
+
+  /** Тост «Досягнення: …» на toastMs; наступний — після попереднього. */
+  queueToast(title) {
+    this.toastQueue.push(title);
+    if (!this.toastBusy) this.nextToast();
+  }
+
+  nextToast() {
+    const title = this.toastQueue.shift();
+    this.toastBusy = title !== undefined;
+    if (!this.toastBusy) return;
+    const ms = BALANCE.meta.toastMs;
+    this.toast.setText(`Досягнення: ${title}`).setAlpha(0);
+    this.tweens.add({ targets: this.toast, alpha: 1, duration: TOAST_FADE_MS });
+    this.tweens.add({ targets: this.toast, alpha: 0, delay: ms - TOAST_FADE_MS, duration: TOAST_FADE_MS, onComplete: () => this.nextToast() });
   }
 
   /** Смуга HP боса; null — сховати. */
@@ -161,8 +202,9 @@ export default class HudScene extends Phaser.Scene {
     this.invisLabel.setAlpha(ready || inv.active ? 1 : 0.5);
   }
 
-  update_({ timeSec, score, lives, maxLives = BALANCE.maxLives, armor = null, invis = null, level, xp, xpToNext }) {
+  update_({ timeSec, score, lives, maxLives = BALANCE.maxLives, armor = null, invis = null, level, xp, xpToNext, steps = 0 }) {
     this.timeText.setText(formatTime(timeSec));
+    this.stepsText.setText(steps > 0 ? `+${steps} Шагів` : '');
     this.scoreText.setText(`SCORE ${score}`);
     this.hearts.forEach((h, i) => h.setVisible(i < maxLives).setAlpha(i < lives ? 1 : 0.2));
     this.armorHeart.setVisible(!!armor).setAlpha(armor === 'on' ? 1 : 0.25).setX(PAD + 16 + maxLives * HEART_STEP);
