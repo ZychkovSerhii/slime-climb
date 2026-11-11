@@ -70,3 +70,24 @@ export function roarReaches(bear, player, radius = BALANCE.enemies.bear.roarRadi
 export function xpToLevelUp(xp, need) {
   return Math.max(need - xp, 0);
 }
+
+/**
+ * Бонус подарунка (фідбек-3): 'xp' | 'steps' | 'shield' | 'life' за вагами gift.weights.
+ * livesFull — життя повні: +1 життя нічого б не дало, тож вага life не рахується.
+ */
+export function rollGift(rng, { livesFull = false } = {}) {
+  const weights = { ...W.gift.weights };
+  if (livesFull) delete weights.life;
+  const total = Object.values(weights).reduce((a, b) => a + b, 0);
+  let x = rng() * total;
+  for (const [kind, w] of Object.entries(weights)) {
+    x -= w;
+    if (x < 0) return kind;
+  }
+  return 'xp';
+}
+
+/** Досвід з подарунка: частка xpShare від потрібного на поточному рівні, щонайменше 1. */
+export function giftXp(need) {
+  return Math.max(1, Math.round(need * W.gift.xpShare));
+}

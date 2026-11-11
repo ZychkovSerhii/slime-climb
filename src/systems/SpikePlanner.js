@@ -34,7 +34,24 @@ export function createSpikeState(startWorld, rng) {
     lastW: -Infinity,
     // перша гребінка — не раніше ніж через minGapSec від старту
     lastCombW: startWorld,
+    // фідбек-3: проміжки світу без шипів на стіні side ([{ side, from, to }], центри) — для ходоків по стінах
+    free: [],
   };
+}
+
+/**
+ * Резерв: на стіні side у світі [from, to] шипів не буде (центри; шип займає [w, w + spikeHeight]).
+ * Старі резерви, які вже давно під екраном, відкидаються.
+ */
+export function reserveFree(state, side, from, to, distancePx = -Infinity, id = null) {
+  // id — резерв з тим самим id замінюється (ходок у черзі щокадру уточнює свій); from > to — зняти резерв
+  const keep = (state.free ?? []).filter((f) => f.to >= distancePx - 2000 && (id === null || f.id !== id));
+  return { ...state, free: from <= to ? [...keep, { side, from, to, id }] : keep };
+}
+
+/** Резерв, у який потрапляє відрізок світу [lo, hi] на стіні side, або undefined. */
+function blockedBy(free, side, lo, hi) {
+  return free.find((f) => f.side === side && hi >= f.from && lo <= f.to);
 }
 
 /**
@@ -55,6 +72,8 @@ export function planSpikes(state, distancePx, scrollPxPerSec, rng, { combChance 
   const next = { ...state.next };
   let lastW = state.lastW;
   let lastCombW = state.lastCombW ?? -Infinity;
+  const free = state.free ?? [];
+  const S = BALANCE.spikeHeight;
   const C = BALANCE.spikeComb;
   const band = spikeBand(scrollPxPerSec);
   const spikes = [];
@@ -68,8 +87,15 @@ export function planSpikes(state, distancePx, scrollPxPerSec, rng, { combChance 
       next[side] = lastW + band;
       continue;
     }
+    const reserved = blockedBy(free, side, w, w + S);
+    if (reserved) {
+      // стіна зарезервована під ходока на протилежній стіні — перший шип після резерву
+      next[side] = reserved.to + 1;
+      continue;
+    }
     const other = side === 'left' ? 'right' : 'left';
-    if (w - lastCombW >= C.minGapSec * scrollPxPerSec && rng() < combChance) {
+    const combMax = w + C.maxCount * S;
+    if (!blockedBy(free, side, w, combMax) && w - lastCombW >= C.minGapSec * scrollPxPerSec && rng() < combChance) {
       const count = C.minCount + Math.floor(rng() * (C.maxCount - C.minCount + 1));
       const comb = combSpikes(side, w, count);
       spikes.push(...comb);
@@ -84,7 +110,7 @@ export function planSpikes(state, distancePx, scrollPxPerSec, rng, { combChance 
     lastW = w;
     next[side] = w + nextSpikeGap(scrollPxPerSec, rng);
   }
-  return { state: { next, lastW, lastCombW }, spikes };
+  return { state: { next, lastW, lastCombW, free }, spikes };
 }
 
 /**

@@ -25,10 +25,10 @@ function seq(...values) {
 }
 
 describe('xpToNext', () => {
-  test('curve 10 × 1.4^(level-1), rounded', () => {
+  test('curve 10 × 1.22^(level-1), rounded (feedback-3)', () => {
     expect(xpToNext(1)).toBe(10);
-    expect(xpToNext(2)).toBe(14);
-    expect(xpToNext(3)).toBe(20);
+    expect(xpToNext(2)).toBe(12);
+    expect(xpToNext(3)).toBe(15);
   });
 });
 
@@ -46,11 +46,11 @@ describe('addXp', () => {
     expect(r.progression.xp).toBe(0);
   });
 
-  test('a big reward carries over several levels (10+14+20=44, 16 left)', () => {
+  test('a big reward carries over several levels (10+12+15+18=55, 5 left)', () => {
     const r = addXp(createProgression(), 60);
-    expect(r.levelsGained).toBe(3);
-    expect(r.progression.level).toBe(4);
-    expect(r.progression.xp).toBe(16);
+    expect(r.levelsGained).toBe(4);
+    expect(r.progression.level).toBe(5);
+    expect(r.progression.xp).toBe(5);
   });
 
   test('does not mutate the input', () => {
