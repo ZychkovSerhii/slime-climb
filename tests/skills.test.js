@@ -30,12 +30,12 @@ describe('invisibility', () => {
   });
 });
 
-test('hat: damage 1, +3, +5, +5; 5th pick adds a second hat', () => {
+test('straw hat: +1 damage per pick (feedback-2); 5th pick adds a second hat', () => {
   expect(hatStats(0)).toEqual({ count: 0, damage: 0 });
   expect(hatStats(1)).toEqual({ count: 1, damage: 1 });
-  expect(hatStats(2)).toEqual({ count: 1, damage: 4 });
-  expect(hatStats(4)).toEqual({ count: 1, damage: 14 });
-  expect(hatStats(5)).toEqual({ count: 2, damage: 14 });
+  expect(hatStats(2)).toEqual({ count: 1, damage: 2 });
+  expect(hatStats(4)).toEqual({ count: 1, damage: 4 });
+  expect(hatStats(5)).toEqual({ count: 2, damage: 4 });
 });
 
 test('extra life: +1 max heart each, up to 5; then the card disappears', () => {
@@ -82,7 +82,7 @@ describe('spider loot', () => {
   });
   test('hit effects: venom gives the stronger slow and a dot; web roots', () => {
     const card = { factor: 0.6, durationMs: 2000 };
-    expect(hitEffects(card, ['venom']).slow).toBe(card); // картка сильніша — лишається вона
+    expect(hitEffects(card, ['venom']).slow).toMatchObject(card); // картка сильніша — лишається вона
     expect(hitEffects(null, ['venom']).slow.factor).toBe(0.9);
     expect(hitEffects(null, ['venom']).dot).toEqual({ dps: 1, durationMs: 3000 });
     expect(hitEffects(null, []).root).toBeNull();
@@ -103,4 +103,12 @@ describe('spider loot', () => {
     expect(b.nextTickAt).toBe(1000);
     expect(b.until).toBe(3500);
   });
+});
+
+test('ice + venom: stronger slow, dps add up, boss slowed only by bossFactor', () => {
+  const ice = { factor: 0.6, durationMs: 3000, dps: 0.5, bossFactor: 0.95, ice: true };
+  const fx = hitEffects(ice, ['venom']);
+  expect(fx.slow).toMatchObject({ factor: 0.6, bossFactor: 0.95, ice: true });
+  expect(fx.dot).toEqual({ dps: 1.5, durationMs: 3000 });
+  expect(hitEffects(ice, []).dot).toEqual({ dps: 0.5, durationMs: 3000 });
 });

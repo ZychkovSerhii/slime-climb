@@ -4,14 +4,14 @@ import { animKey } from '../art/sprites/index.js';
 const HIT_PX = 18;
 
 /**
- * Помічник гравця (капелюх, Оксанка): сидить біля слизака у точці offset, кидається на найближчого видимого ворога,
+ * Помічник гравця (шляпа, Оксанка, міні-сокира): сидить біля слизака у точці offset, кидається на найближчого видимого ворога,
  * влучає завжди (доводиться за ціллю), б'є damage() і повертається. Невмирущий, у фізиці не бере участі.
  * Цикл: home → (є ціль і минув restMs) → fly → hit → back → home.
  * Час — час гри (scene.nowMs), тож пауза зупиняє і помічника.
  */
 export default class Familiar extends Phaser.GameObjects.Sprite {
   /**
-   * @param {object} o { texture, anim, offset: {x, y}, speed, restMs, damage: () => number, tint }
+   * @param {object} o { texture, anim, offset: {x, y}, speed, restMs, damage: () => number, tint, scale, spin }
    */
   constructor(scene, o) {
     super(scene, scene.player.x + o.offset.x, scene.player.y + o.offset.y, o.texture);
@@ -22,6 +22,7 @@ export default class Familiar extends Phaser.GameObjects.Sprite {
     this.target = null;
     this.setDepth(scene.player.depth + 1);
     if (o.tint) this.setTint(o.tint);
+    if (o.scale) this.setScale(o.scale);
     if (o.anim) this.play(animKey(o.texture, o.anim));
   }
 

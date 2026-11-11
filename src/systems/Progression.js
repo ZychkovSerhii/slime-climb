@@ -4,6 +4,15 @@ import { cardLoot, maxLivesFor } from './Skills.js';
 export const CARD_IDS = ['attackSpeed', 'damage', 'slow', 'invisibility', 'hat', 'extraLife'];
 export const WEAPON_IDS = Object.keys(BALANCE.weapons);
 const WEAPON_PREFIX = 'weapon:';
+const UPGRADE_PREFIX = 'upgrade:';
+
+/** id картки прокачки основної зброї: 'upgrade:axe'. */
+export const upgradeCard = (weaponId) => UPGRADE_PREFIX + weaponId;
+
+/** id зброї з картки прокачки або null. */
+export function cardUpgrade(cardId) {
+  return cardId.startsWith(UPGRADE_PREFIX) ? cardId.slice(UPGRADE_PREFIX.length) : null;
+}
 
 /** id картки зброї: 'weapon:axe'. */
 export const weaponCard = (weaponId) => WEAPON_PREFIX + weaponId;
@@ -26,7 +35,8 @@ export function createProgression() {
     picks: {},
     // зброя з прогресом: progress — кроки кожної, main — основна (null — стартовий постріл),
     // lastOffered — зброя з попереднього вікна рівня (не пропонується двічі поспіль)
-    arsenal: { progress: {}, main: null, lastOffered: null, lastTaken: null },
+    // upgrades — скільки разів прокачано кожну зброю, коли вона вже основна (фідбек-2)
+    arsenal: { progress: {}, main: null, lastOffered: null, lastTaken: null, upgrades: {} },
     // унікальні картки павучихи, взяті за забіг ('armor', 'venom', …)
     relics: [],
   };
@@ -99,11 +109,31 @@ export function rollWeapon(p, rng) {
   return pool[Math.min(Math.floor(rng() * pool.length), pool.length - 1)];
 }
 
+/** Скільки разів прокачано зброю weaponId. */
+export function weaponUpgrades(p, weaponId) {
+  return p.arsenal.upgrades?.[weaponId] ?? 0;
+}
+
+/**
+ * 3-тя картка, коли основна зброя вже є (фідбек-2): лише прокачка основної, інші зброї не пропонуються.
+ * Прокачано до max — null (3-тя картка звичайна).
+ */
+export function rollUpgrade(p) {
+  const main = p.arsenal.main;
+  if (!main) return undefined; // основної немає — діє звичайний вибір зброї
+  return weaponUpgrades(p, main) < BALANCE.weaponUpgrades.max ? upgradeCard(main) : null;
+}
+
 /**
  * Вікно рівня: 2 звичайні випадкові картки + 3-тя завжди зброя (якщо зброї не лишилось — звичайна).
  * Повертає картки і прогресію із запам'ятованою запропонованою зброєю.
  */
 export function rollLevelUp(p, rng) {
+  const upgrade = rollUpgrade(p);
+  if (upgrade !== undefined) {
+    const regular = rollCards(p, rng, upgrade ? 2 : 3);
+    return { cards: upgrade ? [...regular, upgrade] : regular, progression: p };
+  }
   const weapon = rollWeapon(p, rng);
   const regular = rollCards(p, rng, weapon ? 2 : 3);
   const cards = weapon ? [...regular, weaponCard(weapon)] : regular;
@@ -115,10 +145,31 @@ export function damageCardBonus(p) {
   return (p.picks.damage ?? 0) === 0 ? BALANCE.cards.damageFirst : BALANCE.cards.damageNext;
 }
 
+/**
+ * «Крижана атака» після n взять (картка з id 'slow'): { factor, durationMs, dps, bossFactor }.
+ * Сповільнення 40% і +5% за взяття, але не більше 60%; заморозка 0,5 шкоди/с і +0,5 за взяття.
+ */
+export function iceStats(n) {
+  if (!n) return null;
+  const I = BALANCE.ice;
+  return {
+    factor: Math.max(I.factor - I.factorStep * (n - 1), I.minFactor),
+    durationMs: I.durationMs,
+    dps: I.dps + I.dpsStep * (n - 1),
+    bossFactor: I.bossFactor,
+    ice: true,
+  };
+}
+
 /** Застосовує картку до зброї. Не змінює вхід. */
 export function applyCard(p, id) {
   const weaponId = cardWeapon(id);
   if (weaponId) return applyWeaponCard(p, weaponId, id);
+  const upId = cardUpgrade(id);
+  if (upId) {
+    const upgrades = { ...p.arsenal.upgrades, [upId]: Math.min(weaponUpgrades(p, upId) + 1, BALANCE.weaponUpgrades.max) };
+    return { ...p, arsenal: { ...p.arsenal, upgrades }, picks: { ...p.picks, [id]: (p.picks[id] ?? 0) + 1 } };
+  }
   const loot = cardLoot(id);
   if (loot) return p.relics.includes(loot) ? p : { ...p, relics: [...p.relics, loot] };
   const w = { ...p.weapon };
@@ -128,9 +179,7 @@ export function applyCard(p, id) {
   } else if (id === 'damage') {
     w.damage += damageCardBonus(p);
   } else if (id === 'slow') {
-    w.slow = w.slow
-      ? { ...w.slow, durationMs: w.slow.durationMs + c.slowStepMs }
-      : { factor: c.slowFactor, durationMs: c.slowBaseMs };
+    w.slow = iceStats((p.picks.slow ?? 0) + 1);
   }
   return { ...p, weapon: w, picks: { ...p.picks, [id]: (p.picks[id] ?? 0) + 1 } };
 }

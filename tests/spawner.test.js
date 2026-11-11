@@ -37,7 +37,7 @@ describe('dueSpawns', () => {
 
   test('next spawn is scheduled spawnIntervalMs later', () => {
     const r = dueSpawns(createSpawnState(), 10, false);
-    expect(r.state.nextAt.lion).toBeCloseTo(10 + (6000 * (1 - 0.6 * (10 / 180))) / 1000, 9);
+    expect(r.state.nextAt.lion).toBeCloseTo(10 + (6300 * (1 - 0.6 * (10 / 180))) / 1000, 9);
   });
 
   test('does not mutate the input state', () => {

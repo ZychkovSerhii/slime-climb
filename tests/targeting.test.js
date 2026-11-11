@@ -48,3 +48,10 @@ describe('interceptPoint', () => {
     expect(interceptPoint({ x: 0, y: 0 }, { x: 100, y: 0, vx: 500, vy: 0 }, 100)).toEqual({ x: 100, y: 0 });
   });
 });
+
+test('plant fires only when at least minAbovePx above the player (feedback-2)', async () => {
+  const { plantMayFire } = await import('../src/systems/Targeting.js');
+  expect(plantMayFire(600, 900)).toBe(true);
+  expect(plantMayFire(750, 900)).toBe(false); // майже на рівні — горизонтальна куля, від якої не втекти
+  expect(plantMayFire(1000, 900)).toBe(false); // нижче за гравця
+});

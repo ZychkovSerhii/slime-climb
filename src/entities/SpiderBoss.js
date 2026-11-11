@@ -14,9 +14,9 @@ const ARRIVE_PX = 6;
 /**
  * Бос-павучиха «Твоя мамаша».
  * Фаза 1: enter (спуск до hangY) → telegraph (тінь у точці удару, павучиха зсувається туди)
- *   → strike (падає на павутині до висоти гравця) → retreat → rest → telegraph…
- * Фаза 2 (swarmAt HP, раз за бій): toCenter → swarm — невразлива по центру вгорі, розмахує лапами, випускає рій.
- *   Коли рій знищено — знову вразлива, назад до фази 1.
+ *   → strike (падає на павутині до низу спрайта гравця) → retreat → rest → telegraph…
+ * Фаза 2 (swarmAt HP, раз за бій): toCenter → swarm — по центру вгорі розмахує лапами і випускає рій,
+ *   далі атакує як у фазі 1, але невразлива, доки рій живий. Коли рій знищено — знову вразлива.
  * Лють (поріг випадковий у rageMin…rageMax): червонішає, атаки швидші; подія сцени 'boss:rage'.
  * Подія 'hud:boss' { hp, maxHp, name, invulnerable } — після влучань і змін фази.
  * Таймери — на часі гри (nowMs), тож пауза їх зупиняє.
@@ -78,10 +78,11 @@ export default class SpiderBoss extends Enemy {
     if (!this.active) return;
     this.swarmDone = true;
     this.invulnerable = false;
-    this.flail?.stop();
-    this.flail = null;
-    this.setAngle(0);
-    this.setState('rest', this.timings().restMs);
+    // рій міг загинути ще під час розмахування лапами — тоді далі звичайна пауза; інакше атака триває як є
+    if (this.state === 'swarm') {
+      this.stopFlail();
+      this.setState('rest', this.timings().restMs);
+    }
     this.emitHud();
   }
 
@@ -134,8 +135,8 @@ export default class SpiderBoss extends Enemy {
         break;
       case 'strike':
         this.body.setVelocity(0, T.dropSpeed * mul);
-        if (this.y >= scene.player.y) {
-          this.y = scene.player.y;
+        if (this.y >= this.strikeY()) {
+          this.y = this.strikeY();
           this.shadow.setVisible(false);
           this.setState('retreat');
         }
@@ -151,6 +152,12 @@ export default class SpiderBoss extends Enemy {
       case 'rest':
         if (now >= this.stateUntil) this.nextAttack();
         break;
+      case 'swarm':
+        if (now >= this.stateUntil) {
+          this.stopFlail();
+          this.setState('rest', T.restMs);
+        }
+        break;
       case 'toCenter':
         if (this.moveTo(scene.scale.width / 2, B.hangY, B.retreatSpeed)) this.castSwarm();
         break;
@@ -163,14 +170,29 @@ export default class SpiderBoss extends Enemy {
     this.web.lineStyle(3, WEB_COLOR, 0.8).lineBetween(this.x, 0, this.x, this.y);
   }
 
-  /** По центру вгорі: біль, розмахування лапами — і рій. */
+  /** Нижня точка удару: низ спрайта гравця (фідбек-2: раніше павучиха «не долітала», зупиняючись на його центрі). */
+  strikeY() {
+    const p = this.scene.player;
+    return B.strikeToFeet ? p.y + p.displayHeight / 2 : p.y;
+  }
+
+  /**
+   * По центру вгорі: біль, розмахування лапами — і рій.
+   * Фідбек-2: далі павучиха не стоїть, а атакує як звичайно; невразлива, доки рій живий.
+   */
   castSwarm() {
-    this.setState('swarm');
+    this.setState('swarm', B.swarmFlailMs);
     sfx('bossPain');
     sfx('swarm');
     this.flail = this.scene.tweens.add({ targets: this, angle: { from: -9, to: 9 }, duration: 160, yoyo: true, repeat: -1 });
     this.swarm.launch(B.swarm.start, this.x, this.y + this.height / 2);
     this.emitHud();
+  }
+
+  stopFlail() {
+    this.flail?.stop();
+    this.flail = null;
+    this.setAngle(0);
   }
 
   /** Наступна атака: кожна spit.every-та — плювок павутиною, решта — удар. */
@@ -200,7 +222,7 @@ export default class SpiderBoss extends Enemy {
     const scene = this.scene;
     const T = this.timings();
     this.strikeX = pickStrikeX(scene.player.x, Math.random, this.laneMin, this.laneMax);
-    this.shadow.setPosition(this.strikeX, scene.player.y).setVisible(true);
+    this.shadow.setPosition(this.strikeX, this.strikeY()).setVisible(true);
     // павучиха зсувається над точкою удару рівно за час попередження
     const dx = this.strikeX - this.x;
     this.body.setVelocity(dx / (T.telegraphMs / 1000), 0);

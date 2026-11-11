@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { BALANCE } from '../src/config/balance.js';
+import * as W from '../src/systems/Weapons.js';
 import {
   attackDamage,
   axeRadius,
@@ -97,5 +98,40 @@ describe('geometry', () => {
     expect(weaponJumpMul('chakra')).toBe(1.5);
     expect(weaponJumpMul('axe')).toBe(1);
     expect(weaponJumpMul(null)).toBe(1);
+  });
+});
+
+describe('weapon upgrades (feedback-2)', () => {
+  test('+0.35 damage per upgrade on top of the weapon multiplier', () => {
+    expect(W.attackDamage('axe', 1, 0)).toBe(4);
+    expect(W.attackDamage('axe', 1, 2)).toBeCloseTo(4.7);
+    expect(W.attackDamage('shotgun', 2, 1)).toBeCloseTo(2.85);
+    expect(W.attackDamage(null, 2, 3)).toBe(2); // стартовий постріл не прокачується
+  });
+  test('axe: bigger radius, faster swings, mini axe at 5', () => {
+    expect(W.axeRadius(720, 1)).toBeCloseTo(720 / 3 * 1.06);
+    expect(W.upgradeIntervalMul('axe', 2)).toBeCloseTo(0.92 ** 2);
+    expect(W.hasMiniAxe('axe', 4)).toBe(false);
+    expect(W.hasMiniAxe('axe', 5)).toBe(true);
+    expect(W.hasMiniAxe('shotgun', 5)).toBe(false);
+  });
+  test('shotgun: +8% speed, 2 extra pellets from level 3', () => {
+    expect(W.upgradeIntervalMul('shotgun', 1)).toBeCloseTo(1 / 1.08);
+    expect(W.shotgunAngles(0, 2)).toHaveLength(3);
+    expect(W.shotgunAngles(0, 3)).toHaveLength(5);
+  });
+  test('chakra: +10% speed, burst +4 from level 3', () => {
+    expect(W.chakraBurst(2)).toBe(8);
+    expect(W.chakraBurst(3)).toBe(12);
+    let st = W.createFireState();
+    let shots = 0;
+    for (let i = 0; i < 12; i++) {
+      const r = W.stepFire(st, 1000, { main: 'chakra', fireIntervalMs: 1000, hasTarget: true, upgrades: 3 });
+      st = r.state;
+      if (r.fire) shots++;
+      if (st.burstLeft === 0) break;
+    }
+    expect(shots).toBe(12);
+    expect(st.cooldownMs).toBeCloseTo(2000 / 1.1 ** 3);
   });
 });

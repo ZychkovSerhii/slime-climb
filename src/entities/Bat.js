@@ -22,7 +22,9 @@ export default class Bat extends Enemy {
     super.preUpdate(time, delta);
     if (!this.body) return;
     const p = this.scene.player;
-    const speed = CFG.speed * this.speedMul(this.scene.nowMs);
+    // світ пізніше мчить униз швидше — кажан пришвидшується разом із ним, інакше на фоні стін він ніби завмирає
+    const extra = CFG.scrollK * Math.max(this.scene.currentScroll - BALANCE.scrollBase, 0);
+    const speed = (CFG.speed + extra) * this.speedMul(this.scene.nowMs);
     const angle = Phaser.Math.Angle.Between(this.x, this.y, p.x, p.y);
     this.scene.physics.velocityFromRotation(angle, speed, this.body.velocity);
     this.setFlipX(p.x < this.x);

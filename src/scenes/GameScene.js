@@ -4,8 +4,8 @@ import { scrollSpeed } from '../systems/Difficulty.js';
 import { createSpawnState, dueSpawns } from '../systems/Spawner.js';
 import { afterBossSpawnMul, bannerVisible, bossStage, hazardsSuppressed } from '../systems/BossPlanner.js';
 import { createStatus, isPoisoned, playerSpeedMul, poison } from '../systems/Status.js';
-import { addXp, applyCard, createProgression, killXp, rollLevelUp, weaponCard, xpToNext } from '../systems/Progression.js';
-import { attackDamage, axeRadius, createFireState, inRadius, shotgunAngles, stepFire, weaponJumpMul } from '../systems/Weapons.js';
+import { addXp, applyCard, cardUpgrade, createProgression, killXp, rollLevelUp, weaponCard, weaponUpgrades, xpToNext } from '../systems/Progression.js';
+import { attackDamage, axeRadius, createFireState, hasMiniAxe, inRadius, shotgunAngles, stepFire, weaponJumpMul } from '../systems/Weapons.js';
 import { clampDelta } from '../systems/Time.js';
 import { applyDamage, createHealth, heal } from '../systems/Health.js';
 import {
@@ -31,6 +31,9 @@ import { background } from '../art/textures.js';
 const POISON_TINT = 0xb0d040; // слизак і так зелений — під отрутою він темніший, болотний
 const FADE_MS = 600; // шипи й вороги плавно зникають перед босом
 const VENOM_SHOT_TINT = 0x9cff3a; // постріли з «Ядовитою мордою» — кислотні
+// шляпа на голові слизака: центр шляпи відносно центру слизака і зсув другої шляпи
+const HAT_Y = -15;
+const HAT_STACK = 12;
 const OKSANA_TINT = 0xffa8d8; // Оксанка — рожевувата, щоб не плутати з ворожими павучками
 
 export default class GameScene extends Phaser.Scene {
@@ -245,6 +248,25 @@ export default class GameScene extends Phaser.Scene {
     this.events.emit('hud:banner', { text: `Нова зброя:\n${BALANCE.weapons[main].name}`, ms: 1800 });
   }
 
+  /** Прокачка основної зброї: банер; на miniAxeAt у сокири — міні-сокира-помічниця. */
+  onWeaponUpgrade(weaponId) {
+    const n = weaponUpgrades(this.progression, weaponId);
+    sfx('weaponReady');
+    this.events.emit('hud:banner', { text: `${BALANCE.weapons[weaponId].name}\n+${n}`, ms: 1200 });
+    if (hasMiniAxe(weaponId, n) && !this.miniAxe) {
+      const M = BALANCE.weaponUpgrades.axe.miniAxe;
+      this.miniAxe = new Familiar(this, {
+        texture: 'axe',
+        offset: { x: 34, y: -6 },
+        speed: M.speed,
+        restMs: M.restMs,
+        spin: true,
+        scale: 0.6,
+        damage: () => M.damage,
+      });
+    }
+  }
+
   /** Застосовує картку (звичайну, зброю, скіл чи трофей) і її наслідки в сцені. */
   applyPicked(id) {
     const mainBefore = this.progression.arsenal.main;
@@ -257,6 +279,8 @@ export default class GameScene extends Phaser.Scene {
       this.health = heal(this.health, 1, this.maxLives);
     }
     if (id === 'hat') this.syncHats();
+    const up = cardUpgrade(id);
+    if (up) this.onWeaponUpgrade(up);
     const loot = cardLoot(id);
     if (loot) this.onLoot(loot);
   }
@@ -431,8 +455,9 @@ export default class GameScene extends Phaser.Scene {
   /** Атака основної зброї: стартовий постріл, сокира, черга чакри або дробовик (логіка — systems/Weapons.js). */
   autoFire(dt) {
     const main = this.progression.arsenal.main;
+    const upgrades = main ? weaponUpgrades(this.progression, main) : 0;
     const targets = this.visibleEnemies();
-    const radius = axeRadius(this.scale.width);
+    const radius = axeRadius(this.scale.width, upgrades);
     // сокира б'є лише тих, хто в радіусі; великий бос — краєм тіла
     const size = (t) => Math.min(t.displayWidth, t.displayHeight) / 2;
     const inZone = main === 'axe' ? inRadius(this.player, targets, radius, size) : null;
@@ -441,11 +466,12 @@ export default class GameScene extends Phaser.Scene {
     const r = stepFire(this.fireState, dt, {
       main,
       fireIntervalMs: this.weapon.fireIntervalMs,
+      upgrades,
       hasTarget: close ? close.length > 0 : targets.length > 0,
     });
     this.fireState = r.state;
     if (!r.fire) return;
-    const damage = attackDamage(main, this.weapon.damage);
+    const damage = attackDamage(main, this.weapon.damage, upgrades);
     if (inZone) {
       this.swingAxe(inZone, damage, radius);
       return;
@@ -454,7 +480,7 @@ export default class GameScene extends Phaser.Scene {
     const { vx, vy } = target.screenVelocity(this.currentScroll);
     const aim = interceptPoint(this.player, { x: target.x, y: target.y, vx, vy }, BALANCE.projectileSpeed);
     const angle = Math.atan2(aim.y - this.player.y, aim.x - this.player.x);
-    const angles = main === 'shotgun' ? shotgunAngles(angle) : [angle];
+    const angles = main === 'shotgun' ? shotgunAngles(angle, upgrades) : [angle];
     const relics = this.progression.relics;
     const fx = hitEffects(this.weapon.slow, relics);
     const texture = relics.includes('web') ? 'webShot' : 'projectile';
@@ -604,6 +630,7 @@ export default class GameScene extends Phaser.Scene {
     this.autoFire(dt);
     for (const f of this.hats) f.step(dt);
     this.oksana?.step(dt);
+    this.miniAxe?.step(dt);
     this.emitHud();
   }
 
@@ -629,7 +656,7 @@ export default class GameScene extends Phaser.Scene {
     this.emitHud();
   }
 
-  /** Капелюхи на голові: кількість і шкода — за взяттями картки. */
+  /** Шляпи на голові: кількість і шкода — за взяттями картки. */
   syncHats() {
     const st = hatStats(this.progression.picks.hat ?? 0);
     const H = BALANCE.skills.hat;
@@ -638,7 +665,7 @@ export default class GameScene extends Phaser.Scene {
       this.hats.push(
         new Familiar(this, {
           texture: 'hat',
-          offset: { x: 0, y: -34 - i * 22 }, // другий — на першому
+          offset: { x: 0, y: HAT_Y - i * HAT_STACK }, // друга — на першій
           speed: H.speed,
           restMs: H.restMs,
           spin: true,
