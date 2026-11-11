@@ -20,8 +20,12 @@ import hat from './hat.js';
 import webShot from './webShot.js';
 import slimeSpider from './slimeSpider.js';
 import frost from './frost.js';
+import skinAssassin from './skinAssassin.js';
+import skinCommander from './skinCommander.js';
+import skinRaccoon from './skinRaccoon.js';
+import skinMurzik from './skinMurzik.js';
 
-export const SPRITES = [slime, wall, spike, projectile, plantBullet, heart, bat, plant, lion, spider, smallSpider, shadow, axe, shotgun, chakraVeins, webBall, hat, webShot, slimeSpider, frost];
+export const SPRITES = [slime, wall, spike, projectile, plantBullet, heart, bat, plant, lion, spider, smallSpider, shadow, axe, shotgun, chakraVeins, webBall, hat, webShot, slimeSpider, frost, skinAssassin, skinCommander, skinRaccoon, skinMurzik];
 
 /** Ключ анімації в Phaser: 'slime:idle'. */
 export const animKey = (spriteKey, anim) => `${spriteKey}:${anim}`;

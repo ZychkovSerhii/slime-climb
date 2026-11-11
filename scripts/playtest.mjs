@@ -34,7 +34,7 @@ function installBot() {
     if (wouldDie) this.health = { ...this.health, lives: 2 }; // повернули 1 життя, щоб гра йшла далі
     const took = origHurt();
     if (this.health.invulnerableUntil === before) return took; // невразливість — удару не було
-    if (wouldDie) report.deaths.push(+this.elapsedSec.toFixed(1));
+    if (wouldDie) { report.deaths.push(+this.elapsedSec.toFixed(1)); report.stepsAtDeath ??= this.runSteps; }
     const p = this.player;
     let src = '?';
     let best = Infinity;
@@ -187,6 +187,8 @@ function installBot() {
 
   s.events.on('enemy:killed', (e) => {
     if (e.type === 'boss') report.bossKilled = +s.elapsedSec.toFixed(1);
+    report.kills = report.kills || {};
+    report.kills[e.type] = (report.kills[e.type] || 0) + 1;
   });
 
   // вибір картки: урон > швидкість атаки > сповільнення
@@ -243,7 +245,7 @@ for (let r = 0; r < RUNS; r++) {
   }
   const rep = await page.evaluate(() => {
     const s = window.game.scene.getScene('Game');
-    return { ...window.__report, relics: s.progression.relics, endT: +s.elapsedSec.toFixed(1), fps: +window.game.loop.actualFps.toFixed(0) };
+    return { ...window.__report, relics: s.progression.relics, steps: s.runSteps, endT: +s.elapsedSec.toFixed(1), fps: +window.game.loop.actualFps.toFixed(0) };
   });
   rep.errors = errors;
   results.push(rep);
@@ -260,6 +262,7 @@ for (const [i, rep] of results.entries()) {
   console.log(`  deaths (with real lives & healing): ${rep.deaths.length ? rep.deaths.join(', ') : 'none'}`);
   console.log(`  hits ${rep.hits.length}:`, JSON.stringify(bySrc));
   console.log(`  hit times:`, rep.hits.map((h) => `${h.t}(${h.src})`).join(' '));
+  console.log(`  Шаги: ${rep.steps} (на першій смерті: ${rep.stepsAtDeath ?? '-'}), вбивства: ${JSON.stringify(rep.kills ?? {})}`);
   if (rep.relics) console.log(`  relics: ${rep.relics.join(', ')}`);
   console.log(`  boss start ${rep.bossStart ?? '-'}, boss killed ${rep.bossKilled ?? '-'}, phases: ${rep.boss.join(' ') || '-'}`);
   console.log(`  picks: ${rep.picks.join(', ')}`, 'decisions', JSON.stringify(rep.decisions), 'panicBy', JSON.stringify(rep.panicBy));

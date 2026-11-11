@@ -171,6 +171,33 @@ export const BALANCE = deepFreeze({
     maxJumpMul: 2.2, // [рішення] стеля множника стрибка (чакра ×1,5 × павук ×1,8 = ×2,7 — керувати вже неможливо)
   },
 
+  // Мета-прогрес (етап 5). Шаги — валюта між забігами, зберігаються в localStorage.
+  // Ціль специфікації: ~120–180 Шагів за нормальний забіг (боса вбито, смерть на 3:00–3:30) — ще не перевірено плейтестом.
+  meta: {
+    // Шаги за вбивство. smallSpider — павучки рою павучихи: їх за бій десятки, тому 0 [рішення], інакше рій давав би більше за саму павучиху
+    stepsPerKill: { lion: 2, bat: 1, plant: 2, smallSpider: 0, boss: 60 },
+    // Скіни лише візуальні. sprite — ключ спрайта в src/art/sprites (однаковий розмір полотна → хітбокс той самий)
+    skins: [
+      { id: 'slime', name: 'Слизак', price: 0, sprite: 'slime' },
+      { id: 'assassin', name: 'Асасин', price: 300, sprite: 'skinAssassin' },
+      { id: 'commander', name: 'Жінка Главнокомандувач', price: 300, sprite: 'skinCommander' },
+      { id: 'raccoon', name: 'Єнот', price: 500, sprite: 'skinRaccoon' },
+      { id: 'murzik', name: 'Мурзик', price: 1000, sprite: 'skinMurzik' },
+    ],
+    // Досягнення: поки не отримане — «???». stat — тип ворога ('boss' — павучиха), count — скільки вбити.
+    // Нагорода в Шагах [рішення: у специфікації сум немає] забирається в меню досягнень.
+    // Шкодько і вороги зими (ельф, ведмідь, пінгвін) додаються на етапі 6 — разом із ними самими.
+    achievements: [
+      { id: 'boss1', stat: 'boss', count: 1, reward: 100, title: 'Вбивство Мамаши', caption: 'Я не очікував від тебе такого...' },
+      { id: 'boss5', stat: 'boss', count: 5, reward: 300, title: '5 разів вбити Мамашу', caption: 'Ти її справді так не любиш?' },
+      { id: 'lion50', stat: 'lion', count: 50, reward: 50, title: '50 левів', caption: 'Савана сумує.' },
+      { id: 'bat50', stat: 'bat', count: 50, reward: 50, title: '50 кажанів', caption: 'Ночі стали тихішими.' },
+      { id: 'plant50', stat: 'plant', count: 50, reward: 50, title: '50 квіток', caption: 'Садівник з тебе так собі.' },
+      { id: 'smallSpider50', stat: 'smallSpider', count: 50, reward: 50, title: '50 павучків', caption: 'Мамаша це запам\'ятає.' },
+    ],
+    toastMs: 2500,
+  },
+
   // Захист від довгих кадрів (повернення з фону)
   maxDeltaMs: 50,
   // Після закриття вікна LevelUp тапи для стрибка ігноруються стільки мс (захист від «протікання» тапу)

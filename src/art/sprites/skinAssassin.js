@@ -1,0 +1,58 @@
+// Скін «Асасин»: слизак у темному каптурі з червоним поясом. Без чужої символіки. Розмір і кадри — як у slime.
+import { C } from '../palette.js';
+
+export default {
+  key: 'skinAssassin',
+  w: 48,
+  h: 48,
+  cell: 4,
+  palette: { k: C.outline, H: 0x2b2f45, h: 0x4a5070, s: 0x0d0f18, w: 0xe8f6ff, r: 0xb3202a, G: C.slime, g: C.slimeDark },
+  frames: {
+    idle1: [
+      '.....kk.....',
+      '....kHHk....',
+      '...kHhHHk...',
+      '..kHhHHHHk..',
+      '.kHhHssssHk.',
+      '.kHHswsswHk.',
+      'kHHHssssssHk',
+      'kHrrrrrrrrHk',
+      'kHHGGGGGGHHk',
+      'kHHgGGGGgHHk',
+      'kHHHggggHHHk',
+      '.kkkkkkkkkk.',
+    ],
+    idle2: [
+      '............',
+      '.....kk.....',
+      '...kkHHkk...',
+      '.kkHhHHHHkk.',
+      '.kHhHssssHk.',
+      '.kHHswsswHk.',
+      'kHHHssssssHk',
+      'kHrrrrrrrrHk',
+      'kHHGGGGGGHHk',
+      'kHHgGGGGgHHk',
+      'kHHHggggHHHk',
+      '.kkkkkkkkkk.',
+    ],
+    jump: [
+      '.....kk.....',
+      '....kHHk....',
+      '...kHhHHk...',
+      '..kHhHHHHk..',
+      '..kHssssHk..',
+      '..kHwsswHk..',
+      '..kHssssHk..',
+      '.kHrrrrrrHk.',
+      '.kHGGGGGGHk.',
+      '.kHgGGGGgHk.',
+      '..kHggggHk..',
+      '...kkkkkk...',
+    ],
+  },
+  anims: {
+    idle: { frames: ['idle1', 'idle2'], fps: 2.5, repeat: -1 },
+    jump: { frames: ['jump'], fps: 1 },
+  },
+};

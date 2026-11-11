@@ -10,7 +10,7 @@ export default class GameOverScene extends Phaser.Scene {
     super('GameOver');
   }
 
-  create({ score = 0, timeSec = 0 } = {}) {
+  create({ score = 0, timeSec = 0, steps = 0, totalSteps = 0 } = {}) {
     // зміна розміру екрана → перебудувати екран
     const onResize = () => this.scene.restart(this.sys.settings.data);
     this.scale.once(Phaser.Scale.Events.RESIZE, onResize);
@@ -29,11 +29,18 @@ export default class GameOverScene extends Phaser.Scene {
     this.add
       .text(cx, height * 0.56, isRecord ? 'Новий рекорд!' : `Рекорд ${best}`, style(44, isRecord ? '#ffd84a' : '#ffffff'))
       .setOrigin(0.5);
+    this.add.text(cx, height * 0.63, `+${steps} Шагів · усього ${totalSteps}`, style(36, '#ffd84a')).setOrigin(0.5);
     const hint = this.add.text(cx, height * 0.72, 'Тапни, щоб грати ще', style(40)).setOrigin(0.5).setAlpha(0);
+    const menuBtn = this.add
+      .text(cx, height * 0.84, 'Меню', { ...style(36, '#cfe8cf'), backgroundColor: '#00000066', padding: { x: 32, y: 12 } })
+      .setOrigin(0.5)
+      .setAlpha(0);
 
     this.time.delayedCall(INPUT_DELAY_MS, () => {
       hint.setAlpha(1);
-      this.input.once('pointerdown', () => this.scene.start('Game'));
+      menuBtn.setAlpha(1).setInteractive({ useHandCursor: true });
+      // магазин і досягнення — у меню, тож туди треба потрапити без системної кнопки «Назад»
+      this.input.once('pointerdown', (pointer, over) => this.scene.start(over.includes(menuBtn) ? 'Menu' : 'Game'));
     });
   }
 }

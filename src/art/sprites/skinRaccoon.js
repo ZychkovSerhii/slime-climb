@@ -1,0 +1,58 @@
+// Скін «Єнот»: сірий слизак-єнот із вушками, чорною маскою і світлою мордочкою. Розмір і кадри — як у slime.
+import { C } from '../palette.js';
+
+export default {
+  key: 'skinRaccoon',
+  w: 48,
+  h: 48,
+  cell: 4,
+  palette: { k: C.outline, R: 0x8a8a96, r: 0x5b5b66, m: 0x1d1d24, W: 0xe6e6ee, w: C.white },
+  frames: {
+    idle1: [
+      '.kk......kk.',
+      '.kRk....kRk.',
+      '.kRRkkkkRRk.',
+      'kRRRWRRWRRRk',
+      'kRmmmRRmmmRk',
+      'kmmwkmmkwmmk',
+      'kRmmmWWmmmRk',
+      'kRRRWkkWRRRk',
+      'krRRRWWRRRrk',
+      'krrRRRRRRrrk',
+      'krrrrrrrrrrk',
+      '.kkkkkkkkkk.',
+    ],
+    idle2: [
+      '............',
+      '.kk......kk.',
+      '.kRkkkkkkRk.',
+      'kRRRWRRWRRRk',
+      'kRmmmRRmmmRk',
+      'kmmwkmmkwmmk',
+      'kRmmmWWmmmRk',
+      'kRRRWkkWRRRk',
+      'krRRRWWRRRrk',
+      'krrRRRRRRrrk',
+      'krrrrrrrrrrk',
+      '.kkkkkkkkkk.',
+    ],
+    jump: [
+      '..kk....kk..',
+      '..kRk..kRk..',
+      '..kRRkkRRk..',
+      '.kRRWRRWRRk.',
+      '.kmmmRRmmmk.',
+      '.kmwkmmkwmk.',
+      '.kmmmWWmmmk.',
+      '.kRRWkkWRRk.',
+      '.krRRWWRRrk.',
+      '..krRRRRrk..',
+      '...krrrrk...',
+      '....kkkk....',
+    ],
+  },
+  anims: {
+    idle: { frames: ['idle1', 'idle2'], fps: 2.5, repeat: -1 },
+    jump: { frames: ['jump'], fps: 1 },
+  },
+};

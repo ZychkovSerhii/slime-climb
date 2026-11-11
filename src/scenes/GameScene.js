@@ -16,6 +16,8 @@ import { inInvisButton } from '../systems/Layout.js';
 import Familiar from '../entities/Familiar.js';
 import { createSpikeState, planSpikes, prefillStartWorld, skipSpikes } from '../systems/SpikePlanner.js';
 import { heightPoints, killPoints } from '../systems/Score.js';
+import { loadMeta, recordKill, saveMeta, skinSprite } from '../systems/Meta.js';
+import { browserStorage } from '../systems/HighScore.js';
 import { interceptPoint, pickNearest } from '../systems/Targeting.js';
 import { playMusic, resumeAudio, sfx, stopMusic, suspendAudio } from '../systems/Audio.js';
 import Player from '../entities/Player.js';
@@ -61,6 +63,10 @@ export default class GameScene extends Phaser.Scene {
     this.oksana = null;
     this.lootCards = null; // картки трофеїв, що чекають на вікно (після смерті боса)
     this.killScore = 0;
+    // мета-прогрес (етап 5): Шаги й лічильники пишуться в сховище одразу при вбивстві — закритий посеред забігу застосунок їх не губить
+    this.storage = browserStorage();
+    this.meta = loadMeta(this.storage);
+    this.runSteps = 0;
     this.progression = createProgression();
     this.levelUpQueue = 0;
     this.levelUpOpen = false;
@@ -108,6 +114,7 @@ export default class GameScene extends Phaser.Scene {
     this.scrollingGroups = [this.hazards, this.enemies, this.playerProjectiles, this.enemyProjectiles, this.fading];
 
     this.player = new Player(this);
+    this.player.setSkin(skinSprite(this.meta));
     this.weaponView = new WeaponView(this, this.player);
     if (BALANCE.weapons[this.debugWeapon]) {
       for (let i = 0; i < BALANCE.weapons[this.debugWeapon].steps; i++) this.progression = applyCard(this.progression, weaponCard(this.debugWeapon));
@@ -141,6 +148,7 @@ export default class GameScene extends Phaser.Scene {
       if (this.dead) return;
       sfx('kill');
       this.killScore += killPoints(type);
+      this.onMetaKill(type);
       if (type === 'boss') this.onBossKilled();
       const r = addXp(this.progression, killXp(type));
       this.progression = r.progression;
@@ -373,7 +381,7 @@ export default class GameScene extends Phaser.Scene {
       sfx('gameOver');
       this.emitHud();
       this.scene.stop('Hud');
-      this.scene.start('GameOver', { score: this.score, timeSec: this.elapsedSec });
+      this.scene.start('GameOver', { score: this.score, timeSec: this.elapsedSec, steps: this.runSteps, totalSteps: this.meta.steps });
       return true;
     }
     sfx('hurt');
@@ -575,6 +583,15 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
+  /** Вбивство для мета-прогресу: Шаги, лічильник, досягнення (тост у HUD). */
+  onMetaKill(type) {
+    const r = recordKill(this.meta, type);
+    this.meta = r.meta;
+    this.runSteps += r.steps;
+    saveMeta(this.storage, this.meta);
+    for (const a of r.unlocked) this.events.emit('hud:toast', a.title);
+  }
+
   emitHud() {
     const s = {
       timeSec: this.elapsedSec,
@@ -586,9 +603,10 @@ export default class GameScene extends Phaser.Scene {
       level: this.progression.level,
       xp: this.progression.xp,
       xpToNext: xpToNext(this.progression.level),
+      steps: this.runSteps,
     };
     const inv = s.invis ? `${s.invis.active}|${Math.floor(s.invis.charge * 40)}` : '';
-    const key = `${Math.floor(s.timeSec)}|${s.score}|${s.lives}|${s.maxLives}|${s.armor}|${inv}|${s.level}|${s.xp}`;
+    const key = `${Math.floor(s.timeSec)}|${s.score}|${s.lives}|${s.maxLives}|${s.armor}|${inv}|${s.level}|${s.xp}|${s.steps}`;
     if (key === this.lastHud) return;
     this.lastHud = key;
     this.events.emit('hud:update', s);
