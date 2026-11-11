@@ -69,6 +69,17 @@ const LOOT_TEXT = {
     return { title: 'Дупа павучихи', desc: `кулі павутини приклеюють ворога на ${w.rootMs / 1000} с\n(боса — на ${w.bossRootMs / 1000} с)` };
   },
   form: () => ({ title: 'Ти став павуком', desc: `скін чорного павука,\nстрибок на ${Math.round((BALANCE.bossLoot.form.jumpSpeedMul - 1) * 100)}% швидший` }),
+  sack: () => ({
+    title: 'Мішок Шкодька',
+    desc: `раз на ${BALANCE.shkodkoLoot.sack.everyMs / 1000} с: бомби, досвід\nчи Шаги, зрідка навичка +1`,
+  }),
+  iam: () => {
+    const I = BALANCE.shkodkoLoot.iam;
+    return {
+      title: 'Я ШКОДЬКО',
+      desc: `скін Шкодька (скасовує павука),\nдосвід кожні ${I.xpEveryMs / 1000} с, бомба кожні ${I.bombEveryMs / 1000} с`,
+    };
+  },
 };
 
 function cardText(id, picks, arsenal) {

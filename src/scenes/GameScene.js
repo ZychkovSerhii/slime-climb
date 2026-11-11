@@ -23,6 +23,7 @@ import { loadMeta, recordKill, saveMeta, skinSprite } from '../systems/Meta.js';
 import { browserStorage } from '../systems/HighScore.js';
 import { interceptPoint, pickNearest } from '../systems/Targeting.js';
 import { playMusic, resumeAudio, sfx, stopMusic, suspendAudio } from '../systems/Audio.js';
+import { animKey } from '../art/sprites/index.js';
 import Player from '../entities/Player.js';
 import Spike from '../entities/Spike.js';
 import Projectile from '../entities/Projectile.js';
@@ -38,6 +39,10 @@ import Penguin from '../entities/Penguin.js';
 import Santa from '../entities/Santa.js';
 import Gift from '../entities/Gift.js';
 import Snow from '../entities/Snow.js';
+import GiftBomb from '../entities/GiftBomb.js';
+import {
+  activeForm, bombTargets, formSkin, friendlyBombDamage, rollSack, sackSkillCard, SHKODKO_LOOT_IDS, stepTicker,
+} from '../systems/ShkodkoLoot.js';
 import { background } from '../art/textures.js';
 
 const POISON_TINT = 0xb0d040; // слизак і так зелений — під отрутою він темніший, болотний
@@ -79,6 +84,9 @@ export default class GameScene extends Phaser.Scene {
     this.hats = [];
     this.oksana = null;
     this.lootCards = null; // картки трофеїв, що чекають на вікно (після смерті боса)
+    this.lootTitle = null; // заголовок вікна трофеїв: чий трофей
+    this.sack = null; // «Мішок Шкодька»: спрайт за спиною слизака
+    this.lootTicks = { sack: null, iamXp: null, iamBomb: null }; // таймери карток Шкодька (stepTicker)
     this.killScore = 0;
     // мета-прогрес (етап 5): Шаги й лічильники пишуться в сховище одразу при вбивстві — закритий посеред забігу застосунок їх не губить
     this.storage = browserStorage();
@@ -141,7 +149,8 @@ export default class GameScene extends Phaser.Scene {
     this.fading = this.add.group();
     this.pickups = this.physics.add.group(); // подарунки зими
     this.bombs = this.add.group(); // подарунки-бомби Шкодька (вибух перевіряє відстань сам)
-    this.scrollingGroups = [this.hazards, this.enemies, this.playerProjectiles, this.enemyProjectiles, this.fading, this.pickups, this.bombs];
+    this.friendlyBombs = this.add.group(); // свої бомби з карток Шкодька (б'ють ворогів, не гравця)
+    this.scrollingGroups = [this.hazards, this.enemies, this.playerProjectiles, this.enemyProjectiles, this.fading, this.pickups, this.bombs, this.friendlyBombs];
 
     this.player = new Player(this);
     this.player.setSkin(skinSprite(this.meta));
@@ -279,7 +288,7 @@ export default class GameScene extends Phaser.Scene {
    */
   launchLevelUp() {
     if (this.lootCards) {
-      this.scene.launch('LevelUp', { cards: this.lootCards, title: `Трофей: ${BALANCE.boss.name}` });
+      this.scene.launch('LevelUp', { cards: this.lootCards, title: this.lootTitle ?? `Трофей: ${BALANCE.boss.name}` });
       return;
     }
     const r = rollLevelUp(this.progression, Math.random);
@@ -439,7 +448,7 @@ export default class GameScene extends Phaser.Scene {
   /** Швидкість і колір слизака за станами (щокадру). */
   applyStatus() {
     const now = this.nowMs;
-    const form = this.progression.relics.includes('form');
+    const form = activeForm(this.progression.relics) === 'form'; // «Я ШКОДЬКО» скасовує стрибок павука
     this.player.speedMul = playerSpeedMul(this.status, now) * jumpMul(weaponJumpMul(this.progression.arsenal.main), form);
     this.armor = stepArmor(this.armor, now);
     // невидимість: напівпрозорий; після неї — звичайна прозорість (блимання невразливості керує нею саме)
@@ -613,11 +622,13 @@ export default class GameScene extends Phaser.Scene {
     this.bannerShown = false;
     // бомби, що ще лежать, гаснуть разом з босом
     for (const b of this.bombs.getChildren().slice()) b.destroy();
-    // унікальні картки павучихи: 2 з ще не взятих (кожна — раз за забіг). Картки Шкодька — етап 6c.
-    if (type === 'boss') {
-      const loot = rollLoot(this.progression.relics, Math.random);
-      this.lootCards = loot.length ? loot : null;
-    }
+    // унікальні картки боса: 2 з ще не взятих (кожна — раз за забіг). У Шкодька їх лише 2, тож на наступному колі
+    // пропонується та, яку не взяли.
+    const loot = type === 'shkodko'
+      ? rollLoot(this.progression.relics, Math.random, SHKODKO_LOOT_IDS, BALANCE.shkodkoLoot.offer)
+      : rollLoot(this.progression.relics, Math.random);
+    this.lootCards = loot.length ? loot : null;
+    this.lootTitle = `Трофей: ${type === 'shkodko' ? BALANCE.shkodko.name : BALANCE.boss.name}`;
     this.events.emit('hud:boss', null);
     playMusic('victory');
   }
@@ -799,6 +810,7 @@ export default class GameScene extends Phaser.Scene {
     for (const f of this.hats) f.step(dt);
     this.oksana?.step(dt);
     this.miniAxe?.step(dt);
+    this.stepShkodkoLoot();
     this.emitHud();
   }
 
@@ -858,8 +870,84 @@ export default class GameScene extends Phaser.Scene {
         damage: () => L.oksana.damage + (this.weapon.damage - BALANCE.projectileDamage), // росте з «Уроном»
       });
     }
-    if (id === 'form') this.player.setSkin('slimeSpider');
-    const names = { armor: 'Кожух з павучихи', venom: 'Ядовита морда', oksana: 'Оксанка з тобою', web: 'Дупа павучихи', form: 'Ти став павуком' };
+    // трансформації: діє остання взята (павук або Шкодько), скін — її
+    if (id === 'form' || id === 'iam') this.player.setSkin(formSkin(this.progression.relics));
+    if (id === 'sack' && !this.sack) this.sack = this.add.sprite(this.player.x, this.player.y, 'sack', 'sack').setDepth(this.player.depth - 1);
+    const names = {
+      armor: 'Кожух з павучихи', venom: 'Ядовита морда', oksana: 'Оксанка з тобою', web: 'Дупа павучихи', form: 'Ти став павуком',
+      sack: 'Мішок Шкодька', iam: 'Я ШКОДЬКО',
+    };
     this.events.emit('hud:banner', { text: names[id], ms: 1500 });
+  }
+
+  // ---------- Картки Шкодька (етап 6c) ----------
+
+  /** Крок карток Шкодька: мішок (раз на sack.everyMs) і «Я ШКОДЬКО» (потік досвіду й бомб). Лише поза паузою. */
+  stepShkodkoLoot() {
+    const K = BALANCE.shkodkoLoot;
+    const relics = this.progression.relics;
+    const now = this.nowMs;
+    const tick = (key, everyMs) => {
+      const r = stepTicker(this.lootTicks[key], now, everyMs);
+      this.lootTicks[key] = r.state;
+      return r.count;
+    };
+    if (this.sack) {
+      const p = this.player;
+      this.sack.setPosition(p.x + (p.side === 'left' ? 14 : -14), p.y + 8).setFlipX(p.side !== 'left');
+      for (let i = tick('sack', K.sack.everyMs); i > 0; i--) this.openSack();
+    }
+    if (activeForm(relics) === 'iam') {
+      const xp = tick('iamXp', K.iam.xpEveryMs);
+      if (xp) this.gainXp(xp * K.iam.xp);
+      for (let i = tick('iamBomb', K.iam.bombEveryMs); i > 0; i--) this.throwFriendlyBombs(K.iam.bombs);
+    } else {
+      this.lootTicks.iamXp = null;
+      this.lootTicks.iamBomb = null;
+    }
+  }
+
+  /** Що випало з мішка. Немає цілей для бомб чи навички для прокачки — випадає досвід. */
+  openSack() {
+    const K = BALANCE.shkodkoLoot.sack;
+    this.sack.play(animKey('sack', 'shake'));
+    let kind = rollSack(Math.random);
+    if (kind === 'bombs' && !this.throwFriendlyBombs(K.bombs)) kind = 'xp';
+    if (kind === 'skill') {
+      const card = sackSkillCard(this.progression, Math.random);
+      if (card) {
+        this.applyPicked(card);
+        sfx('levelUp');
+        this.events.emit('hud:banner', { text: 'Мішок Шкодька:\nнавичка +1', ms: 1400 });
+      } else kind = 'xp';
+    }
+    if (kind === 'xp') {
+      this.gainXp(K.xp);
+      this.floatText(`+${K.xp} досвіду`, '#b4e06a');
+    }
+    if (kind === 'steps') {
+      this.meta = { ...this.meta, steps: this.meta.steps + K.steps };
+      this.runSteps += K.steps;
+      saveMeta(this.storage, this.meta);
+      this.floatText(`+${K.steps} Шаги`, '#f2c440');
+    }
+  }
+
+  /** Свої бомби в n найближчих видимих ворогів. Повертає false, якщо цілей немає. */
+  throwFriendlyBombs(n) {
+    const targets = bombTargets(this.player, this.visibleEnemies(), n);
+    if (!targets.length) return false;
+    const damage = friendlyBombDamage(this.weapon.damage);
+    const from = this.sack ?? this.player;
+    for (const t of targets) this.friendlyBombs.add(new GiftBomb(this, from.x, from.y, t.x, t.y, { friendly: true, damage }));
+    sfx('throw');
+    return true;
+  }
+
+  /** Короткий напис над слизаком, що спливає й тане. */
+  floatText(text, color) {
+    const t = this.add.text(this.player.x, this.player.y - 30, text, { fontFamily: 'monospace', fontSize: '22px', color, stroke: '#000', strokeThickness: 3 })
+      .setOrigin(0.5).setDepth(50);
+    this.tweens.add({ targets: t, y: t.y - 40, alpha: 0, duration: 900, onComplete: () => t.destroy() });
   }
 }

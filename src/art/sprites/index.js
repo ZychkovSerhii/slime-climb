@@ -36,10 +36,13 @@ import snowflake from './snowflake.js';
 import shkodko from './shkodko.js';
 import giftBomb from './giftBomb.js';
 import { wagon, loco } from './train.js';
+import slimeShkodko from './slimeShkodko.js';
+import sack from './sack.js';
 
 export const SPRITES = [slime, wall, spike, projectile, plantBullet, heart, bat, plant, lion, spider, smallSpider, shadow, axe, shotgun, chakraVeins, webBall, hat, webShot, slimeSpider, frost, skinAssassin, skinCommander, skinRaccoon, skinMurzik,
   wallIce, icicle, elf, candy, bear, penguin, santa, gift, snowflake,
-  shkodko, giftBomb, wagon, loco];
+  shkodko, giftBomb, wagon, loco,
+  slimeShkodko, sack];
 
 /** Ключ анімації в Phaser: 'slime:idle'. */
 export const animKey = (spriteKey, anim) => `${spriteKey}:${anim}`;
