@@ -21,7 +21,7 @@ import { inInvisButton } from '../systems/Layout.js';
 import Familiar from '../entities/Familiar.js';
 import { createSpikeState, planSpikes, prefillStartWorld, reserveFree, skipSpikes } from '../systems/SpikePlanner.js';
 import { heightPoints, killPoints } from '../systems/Score.js';
-import { loadMeta, recordKill, saveMeta, skinSprite } from '../systems/Meta.js';
+import { loadMeta, recordKill, saveMeta, skinSprite, stepsForKill } from '../systems/Meta.js';
 import { browserStorage } from '../systems/HighScore.js';
 import { interceptPoint, pickNearest } from '../systems/Targeting.js';
 import { playMusic, resumeAudio, sfx, stopMusic, suspendAudio } from '../systems/Audio.js';
@@ -34,6 +34,7 @@ import Bat from '../entities/Bat.js';
 import Plant from '../entities/Plant.js';
 import SpiderBoss from '../entities/SpiderBoss.js';
 import ShkodkoBoss from '../entities/ShkodkoBoss.js';
+import KolyaBoss from '../entities/KolyaBoss.js';
 import WeaponView from '../entities/WeaponView.js';
 import Elf from '../entities/Elf.js';
 import Bear from '../entities/Bear.js';
@@ -49,6 +50,7 @@ import {
   activeForm, bombTargets, formSkin, friendlyBombDamage, rollSack, sackSkillCard, SHKODKO_LOOT_IDS, stepTicker,
 } from '../systems/ShkodkoLoot.js';
 import { background } from '../art/textures.js';
+import { canSplit, KOLYA_LOOT_IDS, lootShotDamage, lootStepsBonus, useSplit } from '../systems/KolyaLoot.js';
 
 const POISON_TINT = 0xb0d040; // слизак і так зелений — під отрутою він темніший, болотний
 const ROAR_TINT = 0x9fb4c8; // приголомшений ричанням — сірувато-блакитний
@@ -67,6 +69,14 @@ const VENOM_SHOT_TINT = 0x9cff3a; // постріли з «Ядовитою мо
 const HAT_Y = -15;
 const HAT_STACK = 12;
 const OKSANA_TINT = 0xffa8d8; // Оксанка — рожевувата, щоб не плутати з ворожими павучками
+const LARVA_SHOT_TINT = 0xb4ff8a; // плювок «Личинки-помічника» — зелений, як постріли слизака, а не рожевий ворожий
+// Боси (етап 9 — третій): тип у події 'enemy:killed' → ключ відрізка, ім'я, клас, трофеї
+const BOSS_OF_KILL = { boss: 'spider', shkodko: 'shkodko', kolya: 'kolya' };
+const BOSSES = {
+  spider: { name: BALANCE.boss.name, make: (s) => new SpiderBoss(s), loot: (relics) => rollLoot(relics, Math.random) },
+  shkodko: { name: BALANCE.shkodko.name, make: (s) => new ShkodkoBoss(s), loot: (relics) => rollLoot(relics, Math.random, SHKODKO_LOOT_IDS, BALANCE.shkodkoLoot.offer) },
+  kolya: { name: BALANCE.kolya.name, make: (s) => new KolyaBoss(s), loot: (relics) => rollLoot(relics, Math.random, KOLYA_LOOT_IDS, BALANCE.kolyaLoot.offer) },
+};
 
 export default class GameScene extends Phaser.Scene {
   constructor() {
@@ -94,7 +104,10 @@ export default class GameScene extends Phaser.Scene {
     this.lootCards = null; // картки трофеїв, що чекають на вікно (після смерті боса)
     this.lootTitle = null; // заголовок вікна трофеїв: чий трофей
     this.sack = null; // «Мішок Шкодька»: спрайт за спиною слизака
-    this.lootTicks = { sack: null, iamXp: null, iamBomb: null }; // таймери карток Шкодька (stepTicker)
+    this.lootTicks = { sack: null, iamXp: null, iamBomb: null, larva: null }; // таймери карток Шкодька й Колі (stepTicker)
+    this.larva = null; // «Личинка-помічник» (етап 9)
+    this.kolyaSplit = null; // «Я КОЛЯ»: { usedAtLevel }
+    this.kolyaCopies = []; // мінікопії після поділу
     this.killScore = 0;
     // мета-прогрес (етап 5): Шаги й лічильники пишуться в сховище одразу при вбивстві — закритий посеред забігу застосунок їх не губить
     this.storage = browserStorage();
@@ -202,7 +215,7 @@ export default class GameScene extends Phaser.Scene {
       sfx('kill');
       this.killScore += killPoints(type);
       this.onMetaKill(type);
-      if (type === 'boss' || type === 'shkodko') this.onBossKilled(type);
+      if (BOSS_OF_KILL[type]) this.onBossKilled(type);
       // Санта дає рівень: рівно стільки досвіду, скільки бракує до наступного
       const xp = type === 'santa' ? xpToLevelUp(this.progression.xp, xpToNext(this.progression.level)) : killXp(type, this.loop);
       this.gainXp(xp);
@@ -434,6 +447,12 @@ export default class GameScene extends Phaser.Scene {
       this.blink();
       return true;
     }
+    // «Я КОЛЯ» (етап 9): раз за рівень замість втрати життя — поділ (після броні: вона не життя)
+    if (activeForm(this.progression.relics) === 'iamkolya' && this.nowMs >= this.health.invulnerableUntil && canSplit(this.kolyaSplit, this.progression.level)) {
+      this.kolyaSplit = useSplit(this.kolyaSplit, this.progression.level);
+      this.splitIntoCopies();
+      return false;
+    }
     const r = applyDamage(this.health, this.nowMs);
     this.health = r.health;
     if (!r.tookDamage) return false;
@@ -599,26 +618,28 @@ export default class GameScene extends Phaser.Scene {
   clearMap() {
     this.pendingPlants = 0;
     for (const group of [this.hazards, this.enemies, this.enemyProjectiles, this.pickups, this.bombs]) {
-      for (const obj of group.getChildren().slice()) {
-        group.remove(obj);
-        if (obj.body) obj.body.enable = false;
-        obj.setActive(false); // зупиняє preUpdate: рослина не стріляє, лев не стрибає
-        this.fading.add(obj);
-        this.tweens.add({ targets: obj, alpha: 0, duration: FADE_MS, onComplete: () => obj.destroy() });
-      }
+      for (const obj of group.getChildren().slice()) this.fadeOut(obj, group);
     }
+  }
+
+  /** Об'єкт плавно зникає: без нагород і зіткнень, але ще їде зі світом, поки не розтане. */
+  fadeOut(obj, group) {
+    group.remove(obj);
+    if (obj.body) obj.body.enable = false;
+    obj.setActive(false); // зупиняє preUpdate: рослина не стріляє, лев не стрибає
+    this.fading.add(obj);
+    this.tweens.add({ targets: obj, alpha: 0, duration: FADE_MS, onComplete: () => obj.destroy() });
   }
 
   showBossBanner() {
     this.bannerShown = true;
     sfx('bossAppear');
-    const name = this.seg.boss === 'shkodko' ? BALANCE.shkodko.name : BALANCE.boss.name;
-    this.events.emit('hud:banner', { text: `БОС: ${name}`, ms: BALANCE.boss.bannerSec * 1000 });
+    this.events.emit('hud:banner', { text: `БОС: ${BOSSES[this.seg.boss].name}`, ms: BALANCE.boss.bannerSec * 1000 });
   }
 
   startBoss() {
     this.bossSpawned = true;
-    const boss = this.spawnEnemy(this.seg.boss === 'shkodko' ? new ShkodkoBoss(this) : new SpiderBoss(this));
+    const boss = this.spawnEnemy(BOSSES[this.seg.boss].make(this));
     boss.emitHud();
     playMusic('boss');
   }
@@ -633,15 +654,23 @@ export default class GameScene extends Phaser.Scene {
     this.loop = this.seg.loop;
     this.bossSpawned = false;
     this.bannerShown = false;
-    // бомби, що ще лежать, гаснуть разом з босом
+    // бомби, що ще лежать, гаснуть разом з босом; малі слимаки Колі й краплі — теж
     for (const b of this.bombs.getChildren().slice()) b.destroy();
-    // унікальні картки боса: 2 з ще не взятих (кожна — раз за забіг). У Шкодька їх лише 2, тож на наступному колі
-    // пропонується та, яку не взяли.
-    const loot = type === 'shkodko'
-      ? rollLoot(this.progression.relics, Math.random, SHKODKO_LOOT_IDS, BALANCE.shkodkoLoot.offer)
-      : rollLoot(this.progression.relics, Math.random);
+    for (const e of this.enemies.getChildren().slice()) if (e.kolyaMinion) this.fadeOut(e, this.enemies);
+    for (const p of this.enemyProjectiles.getChildren().slice()) this.fadeOut(p, this.enemyProjectiles);
+    // унікальні картки боса: 2 з ще не взятих (кожна — раз за забіг). У Шкодька й Колі їх лише 2, тож на наступному колі
+    // пропонується та, яку не взяли. Усе вже взято — +50% Шагів боса (§0).
+    const boss = BOSSES[BOSS_OF_KILL[type]];
+    const loot = boss.loot(this.progression.relics);
     this.lootCards = loot.length ? loot : null;
-    this.lootTitle = `Трофей: ${type === 'shkodko' ? BALANCE.shkodko.name : BALANCE.boss.name}`;
+    this.lootTitle = `Трофей: ${boss.name}`;
+    const bonus = lootStepsBonus(stepsForKill(type), loot);
+    if (bonus) {
+      this.meta = { ...this.meta, steps: this.meta.steps + bonus };
+      this.runSteps += bonus;
+      saveMeta(this.storage, this.meta);
+      this.floatText(`+${bonus} Шагів: трофеї вже твої`, '#f2c440');
+    }
     this.events.emit('hud:boss', null);
     playMusic('victory');
   }
@@ -967,6 +996,7 @@ export default class GameScene extends Phaser.Scene {
     this.oksana?.step(dt);
     this.miniAxe?.step(dt);
     this.stepShkodkoLoot();
+    this.stepKolyaLoot();
     this.stepShield();
     this.emitHud();
   }
@@ -1029,10 +1059,12 @@ export default class GameScene extends Phaser.Scene {
     }
     // трансформації: діє остання взята (павук або Шкодько), скін — її
     if (id === 'form' || id === 'iam') this.player.setSkin(formSkin(this.progression.relics));
+    if (id === 'iamkolya') this.player.setSkin(formSkin(this.progression.relics));
     if (id === 'sack' && !this.sack) this.sack = this.add.sprite(this.player.x, this.player.y, 'sack', 'sack').setDepth(this.player.depth - 1);
+    if (id === 'larva' && !this.larva) this.larva = this.add.sprite(this.player.x, this.player.y, 'larva').setDepth(this.player.depth + 1);
     const names = {
       armor: 'Кожух з павучихи', venom: 'Ядовита морда', oksana: 'Оксанка з тобою', web: 'Дупа павучихи', form: 'Ти став павуком',
-      sack: 'Мішок Шкодька', iam: 'Я ШКОДЬКО',
+      sack: 'Мішок Шкодька', iam: 'Я ШКОДЬКО', larva: 'Личинка-помічник', iamkolya: 'Я КОЛЯ',
     };
     this.events.emit('hud:banner', { text: names[id], ms: 1500 });
   }
@@ -1099,6 +1131,63 @@ export default class GameScene extends Phaser.Scene {
     for (const t of targets) this.friendlyBombs.add(new GiftBomb(this, from.x, from.y, t.x, t.y, { friendly: true, damage }));
     sfx('throw');
     return true;
+  }
+
+  // ---------- Картки Колі (етап 9) ----------
+
+  /** «Личинка-помічник» плює раз на everyMs; мінікопії «Я КОЛЯ» стріляють, поки живі. */
+  stepKolyaLoot() {
+    const now = this.nowMs;
+    const p = this.player;
+    if (this.larva) {
+      this.larva.setPosition(p.x + (p.side === 'left' ? 10 : -10), p.y - 26).setFlipX(p.side !== 'left');
+      const L = BALANCE.kolyaLoot.larva;
+      const r = stepTicker(this.lootTicks.larva, now, L.everyMs);
+      this.lootTicks.larva = r.state;
+      if (r.count && this.lootShot(this.larva, lootShotDamage(L.damage, this.weapon.damage), L.speed)) this.larva.play(animKey('larva', 'spit'));
+    }
+    if (!this.kolyaCopies.length) return;
+    const I = BALANCE.kolyaLoot.iam;
+    for (const c of this.kolyaCopies) {
+      c.sprite.setPosition(p.x + c.dx * (p.side === 'left' ? 1 : -1), p.y + c.dy);
+      if (now >= c.nextShotAt) {
+        c.nextShotAt = now + I.copyEveryMs;
+        this.lootShot(c.sprite, lootShotDamage(I.copyDamage, this.weapon.damage), BALANCE.projectileSpeed);
+      }
+    }
+    if (now >= this.kolyaCopies[0].until) {
+      for (const c of this.kolyaCopies) c.sprite.destroy();
+      this.kolyaCopies = [];
+    }
+  }
+
+  /** Постріл помічника в найближчого видимого ворога. false — цілей немає. */
+  lootShot(from, damage, speed) {
+    const targets = this.visibleEnemies();
+    if (!targets.length) return false;
+    const t = pickNearest(from, targets);
+    const proj = new Projectile(this, from.x, from.y, 'slimeSpit', { damage, fx: null }).setTint(LARVA_SHOT_TINT).setScale(0.7);
+    this.playerProjectiles.add(proj);
+    proj.launch(t.x, t.y, speed);
+    return true;
+  }
+
+  /** «Я КОЛЯ»: замість втрати життя — невразливість і мінікопії, що стріляють. */
+  splitIntoCopies() {
+    const I = BALANCE.kolyaLoot.iam;
+    const now = this.nowMs;
+    this.health = { ...this.health, invulnerableUntil: Math.max(this.health.invulnerableUntil, now + I.invulnMs) };
+    this.showShield(I.invulnMs);
+    for (const c of this.kolyaCopies) c.sprite.destroy();
+    const spots = [{ dx: 44, dy: -40 }, { dx: 44, dy: 36 }, { dx: 80, dy: 0 }];
+    this.kolyaCopies = spots.slice(0, I.copies).map((s, i) => ({
+      ...s,
+      sprite: this.add.sprite(this.player.x, this.player.y, 'slimeKolya').setScale(0.5).setDepth(this.player.depth + 1).play(animKey('slimeKolya', 'idle')),
+      nextShotAt: now + i * (I.copyEveryMs / 2),
+      until: now + I.copyMs,
+    }));
+    sfx('squelch');
+    this.floatText('Я КОЛЯ: ділюся!', '#ffb0c8');
   }
 
   /** Короткий напис над слизаком, що спливає й тане. */

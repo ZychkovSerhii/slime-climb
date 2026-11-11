@@ -202,6 +202,7 @@ function applyWeaponCard(p, weaponId, cardId) {
  * Фідбек-3: ×cycle.xpMul^loop — на наступних колах вороги міцніші, тож і досвіду більше.
  */
 export function killXp(type, loop = 0) {
-  const base = type === 'boss' ? BALANCE.boss.xp : type === 'shkodko' ? BALANCE.shkodko.xp : BALANCE.enemies[type]?.xp ?? 0;
+  const BOSS_XP = { boss: BALANCE.boss.xp, shkodko: BALANCE.shkodko.xp, kolya: BALANCE.kolya.xp };
+  const base = BOSS_XP[type] ?? BALANCE.enemies[type]?.xp ?? 0;
   return Math.round(base * BALANCE.cycle.xpMul ** loop);
 }

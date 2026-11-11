@@ -251,3 +251,11 @@ describe('weapon upgrades (feedback-2)', () => {
     expect(rollLevelUp(p, Math.random).cards[2]).toBe(upgradeCard('axe'));
   });
 });
+
+test('досвід за Колю — 100 (з множником кола), за уламок — 0', async () => {
+  const { killXp } = await import('../src/systems/Progression.js');
+  const { BALANCE } = await import('../src/config/balance.js');
+  expect(killXp('kolya')).toBe(100);
+  expect(killXp('kolya', 1)).toBe(Math.round(100 * BALANCE.cycle.xpMul));
+  expect(killXp('kolyaPart')).toBe(0);
+});

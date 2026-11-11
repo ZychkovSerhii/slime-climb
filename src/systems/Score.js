@@ -5,9 +5,10 @@ export function heightPoints(distancePx) {
   return Math.floor(distancePx / BALANCE.pxPerPoint);
 }
 
-/** Очки за вбивство ворога типу type ('boss' — павучиха, 'shkodko' — Шкодько). */
+/** Очки за вбивство ворога типу type ('boss' — павучиха, 'shkodko' — Шкодько, 'kolya' — Коля; уламки 'kolyaPart' — 0). */
 export function killPoints(type) {
   if (type === 'boss') return BALANCE.boss.points;
   if (type === 'shkodko') return BALANCE.shkodko.points;
+  if (type === 'kolya') return BALANCE.kolya.points;
   return BALANCE.enemies[type]?.points ?? 0;
 }
