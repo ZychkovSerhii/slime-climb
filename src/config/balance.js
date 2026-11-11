@@ -65,7 +65,9 @@ export const BALANCE = deepFreeze({
     smallSpider: { hp: 1, xp: 1, points: 10, speed: 150 },
     // ---- Зима (етап 6a, специфікація §6). wraps — скільки разів ворог, що вилетів за край, з'являється з протилежного боку.
     // Ельф: летить на гравця, на homingStopPx перестає доворачувати (інакше не промахнеться ніколи) і кидає льодяник.
-    elf: { hp: 2, xp: 3, points: 30, speed: 250, homingStopPx: 240, throwMs: 2600, firstThrowMs: 700, windupMs: 300, candySpeed: 300, wraps: 2 },
+    // Фідбек після 6b: «зима складна через ельфів і цукерки». Було throwMs 2600, firstThrowMs 700, windupMs 300,
+    // candySpeed 300, wraps 2: ельф проходив екран до 3 разів і кидав ~4 льодяники за життя.
+    elf: { hp: 2, xp: 3, points: 30, speed: 250, homingStopPx: 240, throwMs: 3600, firstThrowMs: 1300, windupMs: 450, candySpeed: 240, wraps: 1 },
     // Білий ведмідь: таранить у точку, де гравець був; на екрані інколи стає на задні лапи (warnMs — попередження)
     // і ричить: хто в roarRadiusPx — stun на roar.durationMs (стрибок ×speedMul, інтервал пострілу ÷fireMul).
     bear: {
@@ -90,8 +92,9 @@ export const BALANCE = deepFreeze({
   // коли множник уже ~0,6 — тому бази більші, ніж у біомі 1.
   winter: {
     from: { elf: 3, bat: 8, penguin: 12, bear: 22 },
-    // Фідбек після 6a: «забагато мобів» — інтервали ×1,25 (було elf 6500, bat 7000, penguin 11000, bear 17000)
-    spawnBaseMs: { elf: 8100, bat: 8750, penguin: 13750, bear: 21000 },
+    // Фідбек після 6a: «забагато мобів» — інтервали ×1,25 (було elf 6500, bat 7000, penguin 11000, bear 17000);
+    // після 6b ельф ще ×1,2 (8100 → 9700). Увага: ?winter=1 стартує з tSec 0, а справжня зима — з ~2:10, де інтервали вже ×~0,57
+    spawnBaseMs: { elf: 9700, bat: 8750, penguin: 13750, bear: 21000 },
     bat: { hp: 2, speedMul: 1.15 }, // кажан у зимі: HP 2, ще +15% швидкості
     // подарунок: летить разом зі світом посеред коридору, у смузі стрибка; дотик — досвід
     gift: { everyMs: 9000, jitter: 0.35, xp: 4, firstMs: 4000 },
