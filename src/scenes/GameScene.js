@@ -50,6 +50,7 @@ import {
   activeForm, bombTargets, formSkin, friendlyBombDamage, rollSack, sackSkillCard, SHKODKO_LOOT_IDS, stepTicker,
 } from '../systems/ShkodkoLoot.js';
 import { background } from '../art/textures.js';
+import { bossIntroInfo } from '../systems/BossIntro.js';
 import { canSplit, KOLYA_LOOT_IDS, lootShotDamage, lootStepsBonus, useSplit } from '../systems/KolyaLoot.js';
 
 const POISON_TINT = 0xb0d040; // слизак і так зелений — під отрутою він темніший, болотний
@@ -116,6 +117,7 @@ export default class GameScene extends Phaser.Scene {
     this.progression = createProgression();
     this.levelUpQueue = 0;
     this.levelUpOpen = false;
+    this.introOpen = false; // представлення боса (етап 9): гра на паузі
     this.inputBlockedUntil = 0;
     this.lastHud = '';
     this.dead = false;
@@ -223,6 +225,8 @@ export default class GameScene extends Phaser.Scene {
     const onPicked = (id) => this.onCardPicked(id);
     const onRage = () => playMusic('rage');
     const onInvis = () => this.useInvisibility();
+    const onIntroClosed = () => this.onIntroClosed();
+    this.events.on('intro:closed', onIntroClosed);
     this.events.on('skill:invis', onInvis);
     this.events.on('enemy:killed', onKilled);
     this.events.on('levelup:picked', onPicked);
@@ -232,7 +236,9 @@ export default class GameScene extends Phaser.Scene {
       this.events.off('levelup:picked', onPicked);
       this.events.off('boss:rage', onRage);
       this.events.off('skill:invis', onInvis);
+      this.events.off('intro:closed', onIntroClosed);
       this.scene.stop('LevelUp');
+      this.scene.stop('BossIntro');
       stopMusic();
     });
 
@@ -253,6 +259,8 @@ export default class GameScene extends Phaser.Scene {
     this.spawnSpikes(); // шипи видно з першого кадру
 
     this.createPauseOverlay();
+    // ?intro=1 — представлення павучихи одразу після старту (перевірка §9.3)
+    if (q.get('intro') === '1') this.showIntro('spider', { music: false });
     this.onVisibility = () => {
       if (document.hidden) this.pauseWithOverlay();
     };
@@ -285,8 +293,8 @@ export default class GameScene extends Phaser.Scene {
       this.pauseOverlay.setVisible(false);
       resumeAudio();
       this.inputBlockedUntil = this.game.loop.time + BALANCE.tapGuardMs;
-      // під час вибору картки гра лишається на паузі, доки картку не оберуть
-      if (!this.levelUpOpen) this.setPaused(false);
+      // під час вибору картки чи представлення боса гра лишається на паузі, доки вони відкриті
+      if (!this.levelUpOpen && !this.introOpen) this.setPaused(false);
     });
   }
 
@@ -296,7 +304,34 @@ export default class GameScene extends Phaser.Scene {
     this.progression = r.progression;
     this.levelUpQueue += r.levelsGained;
     if (r.levelsGained > 0) this.health = heal(this.health, BALANCE.healPerLevel * r.levelsGained, this.maxLives);
-    if ((this.levelUpQueue > 0 || this.lootCards) && !this.levelUpOpen) this.openLevelUp();
+    if ((this.levelUpQueue > 0 || this.lootCards) && !this.levelUpOpen && !this.introOpen) this.openLevelUp();
+  }
+
+  // ---------- Представлення боса (етап 9, §9.3) ----------
+
+  /** Пауза і сцена BossIntro. music — false для ?intro=1 (боса немає, бойова музика не потрібна). */
+  showIntro(boss, { music = true } = {}) {
+    const info = bossIntroInfo(boss, this.loop);
+    this.introOpen = true;
+    this.introMusic = music;
+    this.setPaused(true);
+    playMusic(info.music);
+    this.scene.launch('BossIntro', info);
+  }
+
+  /** Представлення закрилось: graceMs без шкоди, бойова музика, гра йде (якщо не згорнута й не вікно рівня). */
+  onIntroClosed() {
+    if (!this.introOpen) return;
+    this.introOpen = false;
+    this.health = { ...this.health, invulnerableUntil: Math.max(this.health.invulnerableUntil, this.nowMs + BALANCE.bossIntro.graceMs) };
+    this.inputBlockedUntil = this.game.loop.time + BALANCE.tapGuardMs; // дотик, що закрив представлення, — не стрибок
+    if (this.introMusic) playMusic('boss');
+    else stopMusic();
+    if (this.levelUpQueue > 0 || this.lootCards) {
+      this.openLevelUp();
+      return;
+    }
+    if (!this.pauseOverlay.visible) this.setPaused(false);
   }
 
   /** Пауза гри і вікно вибору картки (по одному на кожен набраний рівень). */
@@ -641,7 +676,7 @@ export default class GameScene extends Phaser.Scene {
     this.bossSpawned = true;
     const boss = this.spawnEnemy(BOSSES[this.seg.boss].make(this));
     boss.emitHud();
-    playMusic('boss');
+    this.showIntro(this.seg.boss);
   }
 
   /**

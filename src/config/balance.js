@@ -327,6 +327,10 @@ export const BALANCE = deepFreeze({
     bomb: { flightMs: 450, fuseMs: 450, radiusPx: 75, damage: 3 },
   },
 
+  // Представлення боса (етап 9, §9.3): пауза, ім'я, спрайт, мелодія ~2 с. Пропустити — дотиком через skipMs,
+  // саме закривається через autoCloseMs; після закриття graceMs без шкоди, щоб гравець зорієнтувався.
+  bossIntro: { skipMs: 1000, autoCloseMs: 2500, graceMs: 500 },
+
   // Унікальні картки Колі (етап 9, специфікація §9.4). Вибір 1 з 2, як у Шкодька.
   kolyaLoot: {
     offer: 2,

@@ -67,6 +67,7 @@ export default class KolyaBody extends Enemy {
   }
 
   stepBody(now, dt) {
+    this.frameDt = dt;
     const scene = this.scene;
     const m = this.mode;
     const mul = this.speedMul(now) * m.speedMul;
@@ -103,6 +104,12 @@ export default class KolyaBody extends Enemy {
         }
         break;
       }
+      case 'retreat': {
+        // перед тим як стати (народження, поділ): назад у свою зону, а не посеред стіни гравця
+        const t = snakePos(this.moveT, b, this.offset);
+        if (this.moveTo(t.x, t.y, K.lunge.backSpeed * 1.5)) this.setAct('still');
+        break;
+      }
       default:
         this.body.setVelocity(0, 0);
     }
@@ -118,7 +125,8 @@ export default class KolyaBody extends Enemy {
     const dx = x - this.x;
     const dy = y - this.y;
     const d = Math.hypot(dx, dy);
-    if (d <= ARRIVE_PX || d <= (speed * 16) / 1000) {
+    // поріг — крок цього кадру: інакше на довгому кадрі тіло перелітає ціль і коливається навколо неї
+    if (d <= ARRIVE_PX || d <= (speed * (this.frameDt ?? 16)) / 1000) {
       this.setPosition(x, y);
       this.body.setVelocity(0, 0);
       return true;
@@ -156,11 +164,12 @@ export default class KolyaBody extends Enemy {
     this.nextLungeAt = now + this.mode.lungeEveryMs;
   }
 
-  /** Перервати ривок і стати (народження, поділ, з'їдання). */
+  /** Перервати ривок і стати (народження, поділ, з'їдання). Якщо був у ривку — спершу повертається в зону. */
   halt(now) {
+    const wasOut = this.act === 'warn' || this.act === 'lunge' || this.act === 'back';
     if (this.act === 'warn') this.clearWarnTint();
     this.finishLunge(now);
-    this.setAct('still');
+    this.setAct(wasOut ? 'retreat' : 'still');
     this.body?.setVelocity(0, 0);
   }
 

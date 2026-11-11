@@ -122,4 +122,35 @@ export const TRACKS = {
       },
     ],
   },
+  // ---- Представлення босів (етап 9, §9.3): по ~2 с (16 кроків при 120 bpm), своя тема для кожного
+  // Павучиха: низький хроматичний спуск, моторошно
+  introSpider: {
+    bpm: 120,
+    loop: false,
+    voices: [
+      { wave: 'square', vol: 0.06, pattern: 'A2 . A2 . G#2 . G#2 . G2 . G2 . F#2 . . .' },
+      { wave: 'triangle', vol: 0.09, pattern: 'E5 . . . D#5 . . . D5 . . . A4 . . .' },
+      { wave: 'noise', vol: 0.03, pattern: 'x - - - x - - - x - - - x - x x' },
+    ],
+  },
+  // Шкодько: пустотлива мажорна «дражнилка»
+  introShkodko: {
+    bpm: 120,
+    loop: false,
+    voices: [
+      { wave: 'square', vol: 0.06, pattern: 'G4 E4 G4 E4 A4 G4 E4 - C5 . B4 A4 G4 . . .' },
+      { wave: 'triangle', vol: 0.09, pattern: 'C3 . G2 . C3 . G2 . F2 . G2 . C3 . . .' },
+      { wave: 'noise', vol: 0.025, pattern: 'x - x - x - x - x - x - x x x -' },
+    ],
+  },
+  // Коля: в'язке «буль-буль» униз і важкий бас
+  introKolya: {
+    bpm: 120,
+    loop: false,
+    voices: [
+      { wave: 'triangle', vol: 0.1, pattern: 'D3 . . . D3 . C3 . Bb2 . . . A2 . . .' },
+      { wave: 'square', vol: 0.05, pattern: 'F5 D5 - F5 D5 - E5 C#5 - D5 . . A4 . . .' },
+      { wave: 'noise', vol: 0.03, pattern: 'x - - x - - x - x - - x - - x -' },
+    ],
+  },
 };

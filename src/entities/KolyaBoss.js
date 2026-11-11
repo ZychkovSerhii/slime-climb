@@ -67,6 +67,10 @@ export default class KolyaBoss extends KolyaBody {
     super.preUpdate(time, delta);
     if (!this.active) return;
     const now = this.scene.nowMs;
+    if (this.act === 'still' && this.holdMs) {
+      this.stillUntil = now + this.holdMs; // відлік — коли вже стоїть у зоні
+      this.holdMs = 0;
+    }
     if (this.act === 'still' && this.stillUntil && now >= this.stillUntil) {
       const next = this.afterStill;
       this.stillUntil = 0;
@@ -86,7 +90,8 @@ export default class KolyaBoss extends KolyaBody {
   /** Стати на ms і потім викликати next. */
   hold(ms, next) {
     this.halt(this.scene.nowMs);
-    this.stillUntil = this.scene.nowMs + ms;
+    this.holdMs = ms;
+    this.stillUntil = 0;
     this.afterStill = next;
   }
 
@@ -127,7 +132,7 @@ export default class KolyaBoss extends KolyaBody {
     for (const e of scene.enemies.getChildren().slice()) {
       if (e.kolyaMinion) scene.fadeOut(e, scene.enemies);
     }
-    this.shake = scene.tweens.add({ targets: this, x: this.x + 6, duration: 50, yoyo: true, repeat: -1 });
+    this.shake = scene.tweens.add({ targets: this, angle: { from: -5, to: 5 }, duration: 60, yoyo: true, repeat: -1 }); // тремтить (кут — не заважає руху в зону)
     this.hold(K.split.trembleMs, () => this.splitNow());
   }
 
@@ -135,6 +140,7 @@ export default class KolyaBoss extends KolyaBody {
     const scene = this.scene;
     this.shake?.stop();
     this.shake = null;
+    this.setAngle(0);
     const hps = splitHp(this.hp);
     this.parts = hps.map((hp, i) => {
       const part = new KolyaPart(scene, this, this.x + (i - 1) * 80, this.y + (i === 1 ? -40 : 20), hp, i * 2.1);
