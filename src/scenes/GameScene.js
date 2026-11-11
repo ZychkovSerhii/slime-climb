@@ -8,6 +8,12 @@ import { addXp, applyCard, createProgression, killXp, rollLevelUp, weaponCard, x
 import { attackDamage, axeRadius, createFireState, inRadius, shotgunAngles, stepFire, weaponJumpMul } from '../systems/Weapons.js';
 import { clampDelta } from '../systems/Time.js';
 import { applyDamage, createHealth, heal } from '../systems/Health.js';
+import {
+  activateInvis, breakArmor, cardLoot, createArmor, createInvis, hatStats, hitEffects, invisCharge, invisStats,
+  isInvisible, jumpMul, maxLivesFor, rollLoot, stepArmor,
+} from '../systems/Skills.js';
+import { inInvisButton } from '../systems/Layout.js';
+import Familiar from '../entities/Familiar.js';
 import { createSpikeState, planSpikes, prefillStartWorld, skipSpikes } from '../systems/SpikePlanner.js';
 import { heightPoints, killPoints } from '../systems/Score.js';
 import { interceptPoint, pickNearest } from '../systems/Targeting.js';
@@ -24,6 +30,8 @@ import { background } from '../art/textures.js';
 
 const POISON_TINT = 0xb0d040; // слизак і так зелений — під отрутою він темніший, болотний
 const FADE_MS = 600; // шипи й вороги плавно зникають перед босом
+const VENOM_SHOT_TINT = 0x9cff3a; // постріли з «Ядовитою мордою» — кислотні
+const OKSANA_TINT = 0xffa8d8; // Оксанка — рожевувата, щоб не плутати з ворожими павучками
 
 export default class GameScene extends Phaser.Scene {
   constructor() {
@@ -41,7 +49,14 @@ export default class GameScene extends Phaser.Scene {
     this.distancePx = 0;
     this.currentScroll = scrollSpeed(0, false);
     this.paused = false;
-    this.health = createHealth();
+    this.maxLives = maxLivesFor(0);
+    this.health = createHealth(this.maxLives);
+    // скіли етапу 4b і трофеї павучихи
+    this.invis = createInvis();
+    this.armor = null; // «Кожух з павучихи»: { on, regenAt }
+    this.hats = [];
+    this.oksana = null;
+    this.lootCards = null; // картки трофеїв, що чекають на вікно (після смерті боса)
     this.killScore = 0;
     this.progression = createProgression();
     this.levelUpQueue = 0;
@@ -95,6 +110,9 @@ export default class GameScene extends Phaser.Scene {
       for (let i = 0; i < BALANCE.weapons[this.debugWeapon].steps; i++) this.progression = applyCard(this.progression, weaponCard(this.debugWeapon));
       this.weaponView.setMain(this.debugWeapon);
     }
+    // ?cards=hat,hat,invisibility,loot:web — картки й трофеї з першої секунди (для перевірки)
+    const debugCards = new URLSearchParams(window.location.search).get('cards');
+    for (const id of debugCards ? debugCards.split(',') : []) this.applyPicked(id);
 
     const hurt = () => this.hurtPlayer();
     this.physics.add.overlap(this.player, this.hazards, hurt);
@@ -111,7 +129,7 @@ export default class GameScene extends Phaser.Scene {
     this.physics.add.overlap(this.playerProjectiles, this.enemies, (proj, enemy) => {
       // крізь невразливого боса снаряди пролітають
       if (this.paused || !proj.active || !enemy.active || enemy.invulnerable) return;
-      enemy.takeHit(proj.damage, proj.slow, this.nowMs);
+      enemy.takeHit(proj.damage, proj.fx, this.nowMs);
       proj.destroy();
       if (enemy.active) sfx('hit');
     });
@@ -124,11 +142,13 @@ export default class GameScene extends Phaser.Scene {
       const r = addXp(this.progression, killXp(type));
       this.progression = r.progression;
       this.levelUpQueue += r.levelsGained;
-      if (r.levelsGained > 0) this.health = heal(this.health, BALANCE.healPerLevel * r.levelsGained);
-      if (this.levelUpQueue > 0 && !this.levelUpOpen) this.openLevelUp();
+      if (r.levelsGained > 0) this.health = heal(this.health, BALANCE.healPerLevel * r.levelsGained, this.maxLives);
+      if ((this.levelUpQueue > 0 || this.lootCards) && !this.levelUpOpen) this.openLevelUp();
     };
     const onPicked = (id) => this.onCardPicked(id);
     const onRage = () => playMusic('rage');
+    const onInvis = () => this.useInvisibility();
+    this.events.on('skill:invis', onInvis);
     this.events.on('enemy:killed', onKilled);
     this.events.on('levelup:picked', onPicked);
     this.events.on('boss:rage', onRage);
@@ -136,14 +156,17 @@ export default class GameScene extends Phaser.Scene {
       this.events.off('enemy:killed', onKilled);
       this.events.off('levelup:picked', onPicked);
       this.events.off('boss:rage', onRage);
+      this.events.off('skill:invis', onInvis);
       this.scene.stop('LevelUp');
       stopMusic();
     });
 
     this.scene.launch('Hud');
 
-    this.input.on('pointerdown', () => {
+    this.input.on('pointerdown', (pointer) => {
       if (this.paused || this.dead || this.game.loop.time < this.inputBlockedUntil) return;
+      // тап по кнопці невидимості не стрибок (кнопку малює і ловить HUD)
+      if (this.invisStats() && inInvisButton(pointer.x, pointer.y, this.scale.width, this.scale.height)) return;
       this.player.press();
     });
     // відпускання рахуємо завжди: інакше утримання «застрягне», якщо палець підняли під час паузи
@@ -199,8 +222,15 @@ export default class GameScene extends Phaser.Scene {
     this.launchLevelUp();
   }
 
-  /** Вікно рівня: 2 звичайні картки + зброя (rollLevelUp запам'ятовує, яку зброю запропонували). */
+  /**
+   * Наступне вікно: спершу трофеї павучихи (якщо чекають), далі вікна рівня —
+   * 2 звичайні картки + зброя (rollLevelUp запам'ятовує, яку зброю запропонували).
+   */
   launchLevelUp() {
+    if (this.lootCards) {
+      this.scene.launch('LevelUp', { cards: this.lootCards, title: `Трофей: ${BALANCE.boss.name}` });
+      return;
+    }
     const r = rollLevelUp(this.progression, Math.random);
     this.progression = r.progression;
     const { picks, arsenal } = this.progression;
@@ -215,15 +245,28 @@ export default class GameScene extends Phaser.Scene {
     this.events.emit('hud:banner', { text: `Нова зброя:\n${BALANCE.weapons[main].name}`, ms: 1800 });
   }
 
-  onCardPicked(id) {
+  /** Застосовує картку (звичайну, зброю, скіл чи трофей) і її наслідки в сцені. */
+  applyPicked(id) {
     const mainBefore = this.progression.arsenal.main;
     this.progression = applyCard(this.progression, id);
     this.weapon = this.progression.weapon;
     const main = this.progression.arsenal.main;
     if (main !== mainBefore) this.onMainWeapon(main);
-    this.levelUpQueue = Math.max(this.levelUpQueue - 1, 0);
+    if (id === 'extraLife') {
+      this.maxLives = maxLivesFor(this.progression.picks.extraLife);
+      this.health = heal(this.health, 1, this.maxLives);
+    }
+    if (id === 'hat') this.syncHats();
+    const loot = cardLoot(id);
+    if (loot) this.onLoot(loot);
+  }
+
+  onCardPicked(id) {
+    if (cardLoot(id)) this.lootCards = null;
+    else this.levelUpQueue = Math.max(this.levelUpQueue - 1, 0);
+    this.applyPicked(id);
     this.emitHud();
-    if (this.levelUpQueue > 0) {
+    if (this.levelUpQueue > 0 || this.lootCards) {
       this.launchLevelUp();
       return;
     }
@@ -288,6 +331,15 @@ export default class GameScene extends Phaser.Scene {
   hurtPlayer() {
     // фізика може зробити ще кілька кроків у кадрі, де гру поставили на паузу (вікно рівня)
     if (this.dead || this.paused) return false;
+    if (isInvisible(this.invis, this.nowMs)) return false;
+    // «Кожух з павучихи»: першим знімається чорне життя-броня (з тією ж невразливістю)
+    if (this.armor?.on && this.nowMs >= this.health.invulnerableUntil) {
+      this.armor = breakArmor(this.armor, this.nowMs);
+      this.health = { ...this.health, invulnerableUntil: this.nowMs + BALANCE.invulnerableMs };
+      sfx('hurt');
+      this.blink();
+      return true;
+    }
     const r = applyDamage(this.health, this.nowMs);
     this.health = r.health;
     if (!r.tookDamage) return false;
@@ -315,7 +367,14 @@ export default class GameScene extends Phaser.Scene {
   /** Швидкість і колір слизака за станами (щокадру). */
   applyStatus() {
     const now = this.nowMs;
-    this.player.speedMul = playerSpeedMul(this.status, now) * weaponJumpMul(this.progression.arsenal.main);
+    const form = this.progression.relics.includes('form');
+    this.player.speedMul = playerSpeedMul(this.status, now) * jumpMul(weaponJumpMul(this.progression.arsenal.main), form);
+    this.armor = stepArmor(this.armor, now);
+    // невидимість: напівпрозорий; після неї — звичайна прозорість (блимання невразливості керує нею саме)
+    const invisible = isInvisible(this.invis, now);
+    if (invisible) this.player.setAlpha(BALANCE.skills.invisibility.alpha);
+    else if (this.wasInvisible) this.player.setAlpha(1);
+    this.wasInvisible = invisible;
     const poisoned = isPoisoned(this.status, now);
     if (poisoned !== this.player.poisonTinted) {
       this.player.poisonTinted = poisoned;
@@ -396,8 +455,12 @@ export default class GameScene extends Phaser.Scene {
     const aim = interceptPoint(this.player, { x: target.x, y: target.y, vx, vy }, BALANCE.projectileSpeed);
     const angle = Math.atan2(aim.y - this.player.y, aim.x - this.player.x);
     const angles = main === 'shotgun' ? shotgunAngles(angle) : [angle];
+    const relics = this.progression.relics;
+    const fx = hitEffects(this.weapon.slow, relics);
+    const texture = relics.includes('web') ? 'webShot' : 'projectile';
     for (const a of angles) {
-      const proj = new Projectile(this, this.player.x, this.player.y, 'projectile', { damage, slow: this.weapon.slow });
+      const proj = new Projectile(this, this.player.x, this.player.y, texture, { damage, fx });
+      if (relics.includes('venom')) proj.setTint(VENOM_SHOT_TINT);
       this.playerProjectiles.add(proj);
       proj.launch(this.player.x + Math.cos(a) * 100, this.player.y + Math.sin(a) * 100, BALANCE.projectileSpeed, BALANCE.projectileHitboxMul);
     }
@@ -412,7 +475,7 @@ export default class GameScene extends Phaser.Scene {
     let hitAlive = false;
     for (const t of targets) {
       if (!t.active || t.invulnerable) continue;
-      t.takeHit(damage, this.weapon.slow, this.nowMs);
+      t.takeHit(damage, hitEffects(this.weapon.slow, this.progression.relics), this.nowMs);
       if (t.active) hitAlive = true;
     }
     if (hitAlive) sfx('hit');
@@ -465,6 +528,9 @@ export default class GameScene extends Phaser.Scene {
   /** Після боса: calmSec нічого небезпечного, далі вороги повертаються поступово. */
   onBossKilled() {
     this.killedAtSec = this.elapsedSec;
+    // унікальні картки павучихи: 2 з ще не взятих (кожна — раз за забіг)
+    const loot = rollLoot(this.progression.relics, Math.random);
+    this.lootCards = loot.length ? loot : null;
     this.events.emit('hud:boss', null);
     playMusic('victory');
   }
@@ -488,11 +554,15 @@ export default class GameScene extends Phaser.Scene {
       timeSec: this.elapsedSec,
       score: this.score,
       lives: this.health.lives,
+      maxLives: this.maxLives,
+      armor: this.armor ? (this.armor.on ? 'on' : 'off') : null,
+      invis: this.invisHud(),
       level: this.progression.level,
       xp: this.progression.xp,
       xpToNext: xpToNext(this.progression.level),
     };
-    const key = `${Math.floor(s.timeSec)}|${s.score}|${s.lives}|${s.level}|${s.xp}`;
+    const inv = s.invis ? `${s.invis.active}|${Math.floor(s.invis.charge * 40)}` : '';
+    const key = `${Math.floor(s.timeSec)}|${s.score}|${s.lives}|${s.maxLives}|${s.armor}|${inv}|${s.level}|${s.xp}`;
     if (key === this.lastHud) return;
     this.lastHud = key;
     this.events.emit('hud:update', s);
@@ -532,6 +602,69 @@ export default class GameScene extends Phaser.Scene {
     this.spawnSpikes();
     this.spawnEnemies();
     this.autoFire(dt);
+    for (const f of this.hats) f.step(dt);
+    this.oksana?.step(dt);
     this.emitHud();
+  }
+
+  // ---------- Скіли етапу 4b і трофеї павучихи ----------
+
+  invisStats() {
+    return invisStats(this.progression.picks.invisibility ?? 0);
+  }
+
+  /** Стан кнопки невидимості для HUD або null, якщо скіла немає. */
+  invisHud() {
+    const st = this.invisStats();
+    if (!st) return null;
+    return { active: isInvisible(this.invis, this.nowMs), charge: invisCharge(this.invis, st, this.nowMs) };
+  }
+
+  /** Кнопка невидимості (подія 'skill:invis' від HUD). */
+  useInvisibility() {
+    if (this.paused || this.dead) return;
+    const before = this.invis;
+    this.invis = activateInvis(this.invis, this.invisStats(), this.nowMs);
+    if (this.invis !== before) sfx('weaponReady');
+    this.emitHud();
+  }
+
+  /** Капелюхи на голові: кількість і шкода — за взяттями картки. */
+  syncHats() {
+    const st = hatStats(this.progression.picks.hat ?? 0);
+    const H = BALANCE.skills.hat;
+    while (this.hats.length < st.count) {
+      const i = this.hats.length;
+      this.hats.push(
+        new Familiar(this, {
+          texture: 'hat',
+          offset: { x: 0, y: -34 - i * 22 }, // другий — на першому
+          speed: H.speed,
+          restMs: H.restMs,
+          spin: true,
+          damage: () => hatStats(this.progression.picks.hat ?? 0).damage,
+        }),
+      );
+    }
+  }
+
+  /** Трофей павучихи взято: вмикаємо його ефект. */
+  onLoot(id) {
+    const L = BALANCE.bossLoot;
+    if (id === 'armor' && !this.armor) this.armor = createArmor();
+    if (id === 'oksana' && !this.oksana) {
+      this.oksana = new Familiar(this, {
+        texture: 'smallSpider',
+        anim: 'crawl',
+        tint: OKSANA_TINT,
+        offset: { x: 30, y: 26 },
+        speed: L.oksana.speed,
+        restMs: L.oksana.intervalMs,
+        damage: () => L.oksana.damage + (this.weapon.damage - BALANCE.projectileDamage), // росте з «Уроном»
+      });
+    }
+    if (id === 'form') this.player.setSkin('slimeSpider');
+    const names = { armor: 'Кожух з павучихи', venom: 'Ядовита морда', oksana: 'Оксанка з тобою', web: 'Дупа павучихи', form: 'Ти став павуком' };
+    this.events.emit('hud:banner', { text: names[id], ms: 1500 });
   }
 }

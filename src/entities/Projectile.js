@@ -6,11 +6,12 @@ import { BALANCE } from '../config/balance.js';
  * Рухається відносно екрана (не їде зі світом), знищується за межами екрана.
  */
 export default class Projectile extends Phaser.Physics.Arcade.Image {
-  constructor(scene, x, y, texture, { damage = 0, slow = null } = {}) {
+  /** fx — ефекти влучання для ворога (systems/Skills.hitEffects) або null. */
+  constructor(scene, x, y, texture, { damage = 0, fx = null } = {}) {
     super(scene, x, y, texture);
     scene.add.existing(this);
     this.damage = damage;
-    this.slow = slow;
+    this.fx = fx;
     this.scrollsWithWorld = false;
   }
 

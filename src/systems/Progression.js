@@ -1,6 +1,7 @@
 import { BALANCE } from '../config/balance.js';
+import { cardLoot, maxLivesFor } from './Skills.js';
 
-export const CARD_IDS = ['attackSpeed', 'damage', 'slow'];
+export const CARD_IDS = ['attackSpeed', 'damage', 'slow', 'invisibility', 'hat', 'extraLife'];
 export const WEAPON_IDS = Object.keys(BALANCE.weapons);
 const WEAPON_PREFIX = 'weapon:';
 
@@ -26,6 +27,8 @@ export function createProgression() {
     // зброя з прогресом: progress — кроки кожної, main — основна (null — стартовий постріл),
     // lastOffered — зброя з попереднього вікна рівня (не пропонується двічі поспіль)
     arsenal: { progress: {}, main: null, lastOffered: null, lastTaken: null },
+    // унікальні картки павучихи, взяті за забіг ('armor', 'venom', …)
+    relics: [],
   };
 }
 
@@ -43,17 +46,34 @@ export function addXp(p, amount) {
 }
 
 export function availableCards(p) {
-  return CARD_IDS.filter((id) => !(id === 'attackSpeed' && p.weapon.fireIntervalMs <= BALANCE.minFireIntervalMs));
+  return CARD_IDS.filter((id) => {
+    if (id === 'attackSpeed') return p.weapon.fireIntervalMs > BALANCE.minFireIntervalMs;
+    if (id === 'extraLife') return maxLivesFor(p.picks.extraLife) < BALANCE.skills.extraLife.maxLives;
+    if (id === 'hat') return (p.picks.hat ?? 0) < BALANCE.skills.hat.maxPicks;
+    return true;
+  });
 }
 
-/** n різних випадкових карток з доступних (rng повертає [0, 1)). */
+/** Базові картки сили пострілу: одна з них завжди є у вікні рівня. */
+export const CORE_CARD_IDS = ['attackSpeed', 'damage', 'slow'];
+
+/**
+ * n різних випадкових карток з доступних (rng повертає [0, 1)).
+ * [рішення 4b] Перша — завжди з базових (CORE_CARD_IDS), решта — з усього пулу. Інакше скіли «розбавляли» пул:
+ * бот за 5 вікон жодного разу не побачив «Урон» і не вбив боса.
+ */
 export function rollCards(p, rng, n = 3) {
   const pool = availableCards(p);
+  const pick = (from) => {
+    const i = Math.min(Math.floor(rng() * from.length), from.length - 1);
+    const id = from[i];
+    pool.splice(pool.indexOf(id), 1);
+    return id;
+  };
   const out = [];
-  while (out.length < n && pool.length) {
-    const i = Math.min(Math.floor(rng() * pool.length), pool.length - 1);
-    out.push(pool.splice(i, 1)[0]);
-  }
+  const core = pool.filter((id) => CORE_CARD_IDS.includes(id));
+  if (n > 0 && core.length) out.push(pick(core));
+  while (out.length < n && pool.length) out.push(pick(pool));
   return out;
 }
 
@@ -99,6 +119,8 @@ export function damageCardBonus(p) {
 export function applyCard(p, id) {
   const weaponId = cardWeapon(id);
   if (weaponId) return applyWeaponCard(p, weaponId, id);
+  const loot = cardLoot(id);
+  if (loot) return p.relics.includes(loot) ? p : { ...p, relics: [...p.relics, loot] };
   const w = { ...p.weapon };
   const c = BALANCE.cards;
   if (id === 'attackSpeed') {

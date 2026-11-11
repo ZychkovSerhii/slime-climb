@@ -1,7 +1,10 @@
 import * as Phaser from 'phaser';
 import { BALANCE } from '../config/balance.js';
+import { applyDot, stepDot } from '../systems/Skills.js';
 
 const SLOW_TINT = 0x6fa8ff;
+const ROOT_TINT = 0xe8e8e8; // приклеєний павутиною — білястий
+const ROOT_MIN_MUL = 0; // приклеєний стоїть на місці
 
 /**
  * Базовий ворог. Після додавання в групу enemies викликай spawned().
@@ -22,6 +25,8 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
     this.scrollsWithWorld = true;
     this.invulnerable = false;
     this.baseTint = null;
+    this.rootUntil = 0;
+    this.dot = null;
   }
 
   setBaseTint(color) {
@@ -31,11 +36,21 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
 
   preUpdate(time, delta) {
     super.preUpdate(time, delta);
-    // під сповільненням ворог тонується синім
-    const slowed = this.speedMul(this.scene.nowMs) < 1;
+    const now = this.scene.nowMs;
+    // отрута «Ядовитої морди»: шкода тиками раз на секунду
+    if (this.dot) {
+      const r = stepDot(this.dot, now);
+      this.dot = r.state;
+      if (r.damage > 0) this.takeHit(r.damage, null, now);
+      if (!this.active) return;
+    }
+    // під сповільненням ворог тонується синім, приклеєний павутиною — білим
+    const rooted = now < this.rootUntil;
+    const slowed = rooted ? 'root' : this.speedMul(now) < 1;
     if (slowed !== this.tintedSlow) {
       this.tintedSlow = slowed;
-      if (slowed) this.setTint(SLOW_TINT);
+      if (slowed === 'root') this.setTint(ROOT_TINT);
+      else if (slowed) this.setTint(SLOW_TINT);
       else if (this.baseTint !== null) this.setTint(this.baseTint);
       else this.clearTint();
     }
@@ -45,16 +60,23 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
   spawned() {}
 
   speedMul(nowMs) {
+    if (nowMs < this.rootUntil) return ROOT_MIN_MUL;
     return nowMs < this.slowUntil ? this.slowFactor : 1;
   }
 
-  takeHit(damage, slow, nowMs) {
+  /**
+   * Влучання. fx — ефекти (systems/Skills.hitEffects): { slow, dot, root } або null.
+   * Павутина не стакується: поки ворог приклеєний, нове влучання таймер не продовжує.
+   */
+  takeHit(damage, fx, nowMs) {
     if (!this.active || this.hp <= 0 || this.invulnerable) return;
     this.hp -= damage;
-    if (slow) {
-      this.slowFactor = slow.factor;
-      this.slowUntil = nowMs + slow.durationMs;
+    if (fx?.slow) {
+      this.slowFactor = fx.slow.factor;
+      this.slowUntil = nowMs + fx.slow.durationMs;
     }
+    if (fx?.dot) this.dot = applyDot(this.dot, fx.dot, nowMs);
+    if (fx?.root && nowMs >= this.rootUntil) this.rootUntil = nowMs + (this.type === 'boss' ? fx.root.bossMs : fx.root.ms);
     if (this.hp <= 0) {
       this.scene.events.emit('enemy:killed', { type: this.type, x: this.x, y: this.y });
       this.destroy();

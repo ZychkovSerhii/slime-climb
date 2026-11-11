@@ -6,6 +6,7 @@ import {
   availableCards,
   createProgression,
   rollCards,
+  CORE_CARD_IDS,
   xpToNext,
   WEAPON_IDS,
   cardWeapon,
@@ -70,12 +71,19 @@ describe('cards', () => {
     for (const c of cards) expect(CARD_IDS).toContain(c);
   });
 
-  test('attackSpeed is unavailable at minimum interval → only 2 cards', () => {
+  test('the first regular card is always a core one', () => {
+    for (let i = 0; i < 200; i++) {
+      const [first] = rollCards(createProgression(), Math.random, 2);
+      expect(CORE_CARD_IDS).toContain(first);
+    }
+  });
+
+  test('attackSpeed is unavailable at minimum interval', () => {
     let p = createProgression();
     p = { ...p, weapon: { ...p.weapon, fireIntervalMs: 250 } };
     expect(availableCards(p)).not.toContain('attackSpeed');
     const cards = rollCards(p, seq(0, 0, 0));
-    expect(cards).toHaveLength(2);
+    expect(cards).toHaveLength(3);
     expect(cards).not.toContain('attackSpeed');
   });
 

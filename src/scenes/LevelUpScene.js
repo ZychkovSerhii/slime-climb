@@ -1,12 +1,14 @@
 import * as Phaser from 'phaser';
 import { BALANCE } from '../config/balance.js';
 import { cardWeapon, damageCardBonus } from '../systems/Progression.js';
+import { cardLoot, hatStats, invisStats, maxLivesFor } from '../systems/Skills.js';
 
 // Верстка карток (px базової роздільності)
 const CARD = { w: 600, h: 200, gap: 30 };
 const STYLE = {
   card: { fill: 0x24402a, stroke: 0x9cff57, desc: '#cfe8cf' },
   weapon: { fill: 0x40301a, stroke: 0xffb84a, desc: '#f3dcb8' },
+  loot: { fill: 0x1c1424, stroke: 0xd04a6a, desc: '#e8c8d4' },
 };
 
 const WEAPON_DESC = {
@@ -27,11 +29,40 @@ function weaponText(weaponId, arsenal) {
   return { title: `${w.name}  ${done}/${w.steps}`, desc: `${WEAPON_DESC[weaponId](w)}\n${outcome}` };
 }
 
+const LOOT_TEXT = {
+  armor: () => ({ title: 'Зробити кожух з павучихи', desc: `чорне життя-броня знімається першим,\nвідновлюється через ${BALANCE.bossLoot.armor.regenMs / 1000} с` }),
+  venom: () => {
+    const v = BALANCE.bossLoot.venom;
+    return { title: 'Ядовита морда', desc: `влучання: −${Math.round((1 - v.slowFactor) * 100)}% швидкості ворога\nі ${v.dps} шкоди/с протягом ${v.durationMs / 1000} с` };
+  },
+  oksana: () => ({ title: 'Дитинча павучихи Оксанка', desc: `невмируща помічниця: кидається на ворога\nраз на ${BALANCE.bossLoot.oksana.intervalMs / 1000} с, росте з «Уроном»` }),
+  web: () => {
+    const w = BALANCE.bossLoot.web;
+    return { title: 'Дупа павучихи', desc: `кулі павутини приклеюють ворога на ${w.rootMs / 1000} с\n(боса — на ${w.bossRootMs / 1000} с)` };
+  },
+  form: () => ({ title: 'Ти став павуком', desc: `скін чорного павука,\nстрибок на ${Math.round((BALANCE.bossLoot.form.jumpSpeedMul - 1) * 100)}% швидший` }),
+};
+
 function cardText(id, picks, arsenal) {
   const weaponId = cardWeapon(id);
   if (weaponId) return weaponText(weaponId, arsenal);
+  const loot = cardLoot(id);
+  if (loot) return LOOT_TEXT[loot]();
   const c = BALANCE.cards;
+  const n = (picks[id] ?? 0) + 1; // яке це буде взяття
   switch (id) {
+    case 'invisibility': {
+      const st = invisStats(n);
+      const head = n === 1 ? 'окрема кнопка справа внизу.\n' : '';
+      return { title: `Невидимість${n > 1 ? ` ${n}` : ''}`, desc: `${head}${st.durationMs / 1000} с невидимий і невразливий,\nперезарядка ${st.cooldownMs / 1000} с` };
+    }
+    case 'hat': {
+      const st = hatStats(n);
+      const two = st.count > hatStats(n - 1).count && n > 1 ? 'другий капелюх!\n' : '';
+      return { title: `Модний капелюх${n > 1 ? ` ${n}` : ''}`, desc: `${two}злітає на ворога і завжди влучає:\n${st.damage} шкоди за удар` };
+    }
+    case 'extraLife':
+      return { title: 'Додаткове життя', desc: `+1 серце (до ${maxLivesFor(n)} з ${BALANCE.skills.extraLife.maxLives})` };
     case 'attackSpeed':
       return { title: 'Швидкість атаки', desc: `постріл частіше на ${Math.round((1 - c.attackSpeedFactor) * 100)}%` };
     case 'damage':
@@ -52,7 +83,7 @@ export default class LevelUpScene extends Phaser.Scene {
     super('LevelUp');
   }
 
-  create({ cards = [], picks = {}, arsenal = null } = {}) {
+  create({ cards = [], picks = {}, arsenal = null, title = 'Новий рівень!' } = {}) {
     // зміна розміру екрана → перебудувати екран
     const onResize = () => this.scene.restart(this.sys.settings.data);
     this.scale.once(Phaser.Scale.Events.RESIZE, onResize);
@@ -60,7 +91,7 @@ export default class LevelUpScene extends Phaser.Scene {
     const { width, height } = this.scale;
     this.add.rectangle(0, 0, width, height, 0x000000, 0.7).setOrigin(0).setInteractive();
     this.add
-      .text(width / 2, height * 0.2, 'Новий рівень!', { fontFamily: 'sans-serif', fontSize: '64px', color: '#ffd84a' })
+      .text(width / 2, height * 0.2, title, { fontFamily: 'sans-serif', fontSize: '64px', color: '#ffd84a' })
       .setOrigin(0.5);
 
     const total = cards.length * CARD.h + (cards.length - 1) * CARD.gap;
@@ -70,7 +101,7 @@ export default class LevelUpScene extends Phaser.Scene {
     const openedAt = this.game.loop.time;
     for (const id of cards) {
       const { title, desc } = cardText(id, picks, arsenal);
-      const st = cardWeapon(id) ? STYLE.weapon : STYLE.card;
+      const st = cardLoot(id) ? STYLE.loot : cardWeapon(id) ? STYLE.weapon : STYLE.card;
       const bg = this.add.rectangle(width / 2, y, CARD.w, CARD.h, st.fill).setStrokeStyle(4, st.stroke);
       this.add.text(width / 2, y - 58, title, { fontFamily: 'sans-serif', fontSize: '40px', color: '#ffffff' }).setOrigin(0.5);
       this.add

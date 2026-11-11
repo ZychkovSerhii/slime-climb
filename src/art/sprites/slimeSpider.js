@@ -1,0 +1,58 @@
+// Скін «Ти став павуком»: чорний слизак-павук (без чужої символіки). Ті самі кадри й розмір, що в slime.
+import { C } from '../palette.js';
+
+export default {
+  key: 'slimeSpider',
+  w: 48,
+  h: 48,
+  cell: 4,
+  palette: { k: C.outline, b: C.spiderBlack, d: C.spiderDark, g: C.spiderGrey, r: C.spiderMark, w: C.white },
+  frames: {
+    idle1: [
+      '............',
+      'g...kkkk...g',
+      '.gkkddddkkg.',
+      '.kdgddddddk.',
+      'gkdgdddddgkg',
+      'kddddwwdwwdk',
+      'kddddwkdwkdk',
+      'gddddrrddddg',
+      'kbddrddrdddk',
+      'gbbdddddddbg',
+      'kbbbbbbbbbbk',
+      'g.kkkkkkkk.g',
+    ],
+    idle2: [
+      '............',
+      '............',
+      'g..kkkkkk..g',
+      '.kkdggdddkk.',
+      'gddgdddddddg',
+      'kddddwwdwwdk',
+      'kddddwkdwkdk',
+      'gddddrrddddg',
+      'kbddrddrdddk',
+      'gbbdddddddbg',
+      'kbbbbbbbbbbk',
+      '.kkkkkkkkkk.',
+    ],
+    jump: [
+      'g...kkkk...g',
+      '.g.kddddk.g.',
+      '..kdggdddk..',
+      'g.kdgddddk.g',
+      '.kddwwdwwdk.',
+      '.kddwkdwkdk.',
+      'gkddrrddddkg',
+      '.kdrddrdddk.',
+      '.kbddddddbk.',
+      'g.kbddddbk.g',
+      '...kbbbbk...',
+      '....kkkk....',
+    ],
+  },
+  anims: {
+    idle: { frames: ['idle1', 'idle2'], fps: 2.5, repeat: -1 },
+    jump: { frames: ['jump'], fps: 1 },
+  },
+};
