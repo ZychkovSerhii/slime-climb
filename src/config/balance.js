@@ -59,7 +59,7 @@ export const BALANCE = deepFreeze({
   boss: {
     name: 'Твоя мамаша',
     atSec: 120,
-    hp: 40, // v2: було 30
+    hp: 55, // v2: було 30 → 40; правки після 4a: 55 — бій був легшим за шлях до боса
     xp: 60,
     points: 1000,
     // Підготовка: за prepSec до боса шипи й вороги зникають і не з'являються; плашка — останні bannerSec
@@ -70,16 +70,19 @@ export const BALANCE = deepFreeze({
     afterRampMul: 2,
     afterRampSec: 20,
     // Фаза 1: тінь-попередження, потім удар на павутині
-    telegraphMs: 1000,
+    telegraphMs: 850, // правки після 4a: було 1000
     strikeChance: 0.6, // імовірність удару прямо над гравцем
     strikeSpreadPx: 40, // розкид такого удару по x
     hangY: 260, // на якій висоті павук висить між атаками (px від верху) — нижче смуги HP у HUD
-    dropSpeed: 900, // швидкість падіння на павутині (px/s)
+    dropSpeed: 1100, // (було 900) швидкість падіння на павутині (px/s)
     retreatSpeed: 500, // швидкість підйому (px/s)
-    restMs: 800, // пауза між атаками
+    restMs: 550, // пауза між атаками (було 800)
+    // Плювок павутиною (правки після 4a): кожна every-та атака замість удару — віяло грудок у гравця.
+    // Після плювка павучиха чекає recoverMs, щоб удар не збігся з грудками в польоті (інакше може не бути безпечної стіни).
+    spit: { every: 3, rageEvery: 2, count: 3, rageCount: 5, spreadDeg: 14, speed: 330, recoverMs: 1500 },
     // Фаза 2 — рій: на swarmAt частці HP павучиха стає по центру, невразлива, і випускає рій
     swarmAt: 0.75,
-    swarm: { start: 12, growth: 1, max: 20, pauseMs: 1500, speed: 330, homingStopPx: 260, spreadPx: 70 },
+    swarm: { start: 14, growth: 1, max: 20, pauseMs: 1200, speed: 370, homingStopPx: 260, spreadPx: 70 },
     poison: { durationMs: 10000, speedMul: 0.85 }, // дотик павучка рою: слизак повільніший
     // Лють: поріг випадковий у [rageMin, rageMax] частки HP; атаки швидші в rageSpeedMul раз
     rageMin: 0.35,
@@ -101,18 +104,19 @@ export const BALANCE = deepFreeze({
   // damageFirst — перше взяття «Урону», damageNext — кожне наступне
   cards: { attackSpeedFactor: 0.85, slowFactor: 0.6, slowBaseMs: 2000, slowStepMs: 1000, damageFirst: 1, damageNext: 2 },
 
-  // Зброя з прогресом (етап 4a). Повністю вкачана зброя стає основною й замінює попередню.
+  // Зброя з прогресом (етап 4a). Кроки 2/3/2 (специфікація: 3/5/3) — інакше до боса вкачувалась хіба одна зброя.
+  // Повністю вкачана зброя стає основною й замінює попередню.
   // damageMul множить поточну шкоду пострілу (база + бонус карток «Урон»).
   weapons: {
     // ближній бій: розмах по колу радіусом radiusFrac ширини екрана; б'є лише коли хтось у радіусі
     // intervalMul — [рішення] у специфікації частоти немає: розмах у 1,5 раза рідше за постріл
     // triggerFrac — [рішення] розмах, коли ціль ближче за цю частку радіуса: б'є по всьому радіусу,
     // тож зграя рою потрапляє під удар майже вся, а не лише передній павучок
-    axe: { name: 'Сокира Рагнара', steps: 3, damageMul: 4, radiusFrac: 1 / 3, triggerFrac: 0.55, intervalMul: 1.5, swingMs: 240 },
+    axe: { name: 'Сокира Рагнара', steps: 2, damageMul: 4, radiusFrac: 1 / 3, triggerFrac: 0.55, intervalMul: 1.5, swingMs: 240 },
     // черга з burst пострілів через burstGapMs, потім перезарядка ×reloadMul; стрибки швидші
-    chakra: { name: 'Ворота чакри', steps: 5, burst: 8, burstGapMs: 70, reloadMul: 2, jumpSpeedMul: 1.5 },
+    chakra: { name: 'Ворота чакри', steps: 3, burst: 8, burstGapMs: 70, reloadMul: 2, jumpSpeedMul: 1.5 },
     // 3 кулі: у ціль і дві під ±spreadDeg від неї
-    shotgun: { name: 'Дробовик Хулігана', steps: 3, damageMul: 1.25, spreadDeg: 25 },
+    shotgun: { name: 'Дробовик Хулігана', steps: 2, damageMul: 1.25, spreadDeg: 25 },
   },
 
   // Захист від довгих кадрів (повернення з фону)

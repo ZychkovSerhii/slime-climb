@@ -25,7 +25,7 @@ export function createProgression() {
     picks: {},
     // зброя з прогресом: progress — кроки кожної, main — основна (null — стартовий постріл),
     // lastOffered — зброя з попереднього вікна рівня (не пропонується двічі поспіль)
-    arsenal: { progress: {}, main: null, lastOffered: null },
+    arsenal: { progress: {}, main: null, lastOffered: null, lastTaken: null },
   };
 }
 
@@ -66,12 +66,15 @@ export function isWeaponMaxed(p, weaponId) {
 }
 
 /**
- * Зброя для 3-ї картки: випадкова з не вкачаних повністю, але не та, що була в попередньому вікні.
- * [рішення] Якщо лишилась одна зброя — її пропонуємо й підряд, інакше остання зброя приходила б через вікно.
+ * Зброя для 3-ї картки.
+ * [рішення, правки після 4a] Якщо в минулому вікні гравець узяв зброю і вона ще не вкачана — пропонуємо її ж,
+ * щоб вкачування йшло підряд. Відмовився — випадкова з не вкачаних, але не та, що була в попередньому вікні.
+ * Якщо лишилась одна зброя — її пропонуємо й підряд.
  */
 export function rollWeapon(p, rng) {
   const open = WEAPON_IDS.filter((id) => !isWeaponMaxed(p, id));
   if (!open.length) return null;
+  if (p.arsenal.lastTaken && open.includes(p.arsenal.lastTaken)) return p.arsenal.lastTaken;
   const pool = open.length > 1 ? open.filter((id) => id !== p.arsenal.lastOffered) : open;
   return pool[Math.min(Math.floor(rng() * pool.length), pool.length - 1)];
 }
@@ -84,7 +87,7 @@ export function rollLevelUp(p, rng) {
   const weapon = rollWeapon(p, rng);
   const regular = rollCards(p, rng, weapon ? 2 : 3);
   const cards = weapon ? [...regular, weaponCard(weapon)] : regular;
-  return { cards, progression: { ...p, arsenal: { ...p.arsenal, lastOffered: weapon } } };
+  return { cards, progression: { ...p, arsenal: { ...p.arsenal, lastOffered: weapon, lastTaken: null } } };
 }
 
 /** Скільки шкоди додасть наступна картка «Урон»: перша +damageFirst, кожна наступна +damageNext. */
@@ -118,6 +121,7 @@ function applyWeaponCard(p, weaponId, cardId) {
     ...p.arsenal,
     progress: { ...p.arsenal.progress, [weaponId]: done },
     main: done >= steps ? weaponId : p.arsenal.main,
+    lastTaken: weaponId,
   };
   return { ...p, arsenal, picks: { ...p.picks, [cardId]: (p.picks[cardId] ?? 0) + 1 } };
 }

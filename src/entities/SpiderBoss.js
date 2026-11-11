@@ -1,5 +1,6 @@
 import { BALANCE } from '../config/balance.js';
-import { attackTimings, isRage, pickRageAt, pickStrikeX, shouldStartSwarm } from '../systems/BossPlanner.js';
+import { attackTimings, isRage, isSpitAttack, pickRageAt, pickStrikeX, shouldStartSwarm, spitAngles } from '../systems/BossPlanner.js';
+import Projectile from './Projectile.js';
 import { sfx } from '../systems/Audio.js';
 import Enemy from './Enemy.js';
 import Swarm from './Swarm.js';
@@ -31,6 +32,7 @@ export default class SpiderBoss extends Enemy {
     this.rageAt = pickRageAt(Math.random);
     this.rage = false;
     this.swarmDone = false;
+    this.attackNo = 0;
 
     this.web = scene.add.graphics().setDepth(this.depth - 1);
     this.shadow = scene.add.image(0, 0, 'shadow').setVisible(false);
@@ -147,7 +149,7 @@ export default class SpiderBoss extends Enemy {
         }
         break;
       case 'rest':
-        if (now >= this.stateUntil) this.startTelegraph();
+        if (now >= this.stateUntil) this.nextAttack();
         break;
       case 'toCenter':
         if (this.moveTo(scene.scale.width / 2, B.hangY, B.retreatSpeed)) this.castSwarm();
@@ -169,6 +171,29 @@ export default class SpiderBoss extends Enemy {
     this.flail = this.scene.tweens.add({ targets: this, angle: { from: -9, to: 9 }, duration: 160, yoyo: true, repeat: -1 });
     this.swarm.launch(B.swarm.start, this.x, this.y + this.height / 2);
     this.emitHud();
+  }
+
+  /** Наступна атака: кожна spit.every-та — плювок павутиною, решта — удар. */
+  nextAttack() {
+    this.attackNo += 1;
+    if (isSpitAttack(this.attackNo, this.rage)) this.spit();
+    else this.startTelegraph();
+  }
+
+  /** Віяло грудок павутини в гравця; від них рятує стрибок на іншу стіну. Далі пауза recoverMs. */
+  spit() {
+    const scene = this.scene;
+    const p = scene.player;
+    const y = this.y + this.height / 3;
+    const aim = Math.atan2(p.y - y, p.x - this.x);
+    sfx('bossPain');
+    for (const a of spitAngles(aim, this.rage)) {
+      const ball = new Projectile(scene, this.x, y, 'webBall');
+      ball.type = 'webBall';
+      scene.enemyProjectiles.add(ball);
+      ball.launch(this.x + Math.cos(a) * 100, y + Math.sin(a) * 100, B.spit.speed);
+    }
+    this.setState('rest', B.spit.recoverMs / (this.rage ? B.rageSpeedMul : 1));
   }
 
   startTelegraph() {
