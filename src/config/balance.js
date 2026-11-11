@@ -93,7 +93,8 @@ export const BALANCE = deepFreeze({
     // ---- Туманний бамбук (етап 9, специфікація §9.1)
     // Ніндзя [рішення плану]: тримається за стіну на сталій висоті екрана (minYFrac…maxYFrac висоти), на стіні, де гравця немає.
     // smokeMs — дим-попередження (у диму невразливий і не шкодить), потім кидок 1 сюрикена, через stayMs — зникає в диму.
-    ninja: { hp: 3, xp: 4, points: 40, smokeMs: 600, stayMs: 1200, shurikenSpeed: 260, minYFrac: 0.12, maxYFrac: 0.4, dodgeSec: 1 },
+    // Стіна ніндзі вільна від шипів біля висоти гравця від (приліт − dodgeLeadSec) до (приліт + dodgeSec).
+    ninja: { hp: 3, xp: 4, points: 40, smokeMs: 600, stayMs: 1200, shurikenSpeed: 260, minYFrac: 0.12, maxYFrac: 0.4, dodgeLeadSec: 1, dodgeSec: 0.6 },
     // Ліхтарик-дух: пливе на гравця, за armPx блимає blinkMs і вибухає радіусом radiusPx. Убитий раніше — вибуху немає.
     lantern: { hp: 2, xp: 3, points: 30, speed: 70, armPx: 90, blinkMs: 800, radiusPx: 70 },
     // Малі слимаки Колі (фаза 80%). Кусака повзе на гравця; личинка-стрілець тримається на keepPx і плює раз на spitMs,
@@ -131,7 +132,7 @@ export const BALANCE = deepFreeze({
     spawnBaseMs: { lantern: Math.round(9700 * 0.9), bat: Math.round(8750 * 0.9), ninja: Math.round(13750 * 0.9) },
     bat: { hp: 2, speedMul: 1.15 }, // як у зимі
     // туман: 2 шари лише на фоні (під стінами, шипами й ворогами), повільний паралакс і дрейф, низький контраст
-    fog: { layers: [{ alpha: 0.22, parallax: 0.12, driftX: 7 }, { alpha: 0.14, parallax: 0.22, driftX: -4 }] },
+    fog: { layers: [{ alpha: 0.12, parallax: 0.12, driftX: 7 }, { alpha: 0.08, parallax: 0.22, driftX: -4 }] },
     transitionMs: 1500,
   },
   boss: {

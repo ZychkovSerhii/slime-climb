@@ -6,7 +6,8 @@ import { afterBossSpawnMul, bannerVisible, hazardsSuppressed } from '../systems/
 import { firstSegment, loopMul, nextSegment, runStage } from '../systems/Cycle.js';
 import { createStatus, fireIntervalMul, isPoisoned, isRoared, playerSpeedMul, poison, roar } from '../systems/Status.js';
 import { createGiftState, createSantaState, giftDue, giftX, giftXp, penguinGroup, penguinHp, rollGift, santaDue, xpToLevelUp } from '../systems/Biome.js';
-import { meetInterval, spikesBlock, walkerSide, walkerSpeedRange, worldOf } from '../systems/WallWalkers.js';
+import { meetInterval, ninjaInterval, otherSide, spikesBlock, walkerSide, walkerSpeedRange, worldOf } from '../systems/WallWalkers.js';
+import { ninjaDodgeWindow, ninjaY } from '../systems/Bamboo.js';
 import { loadSettings } from '../systems/Settings.js';
 import { addXp, applyCard, cardUpgrade, createProgression, killXp, rollLevelUp, weaponCard, weaponUpgrades, xpToNext } from '../systems/Progression.js';
 import { attackDamage, axeRadius, createFireState, hasMiniAxe, inRadius, shotgunAngles, stepFire, weaponJumpMul } from '../systems/Weapons.js';
@@ -40,6 +41,9 @@ import Penguin from '../entities/Penguin.js';
 import Santa from '../entities/Santa.js';
 import Gift from '../entities/Gift.js';
 import Snow from '../entities/Snow.js';
+import Fog from '../entities/Fog.js';
+import Ninja from '../entities/Ninja.js';
+import Lantern from '../entities/Lantern.js';
 import GiftBomb from '../entities/GiftBomb.js';
 import {
   activeForm, bombTargets, formSkin, friendlyBombDamage, rollSack, sackSkillCard, SHKODKO_LOOT_IDS, stepTicker,
@@ -51,7 +55,12 @@ const ROAR_TINT = 0x9fb4c8; // приголомшений ричанням — �
 // глибини фону: фон −3, сніг −2 (Snow.js), стіни −1, усе інше 0
 const BG_DEPTH = -3;
 const WALL_DEPTH = -1;
-const TEX = { cave: { bg: 'bg', wall: 'wall', spike: 'spike' }, winter: { bg: 'bgWinter', wall: 'wallIce', spike: 'icicle' } };
+const TEX = {
+  cave: { bg: 'bg', wall: 'wall', spike: 'spike' },
+  winter: { bg: 'bgWinter', wall: 'wallIce', spike: 'icicle' },
+  bamboo: { bg: 'bgBamboo', wall: 'wallBamboo', spike: 'stake' },
+};
+const BIOME_BANNER = { winter: 'Зима', bamboo: 'Туманний бамбук' };
 const FADE_MS = 600; // шипи й вороги плавно зникають перед босом
 const VENOM_SHOT_TINT = 0x9cff3a; // постріли з «Ядовитою мордою» — кислотні
 // шляпа на голові слизака: центр шляпи відносно центру слизака і зсув другої шляпи
@@ -103,9 +112,10 @@ export default class GameScene extends Phaser.Scene {
     this.spawnState = createSpawnState();
     // Коло біомів (етап 6b, systems/Cycle): відрізок — біом і бос наприкінці; етап рахує runStage
     // (calm → before/after → prep → fight). killedAtSec — секунда смерті попереднього боса (тиша й плавний спавн).
-    // Перевірка: ?boss=1 — павучиха на 6-й с, ?winter=1 — зима без боса, ?shkodko=1 — зима і Шкодько на 6-й с.
+    // Перевірка: ?boss=1 — павучиха на 6-й с, ?winter=1 — зима без боса, ?shkodko=1 — зима і Шкодько на 6-й с,
+    // ?bamboo=1 — бамбук без боса, ?kolya=1 — бамбук і Коля на 6-й с (етап 9).
     const q = new URLSearchParams(window.location.search);
-    const start = q.get('shkodko') === '1' ? 'shkodko' : q.get('winter') === '1' ? 'winter' : q.get('boss') === '1' ? 'spider' : 'cave';
+    const start = ['kolya', 'bamboo', 'shkodko', 'winter'].find((k) => q.get(k) === '1') ?? (q.get('boss') === '1' ? 'spider' : 'cave');
     this.seg = firstSegment(start);
     this.walkerSeq = 0;
     this.walkerQueue = []; // ходоки по стінах, що чекають, поки на безпечній стіні розійдуться шипи (фідбек-3)
@@ -118,6 +128,7 @@ export default class GameScene extends Phaser.Scene {
     this.biome = 'cave';
     this.settings = loadSettings(browserStorage());
     this.snow = null;
+    this.fog = null; // туман бамбука (етап 9)
     this.santaState = null;
     this.giftState = null;
     // ?weapon=axe|chakra|shotgun — одразу з повністю вкачаною зброєю (для перевірки)
@@ -397,6 +408,7 @@ export default class GameScene extends Phaser.Scene {
     left.setSize(w, height).setPosition(w / 2, height / 2);
     right.setSize(w, height).setPosition(width - w / 2, height / 2);
     this.player.relayout();
+    this.fog?.relayout();
     this.pauseOverlay.setPosition(width / 2, height / 2);
   }
 
@@ -643,7 +655,9 @@ export default class GameScene extends Phaser.Scene {
       // лев біжить по стіні, де гравця НЕМАЄ: загроза — ривок, від якого можна відскочити,
       // а не удар знизу по власній стіні, коли згори йдуть шипи
       if (type === 'lion') this.spawnEnemy(new Lion(this, this.player.side === 'left' ? 'right' : 'left'));
-      else if (type === 'bat') this.spawnEnemy(new Bat(this, { winter: this.biome === 'winter' }));
+      else if (type === 'bat') this.spawnEnemy(new Bat(this, { biome: this.biome }));
+      else if (type === 'lantern') this.spawnEnemy(new Lantern(this));
+      else if (type === 'ninja') this.requestNinja();
       else if (type === 'plant') this.pendingPlants += 1;
       else if (type === 'elf') this.spawnEnemy(new Elf(this));
       else if (type === 'bear' || type === 'penguin') this.requestWalker(type);
@@ -657,7 +671,41 @@ export default class GameScene extends Phaser.Scene {
   /** Стіна, яку вже займають ходоки (активні чи в черзі), або null. */
   walkerWall() {
     const active = this.enemies.getChildren().find((e) => e.active && e.walker);
-    return active?.side ?? this.walkerQueue[0]?.side ?? null;
+    return active?.side ?? this.walkerQueue.find((q) => q.type !== 'ninja')?.side ?? null;
+  }
+
+  /**
+   * Ніндзя (етап 9) у чергу: не більше одного на екрані (і в черзі), на стіні, де гравця немає, і не на стіні ходока.
+   * Від сюрикена ховаються на стіні ніндзі, тож резерв без шипів — на ній (див. WallWalkers.ninjaInterval).
+   */
+  requestNinja() {
+    const busy = this.enemies.getChildren().some((e) => e.active && e.ninja) || this.walkerQueue.some((q) => q.type === 'ninja');
+    if (busy) return;
+    this.walkerQueue.push({ type: 'ninja', y: ninjaY(Math.random, this.scale.height), until: this.nowMs + BALANCE.wallWalk.maxWaitMs, id: `walk${++this.walkerSeq}` });
+  }
+
+  /** Крок ніндзі в черзі: true — ще чекає. */
+  stepNinja(q, spikes) {
+    const side = otherSide(this.player.side);
+    const walker = this.walkerWall();
+    if (q.side && q.side !== side) this.spikeState = reserveFree(this.spikeState, q.side, 0, -1, this.distancePx, q.id); // гравець перестрибнув
+    q.side = side;
+    const p = this.player;
+    const dist = Math.hypot(this.scale.width - 2 * BALANCE.wallWidth, p.baseY - q.y);
+    const scroll = scrollSpeed(this.elapsedSec, false);
+    const iv = ninjaInterval({ d0: this.distancePx, zoneY: p.baseY, scroll, ...ninjaDodgeWindow(dist) });
+    // поки чекаємо: відрізок рухається разом із гравцем, тож резервуємо його з запасом на весь час очікування —
+    // інакше нові шипи згори заходять у нього швидше, ніж старі виходять
+    const waitSec = Math.max(q.until - this.nowMs, 0) / 1000;
+    this.spikeState = reserveFree(this.spikeState, side, iv.from, iv.to + scroll * waitSec, this.distancePx, q.id);
+    if ((walker && walker !== side) || spikesBlock(spikes, side, iv, this.distancePx)) {
+      if (this.nowMs < q.until) return true;
+      this.spikeState = reserveFree(this.spikeState, side, 0, -1, this.distancePx, q.id);
+      return false;
+    }
+    this.spikeState = reserveFree(this.spikeState, side, iv.from, iv.to, this.distancePx, q.id); // ніндзя з'явився — лише його вікно
+    this.spawnEnemy(new Ninja(this, side, q.y));
+    return false;
   }
 
   /** Ходок у чергу: з'явиться, коли на протилежній стіні не буде шипів у зоні зустрічі. */
@@ -695,6 +743,10 @@ export default class GameScene extends Phaser.Scene {
     const spikes = this.hazards.getChildren().filter((h) => h.active && h.side).map((h) => ({ side: h.side, y: h.y }));
     const rest = [];
     for (const q of this.walkerQueue) {
+      if (q.type === 'ninja') {
+        if (this.stepNinja(q, spikes)) rest.push(q);
+        continue;
+      }
       const safe = q.side === 'left' ? 'right' : 'left';
       const { y0, gap, iv } = this.walkerPlan(q);
       // резерв з тим самим id оновлюється, а не накопичується
@@ -799,6 +851,7 @@ export default class GameScene extends Phaser.Scene {
     // після боса — тиша calmSec; перші появи біому рахуються від її кінця
     const startSec = this.elapsedSec < 0.5 ? 0 : this.elapsedSec + BALANCE.boss.calmSec;
     this.spawnState = createSpawnState(biome, startSec);
+    const instant = from === biome || this.elapsedSec < 0.5;
     if (biome === 'winter') {
       this.santaState = createSantaState(startSec);
       this.giftState = createGiftState(startSec * 1000);
@@ -807,9 +860,16 @@ export default class GameScene extends Phaser.Scene {
       this.snow.destroy();
       this.snow = null;
     }
-    const instant = from === biome || this.elapsedSec < 0.5;
+    // туман — лише в бамбуку (етап 9), вимикається в меню
+    if (biome === 'bamboo' && this.settings.fog && !this.fog) {
+      this.fog = new Fog(this);
+      if (!instant) this.fog.fadeIn(BALANCE.bamboo.transitionMs);
+    } else if (biome !== 'bamboo' && this.fog) {
+      this.fog.destroy();
+      this.fog = null;
+    }
     this.swapTiles(TEX[biome], instant ? 0 : BALANCE.winter.transitionMs);
-    if (!instant) this.events.emit('hud:banner', { text: biome === 'winter' ? 'Зима' : `Коло ${this.loop + 1}`, ms: 1800 });
+    if (!instant) this.events.emit('hud:banner', { text: BIOME_BANNER[biome] ?? `Коло ${this.loop + 1}`, ms: 1800 });
   }
 
   /** Нові фон і стіни проявляються поверх старих за ms, старі потім знищуються. */
@@ -899,6 +959,7 @@ export default class GameScene extends Phaser.Scene {
     this.weaponView.update();
     this.scrollObjects(dy);
     this.snow?.step(dt, dy);
+    this.fog?.step(dt, dy);
     this.spawnSpikes();
     this.spawnEnemies();
     this.autoFire(dt);

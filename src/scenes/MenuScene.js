@@ -6,7 +6,7 @@ import { button, textStyle } from './ui.js';
 import { loadSettings, saveSettings } from '../systems/Settings.js';
 import { codex, codexOpen } from '../codex/index.js';
 
-/** Стартовий екран: назва, рекорд, Шаги, «Тапни, щоб почати», магазин, досягнення, довідник, звук, сніг. */
+/** Стартовий екран: назва, рекорд, Шаги, «Тапни, щоб почати», магазин, досягнення, довідник, звук, сніг, туман. */
 export default class MenuScene extends Phaser.Scene {
   constructor() {
     super('Menu');
@@ -47,13 +47,19 @@ export default class MenuScene extends Phaser.Scene {
 
     // сніг у зимовому біомі (етап 6a): хтось його не любить або в нього слабкий телефон
     const settings = loadSettings(storage);
-    const snowLabel = () => `Сніг: ${settings.snow ? 'увімк.' : 'вимк.'}`;
-    const snowBtn = button(this, cx, height * 0.91, snowLabel(), () => {
-      settings.snow = !settings.snow;
-      saveSettings(storage, settings);
-      snowBtn.setText(snowLabel());
-      sfx('jump');
-    });
+    // туман бамбука (етап 9) — поруч зі снігом, в одному рядку
+    const toggle = (x, key, name) => {
+      const label = () => `${name}: ${settings[key] ? 'увімк.' : 'вимк.'}`;
+      const b = button(this, x, height * 0.91, label(), () => {
+        settings[key] = !settings[key];
+        saveSettings(storage, settings);
+        b.setText(label());
+        sfx('jump');
+      }, undefined, 30);
+      return b;
+    };
+    const snowBtn = toggle(cx - width * 0.22, 'snow', 'Сніг');
+    const fogBtn = toggle(cx + width * 0.22, 'fog', 'Туман');
 
     if (new URLSearchParams(window.location.search).get('codex') === '1' && !this.registry.get('codexShown')) {
       this.registry.set('codexShown', true);
@@ -61,7 +67,7 @@ export default class MenuScene extends Phaser.Scene {
     }
 
     // тап будь-де, крім кнопок, — старт гри
-    const buttons = [shopBtn, achBtn, codexBtn, soundBtn, snowBtn];
+    const buttons = [shopBtn, achBtn, codexBtn, soundBtn, snowBtn, fogBtn];
     let started = false;
     this.input.on('pointerdown', (pointer, over) => {
       if (started || codexOpen() || over.some((o) => buttons.includes(o))) return;

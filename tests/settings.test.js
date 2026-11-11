@@ -7,7 +7,11 @@ const mem = (init = {}) => {
 };
 
 describe('налаштування', () => {
-  test('новий гравець — сніг увімкнено', () => expect(loadSettings(mem())).toEqual({ snow: true }));
+  test('новий гравець — сніг і туман увімкнено', () => expect(loadSettings(mem())).toEqual({ snow: true, fog: true }));
+  test('старий запис без туману (до етапу 9): сніг не губиться, туман увімкнено', () => {
+    expect(loadSettings(mem({ 'slime-climb.settings': '{"snow":false}' }))).toEqual({ snow: false, fog: true });
+    expect(loadSettings(mem({ 'slime-climb.settings': '{"fog":false}' }))).toEqual({ snow: true, fog: false });
+  });
   test('зберігаються й читаються', () => {
     const st = mem();
     expect(saveSettings(st, { snow: false })).toBe(true);
