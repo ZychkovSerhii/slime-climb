@@ -71,7 +71,9 @@ export const BALANCE = deepFreeze({
     bear: {
       hp: 12, xp: 10, points: 120, speed: 170, wraps: 2,
       rearFirstMs: 1200, rearEveryMs: 4500, warnMs: 800, roarRadiusPx: 300,
-      roar: { durationMs: 5000, speedMul: 0.3, fireMul: 0.7 },
+      // Після фідбеку: було 5000/0.3/0.7 — задуже сильно (і довше за rearEveryMs, тобто поруч сповільнення не спадало).
+      // Інваріант (тест): durationMs < rearEveryMs, між ричаннями є вікно без статусу.
+      roar: { durationMs: 2500, speedMul: 0.6, fireMul: 0.85 },
     },
     // Пінгвін: ковзає на пузі в точку, де був гравець; з'являються групою до groupMax
     penguin: { hp: 3, hpMax: 4, xp: 3, points: 30, speed: 320, groupMax: 3, groupGapMs: 350, wraps: 2 },
@@ -86,7 +88,8 @@ export const BALANCE = deepFreeze({
   // коли множник уже ~0,6 — тому бази більші, ніж у біомі 1.
   winter: {
     from: { elf: 3, bat: 8, penguin: 12, bear: 22 },
-    spawnBaseMs: { elf: 6500, bat: 7000, penguin: 11000, bear: 17000 },
+    // Фідбек після 6a: «забагато мобів» — інтервали ×1,25 (було elf 6500, bat 7000, penguin 11000, bear 17000)
+    spawnBaseMs: { elf: 8100, bat: 8750, penguin: 13750, bear: 21000 },
     bat: { hp: 2, speedMul: 1.15 }, // кажан у зимі: HP 2, ще +15% швидкості
     // подарунок: летить разом зі світом посеред коридору, у смузі стрибка; дотик — досвід
     gift: { everyMs: 9000, jitter: 0.35, xp: 4, firstMs: 4000 },

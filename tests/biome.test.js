@@ -107,16 +107,20 @@ describe('ричання ведмедя', () => {
     expect(roarReaches({ x: 0, y: 0 }, { x: 0, y: 299 })).toBe(true);
     expect(roarReaches({ x: 0, y: 0 }, { x: 250, y: 250 })).toBe(false);
   });
-  test('стрибок −70% і стрільба −30% на durationMs', () => {
+  test('стрибок ×speedMul і стрільба ×fireMul на durationMs', () => {
     const s = roar(createStatus(), 1000);
     expect(isRoared(s, 1000 + R.durationMs - 1)).toBe(true);
     expect(isRoared(s, 1000 + R.durationMs)).toBe(false);
-    expect(playerSpeedMul(s, 2000)).toBeCloseTo(0.3);
-    expect(fireIntervalMul(s, 2000)).toBeCloseTo(1 / 0.7);
+    expect(playerSpeedMul(s, 1001)).toBeCloseTo(R.speedMul);
+    expect(fireIntervalMul(s, 1001)).toBeCloseTo(1 / R.fireMul);
     expect(fireIntervalMul(s, 1000 + R.durationMs)).toBe(1);
   });
   test('з отрутою множники перемножуються', () => {
     const s = poison(roar(createStatus(), 0), 0);
-    expect(playerSpeedMul(s, 10)).toBeCloseTo(0.3 * BALANCE.boss.poison.speedMul);
+    expect(playerSpeedMul(s, 10)).toBeCloseTo(R.speedMul * BALANCE.boss.poison.speedMul);
+  });
+  test('ричання коротше за паузу між ричаннями — є вікно без сповільнення', () => {
+    expect(R.durationMs).toBeLessThan(BALANCE.enemies.bear.rearEveryMs);
+    expect(R.speedMul).toBeGreaterThanOrEqual(0.5);
   });
 });
