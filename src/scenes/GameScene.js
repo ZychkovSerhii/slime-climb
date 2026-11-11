@@ -3,7 +3,9 @@ import { BALANCE } from '../config/balance.js';
 import { scrollSpeed } from '../systems/Difficulty.js';
 import { createSpawnState, dueSpawns } from '../systems/Spawner.js';
 import { afterBossSpawnMul, bannerVisible, bossStage, hazardsSuppressed } from '../systems/BossPlanner.js';
-import { createStatus, isPoisoned, playerSpeedMul, poison } from '../systems/Status.js';
+import { createStatus, fireIntervalMul, isPoisoned, isRoared, playerSpeedMul, poison, roar } from '../systems/Status.js';
+import { biomeAt, createGiftState, createSantaState, giftDue, giftX, penguinGroup, penguinHp, santaDue, xpToLevelUp } from '../systems/Biome.js';
+import { loadSettings } from '../systems/Settings.js';
 import { addXp, applyCard, cardUpgrade, createProgression, killXp, rollLevelUp, weaponCard, weaponUpgrades, xpToNext } from '../systems/Progression.js';
 import { attackDamage, axeRadius, createFireState, hasMiniAxe, inRadius, shotgunAngles, stepFire, weaponJumpMul } from '../systems/Weapons.js';
 import { clampDelta } from '../systems/Time.js';
@@ -28,9 +30,22 @@ import Bat from '../entities/Bat.js';
 import Plant from '../entities/Plant.js';
 import SpiderBoss from '../entities/SpiderBoss.js';
 import WeaponView from '../entities/WeaponView.js';
+import Elf from '../entities/Elf.js';
+import Bear from '../entities/Bear.js';
+import Penguin from '../entities/Penguin.js';
+import Santa from '../entities/Santa.js';
+import Gift from '../entities/Gift.js';
+import Snow from '../entities/Snow.js';
 import { background } from '../art/textures.js';
 
 const POISON_TINT = 0xb0d040; // слизак і так зелений — під отрутою він темніший, болотний
+const ROAR_TINT = 0x9fb4c8; // приголомшений ричанням — сірувато-блакитний
+const PENGUIN_GAP_Y = 56; // пінгвіни групи — «потягом» один за одним
+const PENGUIN_SPREAD_X = 30;
+// глибини фону: фон −3, сніг −2 (Snow.js), стіни −1, усе інше 0
+const BG_DEPTH = -3;
+const WALL_DEPTH = -1;
+const TEX = { cave: { bg: 'bg', wall: 'wall', spike: 'spike' }, winter: { bg: 'bgWinter', wall: 'wallIce', spike: 'icicle' } };
 const FADE_MS = 600; // шипи й вороги плавно зникають перед босом
 const VENOM_SHOT_TINT = 0x9cff3a; // постріли з «Ядовитою мордою» — кислотні
 // шляпа на голові слизака: центр шляпи відносно центру слизака і зсув другої шляпи
@@ -86,6 +101,14 @@ export default class GameScene extends Phaser.Scene {
     // ?boss=1 у адресі — бос на debugAtSec секунді (для перевірки)
     const debugBoss = new URLSearchParams(window.location.search).get('boss') === '1';
     this.bossAtSec = debugBoss ? BALANCE.boss.debugAtSec : BALANCE.boss.atSec;
+    // ?winter=1 — одразу зима без павучихи (для перевірки етапу 6a)
+    this.startWinter = new URLSearchParams(window.location.search).get('winter') === '1';
+    if (this.startWinter) this.killedAtSec = -1e6; // «павучиха давно вбита»: бій не почнеться
+    this.biome = 'cave';
+    this.settings = loadSettings(browserStorage());
+    this.snow = null;
+    this.santaState = null;
+    this.giftState = null;
     // ?weapon=axe|chakra|shotgun — одразу з повністю вкачаною зброєю (для перевірки)
     this.debugWeapon = new URLSearchParams(window.location.search).get('weapon');
     // Планувальник шипів для обох стін разом (світові координати = distancePx)
@@ -96,13 +119,16 @@ export default class GameScene extends Phaser.Scene {
     // Фон біому між стінами: тайловий, їде повільніше за стіни (паралакс)
     const w = BALANCE.wallWidth;
     this.bgInfo = background('bg');
-    this.bg = this.add.tileSprite(width / 2, height / 2, width - 2 * w, height, 'bg');
+    this.bg = this.add.tileSprite(width / 2, height / 2, width - 2 * w, height, 'bg').setDepth(BG_DEPTH);
 
-    // Стіни — тайлові спрайти, «рух» імітується зсувом текстури
+    // Стіни — тайлові спрайти, «рух» імітується зсувом текстури.
+    // walls — усе, що прокручується (на час переходу біому там і старі стіни), wallTiles — поточні [ліва, права].
     this.walls = this.add.group();
-    const left = this.add.tileSprite(w / 2, height / 2, w, height, 'wall');
-    const right = this.add.tileSprite(width - w / 2, height / 2, w, height, 'wall').setFlipX(true);
+    const left = this.add.tileSprite(w / 2, height / 2, w, height, 'wall').setDepth(WALL_DEPTH);
+    const right = this.add.tileSprite(width - w / 2, height / 2, w, height, 'wall').setFlipX(true).setDepth(WALL_DEPTH);
+    this.wallTiles = [left, right];
     this.walls.addMultiple([left, right]);
+    this.bgTiles = this.add.group([this.bg]);
 
     // Групи об'єктів, що їдуть разом зі світом
     this.hazards = this.physics.add.group();
@@ -111,7 +137,8 @@ export default class GameScene extends Phaser.Scene {
     this.enemyProjectiles = this.physics.add.group();
     // те, що зникає перед босом: без зіткнень, але ще їде разом зі світом, поки не розтане
     this.fading = this.add.group();
-    this.scrollingGroups = [this.hazards, this.enemies, this.playerProjectiles, this.enemyProjectiles, this.fading];
+    this.pickups = this.physics.add.group(); // подарунки зими
+    this.scrollingGroups = [this.hazards, this.enemies, this.playerProjectiles, this.enemyProjectiles, this.fading, this.pickups];
 
     this.player = new Player(this);
     this.player.setSkin(skinSprite(this.meta));
@@ -127,9 +154,11 @@ export default class GameScene extends Phaser.Scene {
     const hurt = () => this.hurtPlayer();
     this.physics.add.overlap(this.player, this.hazards, hurt);
     this.physics.add.overlap(this.player, this.enemies, (player, enemy) => {
+      if (enemy.harmless) return; // Санта не б'є
       // отрута — лише коли удар справді пройшов (не під час невразливості)
       if (this.hurtPlayer() && enemy.poisons) this.poisonPlayer();
     });
+    this.physics.add.overlap(this.player, this.pickups, (player, gift) => this.collectGift(gift));
     this.physics.add.overlap(this.player, this.enemyProjectiles, (player, bullet) => {
       if (this.paused || !bullet.active) return;
       bullet.destroy();
@@ -150,11 +179,9 @@ export default class GameScene extends Phaser.Scene {
       this.killScore += killPoints(type);
       this.onMetaKill(type);
       if (type === 'boss') this.onBossKilled();
-      const r = addXp(this.progression, killXp(type));
-      this.progression = r.progression;
-      this.levelUpQueue += r.levelsGained;
-      if (r.levelsGained > 0) this.health = heal(this.health, BALANCE.healPerLevel * r.levelsGained, this.maxLives);
-      if ((this.levelUpQueue > 0 || this.lootCards) && !this.levelUpOpen) this.openLevelUp();
+      // Санта дає рівень: рівно стільки досвіду, скільки бракує до наступного
+      const xp = type === 'santa' ? xpToLevelUp(this.progression.xp, xpToNext(this.progression.level)) : killXp(type);
+      this.gainXp(xp);
     };
     const onPicked = (id) => this.onCardPicked(id);
     const onRage = () => playMusic('rage');
@@ -185,6 +212,7 @@ export default class GameScene extends Phaser.Scene {
     this.player.on('jumped', () => sfx('jump'));
     this.player.on('reversed', () => sfx('reverse'));
 
+    if (this.startWinter) this.enterBiome('winter'); // до перших шипів — щоб одразу були бурульки
     this.spawnSpikes(); // шипи видно з першого кадру
 
     this.createPauseOverlay();
@@ -223,6 +251,15 @@ export default class GameScene extends Phaser.Scene {
       // під час вибору картки гра лишається на паузі, доки картку не оберуть
       if (!this.levelUpOpen) this.setPaused(false);
     });
+  }
+
+  /** Досвід (вбивства, подарунки): нові рівні лікують і відкривають вікно карток. */
+  gainXp(amount) {
+    const r = addXp(this.progression, amount);
+    this.progression = r.progression;
+    this.levelUpQueue += r.levelsGained;
+    if (r.levelsGained > 0) this.health = heal(this.health, BALANCE.healPerLevel * r.levelsGained, this.maxLives);
+    if ((this.levelUpQueue > 0 || this.lootCards) && !this.levelUpOpen) this.openLevelUp();
   }
 
   /** Пауза гри і вікно вибору картки (по одному на кожен набраний рівень). */
@@ -342,7 +379,7 @@ export default class GameScene extends Phaser.Scene {
       }
     }
     const w = BALANCE.wallWidth;
-    const [left, right] = this.walls.getChildren();
+    const [left, right] = this.wallTiles;
     this.bg.setSize(width - 2 * w, height).setPosition(width / 2, height / 2);
     left.setSize(w, height).setPosition(w / 2, height / 2);
     right.setSize(w, height).setPosition(width - w / 2, height / 2);
@@ -407,10 +444,11 @@ export default class GameScene extends Phaser.Scene {
     if (invisible) this.player.setAlpha(BALANCE.skills.invisibility.alpha);
     else if (this.wasInvisible) this.player.setAlpha(1);
     this.wasInvisible = invisible;
-    const poisoned = isPoisoned(this.status, now);
-    if (poisoned !== this.player.poisonTinted) {
-      this.player.poisonTinted = poisoned;
-      if (poisoned) this.player.setTint(POISON_TINT);
+    // ричання ведмедя важливіше за отруту: від нього стрибок утричі повільніший
+    const tint = isRoared(this.status, now) ? ROAR_TINT : isPoisoned(this.status, now) ? POISON_TINT : null;
+    if (tint !== this.player.statusTint) {
+      this.player.statusTint = tint;
+      if (tint !== null) this.player.setTint(tint);
       else this.player.clearTint();
     }
   }
@@ -450,7 +488,7 @@ export default class GameScene extends Phaser.Scene {
         this.pendingPlants -= 1;
         this.spawnEnemy(new Plant(this, side, y));
       } else {
-        this.hazards.add(new Spike(this, side, y));
+        this.hazards.add(new Spike(this, side, y, TEX[this.biome].spike));
       }
     }
   }
@@ -473,7 +511,7 @@ export default class GameScene extends Phaser.Scene {
     const close = inZone ? inRadius(this.player, inZone, radius * BALANCE.weapons.axe.triggerFrac, size) : null;
     const r = stepFire(this.fireState, dt, {
       main,
-      fireIntervalMs: this.weapon.fireIntervalMs,
+      fireIntervalMs: this.weapon.fireIntervalMs * fireIntervalMul(this.status, this.nowMs),
       upgrades,
       hasTarget: close ? close.length > 0 : targets.length > 0,
     });
@@ -535,7 +573,7 @@ export default class GameScene extends Phaser.Scene {
   /** Перед босом: шипи, звичайні вороги й їхні кулі плавно зникають (без нагород, без зіткнень). */
   clearMap() {
     this.pendingPlants = 0;
-    for (const group of [this.hazards, this.enemies, this.enemyProjectiles]) {
+    for (const group of [this.hazards, this.enemies, this.enemyProjectiles, this.pickups]) {
       for (const obj of group.getChildren().slice()) {
         group.remove(obj);
         if (obj.body) obj.body.enable = false;
@@ -578,9 +616,100 @@ export default class GameScene extends Phaser.Scene {
       // лев біжить по стіні, де гравця НЕМАЄ: загроза — ривок, від якого можна відскочити,
       // а не удар знизу по власній стіні, коли згори йдуть шипи
       if (type === 'lion') this.spawnEnemy(new Lion(this, this.player.side === 'left' ? 'right' : 'left'));
-      else if (type === 'bat') this.spawnEnemy(new Bat(this));
+      else if (type === 'bat') this.spawnEnemy(new Bat(this, { winter: this.biome === 'winter' }));
       else if (type === 'plant') this.pendingPlants += 1;
+      else if (type === 'elf') this.spawnEnemy(new Elf(this));
+      else if (type === 'bear') this.spawnEnemy(new Bear(this));
+      else if (type === 'penguin') this.spawnPenguins();
     }
+    if (this.biome === 'winter') this.spawnWinterExtras();
+  }
+
+  /** Пінгвіни групою 1–3: один за одним згори, з невеликим розкидом по x. */
+  spawnPenguins() {
+    const { width } = this.scale;
+    const tex = this.textures.getFrame('penguin');
+    const minX = BALANCE.wallWidth + tex.width / 2;
+    const x0 = Phaser.Math.FloatBetween(minX + PENGUIN_SPREAD_X, width - minX - PENGUIN_SPREAD_X);
+    const n = penguinGroup(Math.random);
+    for (let i = 0; i < n; i++) {
+      const x = x0 + Phaser.Math.FloatBetween(-PENGUIN_SPREAD_X, PENGUIN_SPREAD_X);
+      this.spawnEnemy(new Penguin(this, x, -tex.height / 2 - i * PENGUIN_GAP_Y, penguinHp(Math.random)));
+    }
+  }
+
+  /** Зима: Санта (шанс щохвилини) і подарунки на траєкторії стрибка. */
+  spawnWinterExtras() {
+    const suppressed = hazardsSuppressed(this.stage);
+    const s = santaDue(this.santaState, this.elapsedSec, Math.random, suppressed);
+    this.santaState = s.state;
+    if (s.spawn) {
+      this.spawnEnemy(new Santa(this));
+      sfx('jingle');
+      this.events.emit('hud:banner', { text: 'Санта!', ms: 1200 });
+    }
+    const g = giftDue(this.giftState, this.nowMs, Math.random, suppressed);
+    this.giftState = g.state;
+    if (g.spawn) {
+      const w = BALANCE.wallWidth;
+      const gift = new Gift(this, giftX(Math.random, w, this.scale.width - w), -this.textures.getFrame('gift').height / 2);
+      this.pickups.add(gift);
+    }
+  }
+
+  collectGift(gift) {
+    if (this.paused || this.dead || !gift.active) return;
+    gift.destroy();
+    sfx('gift');
+    this.gainXp(BALANCE.winter.gift.xp);
+  }
+
+  /** Ричання ведмедя дістало слизака (невидимого — ні). */
+  roarPlayer() {
+    if (this.dead || isInvisible(this.invis, this.nowMs)) return;
+    this.status = roar(this.status, this.nowMs);
+  }
+
+  /** Перехід у новий біом: розклад ворогів, бурульки, плавна зміна фону й стін, сніг. */
+  enterBiome(biome) {
+    const from = this.biome;
+    this.biome = biome;
+    // після павучихи — тиша calmSec; перші появи зими рахуються від її кінця
+    const startSec = this.startWinter ? 0 : this.elapsedSec + BALANCE.boss.calmSec;
+    this.spawnState = createSpawnState(biome, startSec);
+    if (biome === 'winter') {
+      this.santaState = createSantaState(startSec);
+      this.giftState = createGiftState(startSec * 1000);
+      if (this.settings.snow && !this.snow) this.snow = new Snow(this);
+    }
+    const instant = from === biome || this.elapsedSec < 0.5;
+    this.swapTiles(TEX[biome], instant ? 0 : BALANCE.winter.transitionMs);
+    if (!instant) this.events.emit('hud:banner', { text: biome === 'winter' ? 'Зима' : '', ms: 1800 });
+  }
+
+  /** Нові фон і стіни проявляються поверх старих за ms, старі потім знищуються. */
+  swapTiles(tex, ms) {
+    const make = (old, key) => {
+      const t = this.add.tileSprite(old.x, old.y, old.width, old.height, key).setFlipX(old.flipX).setDepth(old.depth);
+      t.tilePositionY = old.tilePositionY;
+      return t;
+    };
+    const fade = (old, next, group) => {
+      group.add(next);
+      if (ms <= 0) {
+        group.remove(old, true, true);
+        return;
+      }
+      next.setAlpha(0);
+      this.tweens.add({ targets: next, alpha: 1, duration: ms, onComplete: () => group.remove(old, true, true) });
+    };
+    const bg = make(this.bg, tex.bg);
+    fade(this.bg, bg, this.bgTiles);
+    this.bg = bg;
+    this.bgInfo = background(tex.bg);
+    const walls = this.wallTiles.map((old) => make(old, tex.wall));
+    this.wallTiles.forEach((old, i) => fade(old, walls[i], this.walls));
+    this.wallTiles = walls;
   }
 
   /** Вбивство для мета-прогресу: Шаги, лічильник, досягнення (тост у HUD). */
@@ -625,7 +754,7 @@ export default class GameScene extends Phaser.Scene {
     for (const wall of this.walls.getChildren()) {
       wall.tilePositionY -= dy;
     }
-    this.bg.tilePositionY -= dy * this.bgInfo.parallax;
+    for (const bg of this.bgTiles.getChildren()) bg.tilePositionY -= dy * this.bgInfo.parallax;
   }
 
   update(time, delta) {
@@ -634,6 +763,8 @@ export default class GameScene extends Phaser.Scene {
     this.elapsedSec += dt / 1000;
     const stage = bossStage(this.elapsedSec, { atSec: this.bossAtSec, killedAtSec: this.killedAtSec });
     if (stage !== this.stage) this.onStage(stage);
+    const biome = biomeAt({ killedAtSec: this.killedAtSec, startWinter: this.startWinter });
+    if (biome !== this.biome) this.enterBiome(biome);
     if (!this.bannerShown && bannerVisible(this.elapsedSec, this.bossAtSec)) this.showBossBanner();
     if (stage === 'fight' && !this.bossSpawned) this.startBoss();
     this.currentScroll = scrollSpeed(this.elapsedSec, this.bossActive);
@@ -643,6 +774,7 @@ export default class GameScene extends Phaser.Scene {
     this.player.step(dt);
     this.weaponView.update();
     this.scrollObjects(dy);
+    this.snow?.step(dt, dy);
     this.spawnSpikes();
     this.spawnEnemies();
     this.autoFire(dt);

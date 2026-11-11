@@ -5,15 +5,20 @@ import { animKey } from '../art/sprites/index.js';
 
 const CFG = BALANCE.enemies.bat;
 
-/** Кажан: з'являється над екраном і щокадру летить прямо до гравця. Шкода — тільки дотиком. */
+/**
+ * Кажан: з'являється над екраном і щокадру летить прямо до гравця. Шкода — тільки дотиком.
+ * winter — зимовий кажан (етап 6a): HP і швидкість з BALANCE.winter.bat.
+ */
 export default class Bat extends Enemy {
-  constructor(scene) {
+  constructor(scene, { winter = false } = {}) {
     const { width } = scene.scale;
     const tex = scene.textures.getFrame('bat');
     const minX = BALANCE.wallWidth + tex.width / 2;
     const x = Phaser.Math.FloatBetween(minX, width - minX);
     super(scene, x, -tex.height / 2, 'bat', 'bat');
     this.scrollsWithWorld = false;
+    this.winterMul = winter ? BALANCE.winter.bat.speedMul : 1;
+    if (winter) this.hp = BALANCE.winter.bat.hp;
     // різний стартовий кадр — зграя не махає крилами синхронно
     this.play({ key: animKey('bat', 'fly'), startFrame: Phaser.Math.Between(0, 1) });
   }
@@ -24,7 +29,7 @@ export default class Bat extends Enemy {
     const p = this.scene.player;
     // світ пізніше мчить униз швидше — кажан пришвидшується разом із ним, інакше на фоні стін він ніби завмирає
     const extra = CFG.scrollK * Math.max(this.scene.currentScroll - BALANCE.scrollBase, 0);
-    const speed = (CFG.speed + extra) * this.speedMul(this.scene.nowMs);
+    const speed = (CFG.speed + extra) * this.winterMul * this.speedMul(this.scene.nowMs);
     const angle = Phaser.Math.Angle.Between(this.x, this.y, p.x, p.y);
     this.scene.physics.velocityFromRotation(angle, speed, this.body.velocity);
     this.setFlipX(p.x < this.x);

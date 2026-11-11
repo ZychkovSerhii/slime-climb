@@ -1,6 +1,7 @@
 // Бот-плейтест: справжня гра в headless Chromium, бот сам стрибає і вибирає картки.
 // Смерть вимкнена: рахуємо кожен удар (з джерелом і часом), щоб оцінити, чи реально дожити до боса і вбити його.
-// Використання: node scripts/playtest.mjs [--seconds 160] [--runs 1] [--no-enemies] [--weapon axe|chakra|shotgun] [--cards hat,hat,extraLife]
+// Використання: node scripts/playtest.mjs [--seconds 160] [--runs 1] [--no-enemies] [--weapon axe|chakra|shotgun] [--cards hat,hat,extraLife] [--winter]
+// --winter — одразу зимовий біом без павучихи (?winter=1)
 // Потрібен браузер Playwright (npx playwright install chromium) або CHROME_PATH.
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
@@ -16,6 +17,7 @@ const wIdx = process.argv.indexOf('--weapon');
 const WEAPON = wIdx > -1 ? process.argv[wIdx + 1] : null; // з цією зброєю з першої секунди
 const cIdx = process.argv.indexOf('--cards');
 const CARDS = cIdx > -1 ? process.argv[cIdx + 1] : null; // з цими картками з першої секунди (?cards=)
+const WINTER = process.argv.includes('--winter');
 
 // Код бота виконується всередині сторінки (dev-режим дає window.game)
 function installBot() {
@@ -53,6 +55,20 @@ function installBot() {
 
   // фази боса: коли почався і скінчився рій (невразливість), коли лють
   report.boss = [];
+  report.winter = { roars: 0, gifts: 0, santa: 0 };
+  const origRoar = s.roarPlayer.bind(s);
+  s.roarPlayer = function () {
+    report.winter.roars += 1;
+    return origRoar();
+  };
+  const origGift = s.collectGift.bind(s);
+  s.collectGift = function (g) {
+    if (g.active) report.winter.gifts += 1;
+    return origGift(g);
+  };
+  s.events.on('hud:banner', (b) => {
+    if (b?.text === 'Санта!') report.winter.santa += 1;
+  });
   let immune = false;
   s.events.on('hud:boss', (b) => {
     if (b && b.invulnerable !== immune) {
@@ -64,7 +80,8 @@ function installBot() {
 
   const HALF_P = 24;
   const MARGIN = 10; // запас прогнозу, px
-  const JUMP = 0.38;
+  // тривалість стрибка залежить від стану (ричання ведмедя — утричі довший)
+  const jumpT = () => 0.38 / (s.player.speedMul || 1);
   const HORIZON = 1.2;
 
   /** Чи зачепить об'єкт o гравця, якщо той стоїть у (x, y) в момент t (сек від зараз). */
@@ -85,7 +102,7 @@ function installBot() {
   function threats() {
     const p = s.player;
     return [...s.hazards.getChildren(), ...s.enemies.getChildren(), ...s.enemyProjectiles.getChildren()].filter(
-      (o) => o.active && !(CHASERS.has(o.type) && Math.hypot(o.x - p.x, o.y - p.y) > CHASER_RANGE),
+      (o) => o.active && !o.harmless && !(CHASERS.has(o.type) && Math.hypot(o.x - p.x, o.y - p.y) > CHASER_RANGE),
     );
   }
 
@@ -104,21 +121,21 @@ function installBot() {
     const from = s.player.wallX(s.player.side);
     const other = s.player.side === 'left' ? 'right' : 'left';
     const to = s.player.wallX(other);
-    for (let t = 0; t <= JUMP; t += 0.03) {
-      const k = t / JUMP;
+    for (let t = 0; t <= jumpT(); t += 0.03) {
+      const k = t / jumpT();
       const x = from + (to - from) * k;
       const y = s.player.baseY - 80 * Math.sin(Math.PI * k);
       for (const o of list) if (hitsAt(o, x, y, t, s.currentScroll)) return t;
     }
-    return dangerOnWall(other, JUMP, horizon, list);
+    return dangerOnWall(other, jumpT(), horizon, list);
   }
 
   const STEP = 0.05;
   const N = Math.round(2.5 / STEP);
-  const J = Math.round(JUMP / STEP);
 
   /** Пошук на 2,5 с уперед: чи можна вижити, якщо зараз стояти / стрибнути. */
   function plan(list) {
+    const J = Math.round(jumpT() / STEP);
     const sides = ['left', 'right'];
     const scroll = s.currentScroll;
     const y = s.player.baseY;
@@ -161,7 +178,14 @@ function installBot() {
     if (s.bossActive && report.bossStart === null) report.bossStart = +s.elapsedSec.toFixed(1);
     report.maxLevel = Math.max(report.maxLevel, s.progression.level);
     const list = threats();
-    const decision = plan(list);
+    let decision = plan(list);
+    // як людина: ведмідь став на лапи і слизак у колі — тікаємо на іншу стіну, якщо там безпечно
+    const rearing = s.enemies.getChildren().find((o) => o.type === 'bear' && o.rearUntil != null && Math.hypot(o.x - s.player.x, o.y - s.player.y) < 300);
+    if (rearing && decision === 'stay') {
+      const other = s.player.side === 'left' ? 'right' : 'left';
+      const ox = s.player.wallX(other);
+      if (Math.hypot(rearing.x - ox, rearing.y - s.player.baseY) > 300 && safeIfJump(list, 1.2) > 1.0) decision = 'jump';
+    }
     report.decisions = report.decisions || {};
     report.decisions[decision] = (report.decisions[decision] || 0) + 1;
     if (decision === 'jump') s.player.jump();
@@ -221,7 +245,7 @@ for (let r = 0; r < RUNS; r++) {
   const page = await browser.newPage({ viewport: { width: 360, height: 640 } });
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  const q = [WEAPON && `weapon=${WEAPON}`, CARDS && `cards=${CARDS}`].filter(Boolean).join('&');
+  const q = [WEAPON && `weapon=${WEAPON}`, CARDS && `cards=${CARDS}`, WINTER && 'winter=1'].filter(Boolean).join('&');
   await page.goto(q ? `${url}?${q}` : url);
   await page.waitForTimeout(800);
   await page.mouse.click(180, 320); // меню → гра
@@ -264,6 +288,7 @@ for (const [i, rep] of results.entries()) {
   console.log(`  hit times:`, rep.hits.map((h) => `${h.t}(${h.src})`).join(' '));
   console.log(`  Шаги: ${rep.steps} (на першій смерті: ${rep.stepsAtDeath ?? '-'}), вбивства: ${JSON.stringify(rep.kills ?? {})}`);
   if (rep.relics) console.log(`  relics: ${rep.relics.join(', ')}`);
+  console.log(`  зима: ричань по гравцю ${rep.winter.roars}, подарунків ${rep.winter.gifts}, Санта ${rep.winter.santa}`);
   console.log(`  boss start ${rep.bossStart ?? '-'}, boss killed ${rep.bossKilled ?? '-'}, phases: ${rep.boss.join(' ') || '-'}`);
   console.log(`  picks: ${rep.picks.join(', ')}`, 'decisions', JSON.stringify(rep.decisions), 'panicBy', JSON.stringify(rep.panicBy));
   if (rep.errors.length) console.log('  ERRORS:', rep.errors);

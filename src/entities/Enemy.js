@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 import { BALANCE } from '../config/balance.js';
 import { applyDot, stepDot } from '../systems/Skills.js';
+import { wrapAxis } from '../systems/Biome.js';
 
 const SLOW_TINT = 0x6fa8ff;
 const ICE_TINT = 0xa8ecff; // «Крижана атака»: ворог блідо-блакитний, «у кризі»
@@ -31,7 +32,32 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
     this.dot = null;
     this.iceUntil = 0;
     this.frost = null;
+    // зима: перехід за край (wrapEdges), harmless — дотик не шкодить (Санта)
+    this.wrapsLeft = BALANCE.enemies[type]?.wraps ?? 0;
+    this.harmless = false;
   }
+
+  /**
+   * Перехід за край (етап 6a): вилетів за верх/низ (axis 'x' — за бічний край) → з'являється з протилежного боку,
+   * не більше wraps разів, далі зникає. Повертає false, якщо ворога знищено. Після переходу — onWrapped().
+   */
+  wrapEdges(axis = 'y') {
+    const m = BALANCE.offscreenMarginPx;
+    const { width, height } = this.scene.scale;
+    const r = wrapAxis(this[axis], 0, axis === 'y' ? height : width, m, this.wrapsLeft);
+    if (r.gone) {
+      this.destroy();
+      return false;
+    }
+    if (r.wrapped) {
+      this[axis] = r.pos;
+      this.wrapsLeft = r.wrapsLeft;
+      this.onWrapped();
+    }
+    return true;
+  }
+
+  onWrapped() {}
 
   setBaseTint(color) {
     this.baseTint = color;
