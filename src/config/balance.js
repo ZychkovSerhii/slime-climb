@@ -71,7 +71,9 @@ export const BALANCE = deepFreeze({
     bear: {
       hp: 12, xp: 10, points: 120, speed: 170, wraps: 2,
       rearFirstMs: 1200, rearEveryMs: 4500, warnMs: 800, roarRadiusPx: 300,
-      roar: { durationMs: 5000, speedMul: 0.3, fireMul: 0.7 },
+      // Після фідбеку: було 5000/0.3/0.7 — задуже сильно (і довше за rearEveryMs, тобто поруч сповільнення не спадало).
+      // Інваріант (тест): durationMs < rearEveryMs, між ричаннями є вікно без статусу.
+      roar: { durationMs: 2500, speedMul: 0.6, fireMul: 0.85 },
     },
     // Пінгвін: ковзає на пузі в точку, де був гравець; з'являються групою до groupMax
     penguin: { hp: 3, hpMax: 4, xp: 3, points: 30, speed: 320, groupMax: 3, groupGapMs: 350, wraps: 2 },
