@@ -10,5 +10,6 @@ export function killPoints(type) {
   if (type === 'boss') return BALANCE.boss.points;
   if (type === 'shkodko') return BALANCE.shkodko.points;
   if (type === 'kolya') return BALANCE.kolya.points;
+  if (type === 'bear') return BALANCE.bearBoss.points;
   return BALANCE.enemies[type]?.points ?? 0;
 }

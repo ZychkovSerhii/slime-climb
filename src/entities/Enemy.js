@@ -35,7 +35,7 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
     // швидкість руху ×1,08 за коло (scene.loop — номер кола з 0)
     const loop = scene.loop ?? 0;
     this.biomeIdx = scene.biomeIdx ?? 0;
-    this.hp = this.isBoss ? bossHp(BOSS_CFG[type].hp, loop) : enemyHp(BALANCE.enemies[type].hp, this.biomeIdx);
+    this.hp = this.isBoss ? bossHp(BOSS_CFG[type].hp, loop) : enemyHp(BALANCE.enemies[type]?.hp ?? 1, this.biomeIdx);
     this.loopSpeed = loopMul(loop).speed;
     // властивість посиленого ворога (з кола 1): холодний відтінок і зірочка; боси — +1 атака (кожен сам читає this.enhanced)
     this.enhanced = enhanced(loop);

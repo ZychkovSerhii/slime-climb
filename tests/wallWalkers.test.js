@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { BALANCE } from '../src/config/balance.js';
-import { meetInterval, otherSide, spikesBlock, walkerSide, walkerSpeedRange } from '../src/systems/WallWalkers.js';
+import { otherSide, spikesBlock, walkerSide } from '../src/systems/WallWalkers.js';
 import { createSpikeState, planSpikes, reserveFree } from '../src/systems/SpikePlanner.js';
 import { killXp, xpToNext } from '../src/systems/Progression.js';
 import { giftXp, rollGift } from '../src/systems/Biome.js';
@@ -18,48 +18,6 @@ describe('wall walkers: side', () => {
   test('all walkers share one wall even if the player moved', () => {
     expect(walkerSide('right', 'right')).toBe('right');
     expect(otherSide('left')).toBe('right');
-  });
-});
-
-describe('wall walkers: meet interval', () => {
-  const zoneY = 1280 * BALANCE.playerYRatio;
-
-  // Чесна симуляція: ходок щокроку змінює швидкість у межах [vMin, vMax] (крига, павутина, ричання);
-  // місце, де він на висоті гравця, мусить лежати в інтервалі.
-  for (const type of ['bear', 'penguin']) {
-    for (const scroll of [BALANCE.scrollBase, 200, BALANCE.maxScrollSpeed]) {
-      test(`${type} at scroll ${scroll}: meeting point always inside`, () => {
-        const rng = lcg(7);
-        const { vMin, vMax } = walkerSpeedRange(type, BALANCE.cycle.speedMul ** 3);
-        for (let run = 0; run < 200; run++) {
-          const d0 = 5000;
-          const y0 = -40;
-          const w0 = d0 - y0;
-          const iv = meetInterval({ w0, halfLen: 32, d0, zoneY, scroll, vMin, vMax });
-          let w = w0;
-          let d = d0;
-          for (let t = 0; t < 60; t += 0.02) {
-            const v = vMin + (vMax - vMin) * rng();
-            w += v * 0.02;
-            d += scroll * 0.02;
-            if (d - zoneY >= w) break; // гравець наздогнав ходока
-          }
-          expect(w).toBeGreaterThanOrEqual(iv.from);
-          expect(w).toBeLessThanOrEqual(iv.to);
-        }
-      });
-    }
-  }
-
-  test('bear is slower than any scroll (otherwise the player could never pass it)', () => {
-    expect(walkerSpeedRange('bear', BALANCE.cycle.speedMul ** 10).vMax).toBeLessThan(BALANCE.scrollBase);
-  });
-
-  test('bear interval lies above the screen top: no already placed spike can conflict', () => {
-    const d0 = 5000;
-    const iv = meetInterval({ w0: d0 + 40, halfLen: 32, d0, zoneY, scroll: BALANCE.scrollBase, ...walkerSpeedRange('bear') });
-    // нижня межа — з запасом, але вище за найнижчий шип, який міг стояти біля гравця
-    expect(iv.from).toBeGreaterThan(d0 - zoneY);
   });
 });
 

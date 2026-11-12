@@ -8,13 +8,13 @@ describe('коло біомів', () => {
   test('печера з павучихою → зима зі Шкодьком → бамбук з Колею → печера наступного кола', () => {
     const s0 = firstSegment();
     expect(s0).toMatchObject({ biome: 'cave', boss: 'spider', atSec: B.atSec, loop: 0 });
-    const s1 = nextSegment(s0, 130);
+    const s1 = nextSegment(nextSegment(s0, 130), 230); // етап 10: між ними ведмідь
     expect(s1).toMatchObject({ biome: 'winter', boss: 'shkodko', atSec: 130 + BALANCE.shkodko.afterSec, loop: 0, startSec: 130 });
     const s2 = nextSegment(s1, 400);
     expect(s2).toMatchObject({ biome: 'bamboo', boss: 'kolya', atSec: 400 + BALANCE.kolya.afterSec, loop: 0, startSec: 400 });
     const s3 = nextSegment(s2, 700);
     expect(s3).toMatchObject({ biome: 'cave', boss: 'spider', atSec: 700 + B.atSec, loop: 1 });
-    expect(nextSegment(s3, 900)).toMatchObject({ boss: 'shkodko', loop: 1 });
+    expect(nextSegment(s3, 900)).toMatchObject({ boss: 'bear', loop: 1 });
   });
 
   test('режими перевірки', () => {

@@ -3,10 +3,10 @@ import { BALANCE } from '../config/balance.js';
 import { scrollSpeed } from '../systems/Difficulty.js';
 import { createSpawnState, dueSpawns } from '../systems/Spawner.js';
 import { afterBossSpawnMul, bannerVisible, hazardsSuppressed } from '../systems/BossPlanner.js';
-import { biomeIndex, firstSegment, loopMul, nextSegment, runStage } from '../systems/Cycle.js';
+import { biomeIndex, firstSegment, nextSegment, runStage } from '../systems/Cycle.js';
 import { createStatus, fireIntervalMul, isPoisoned, isRoared, playerSpeedMul, poison, roar } from '../systems/Status.js';
-import { createGiftState, createSantaState, giftDue, giftX, giftXp, penguinGroup, penguinHp, rollGift, santaDue, xpToLevelUp } from '../systems/Biome.js';
-import { meetInterval, ninjaInterval, otherSide, spikesBlock, walkerSide, walkerSpeedRange, worldOf } from '../systems/WallWalkers.js';
+import { createGiftState, createSantaState, giftDue, giftX, giftXp, penguinHp, rollGift, santaDue, xpToLevelUp } from '../systems/Biome.js';
+import { ninjaInterval, otherSide, spikesBlock } from '../systems/WallWalkers.js';
 import { ninjaDodgeWindow, ninjaY } from '../systems/Bamboo.js';
 import { loadSettings } from '../systems/Settings.js';
 import { addXp, applyCard, cardUpgrade, createProgression, killXp, rollLevelUp, weaponCard, weaponUpgrades, xpToNext } from '../systems/Progression.js';
@@ -35,9 +35,9 @@ import Plant from '../entities/Plant.js';
 import SpiderBoss from '../entities/SpiderBoss.js';
 import ShkodkoBoss from '../entities/ShkodkoBoss.js';
 import KolyaBoss from '../entities/KolyaBoss.js';
+import BearBoss from '../entities/BearBoss.js';
 import WeaponView from '../entities/WeaponView.js';
 import Elf from '../entities/Elf.js';
-import Bear from '../entities/Bear.js';
 import Penguin from '../entities/Penguin.js';
 import Santa from '../entities/Santa.js';
 import Gift from '../entities/Gift.js';
@@ -74,11 +74,13 @@ const HAT_STACK = 12;
 const OKSANA_TINT = 0xffa8d8; // Оксанка — рожевувата, щоб не плутати з ворожими павучками
 const LARVA_SHOT_TINT = 0xb4ff8a; // плювок «Личинки-помічника» — зелений, як постріли слизака, а не рожевий ворожий
 // Боси (етап 9 — третій): тип у події 'enemy:killed' → ключ відрізка, ім'я, клас, трофеї
-const BOSS_OF_KILL = { boss: 'spider', shkodko: 'shkodko', kolya: 'kolya' };
+const BOSS_OF_KILL = { boss: 'spider', shkodko: 'shkodko', kolya: 'kolya', bear: 'bear' };
 const BOSSES = {
   spider: { name: BALANCE.boss.name, make: (s) => new SpiderBoss(s), loot: (relics) => rollLoot(relics, Math.random) },
   shkodko: { name: BALANCE.shkodko.name, make: (s) => new ShkodkoBoss(s), loot: (relics) => rollLoot(relics, Math.random, SHKODKO_LOOT_IDS, BALANCE.shkodkoLoot.offer) },
   kolya: { name: BALANCE.kolya.name, make: (s) => new KolyaBoss(s), loot: (relics) => rollLoot(relics, Math.random, KOLYA_LOOT_IDS, BALANCE.kolyaLoot.offer) },
+  // етап 10: міні-бос без трофеїв (і без бонусу Шагів «трофеї вже твої»)
+  bear: { name: BALANCE.bearBoss.name, make: (s) => new BearBoss(s), loot: null },
 };
 
 export default class GameScene extends Phaser.Scene {
@@ -132,10 +134,10 @@ export default class GameScene extends Phaser.Scene {
     // Перевірка: ?boss=1 — павучиха на 6-й с, ?winter=1 — зима без боса, ?shkodko=1 — зима і Шкодько на 6-й с,
     // ?bamboo=1 — бамбук без боса, ?kolya=1 — бамбук і Коля на 6-й с (етап 9).
     const q = new URLSearchParams(window.location.search);
-    const start = ['kolya', 'bamboo', 'shkodko', 'winter'].find((k) => q.get(k) === '1') ?? (q.get('boss') === '1' ? 'spider' : 'cave');
+    const start = ['bear', 'kolya', 'bamboo', 'shkodko', 'winter'].find((k) => q.get(k) === '1') ?? (q.get('boss') === '1' ? 'spider' : 'cave');
     this.seg = firstSegment(start);
     this.walkerSeq = 0;
-    this.walkerQueue = []; // ходоки по стінах, що чекають, поки на безпечній стіні розійдуться шипи (фідбек-3)
+    this.walkerQueue = []; // ніндзя, що чекають, поки на їхній стіні розійдуться шипи (етап 9)
     this.loop = 0; // номер кола з 0: вороги й боси міцніші (Enemy читає scene.loop)
     this.stage = 'before';
     this.bossSpawned = false;
@@ -197,6 +199,8 @@ export default class GameScene extends Phaser.Scene {
     const hurt = () => this.hurtPlayer();
     this.physics.add.overlap(this.player, this.hazards, hurt);
     this.physics.add.overlap(this.player, this.enemies, (player, enemy) => {
+      if (this.paused || !enemy.active) return;
+      enemy.onTouch?.(); // аура ведмедя сповільнює (етап 10)
       if (enemy.harmless) return; // Санта не б'є
       // отрута — лише коли удар справді пройшов (не під час невразливості)
       if (this.hurtPlayer() && enemy.poisons) this.poisonPlayer();
@@ -681,7 +685,8 @@ export default class GameScene extends Phaser.Scene {
   showBossBanner() {
     this.bannerShown = true;
     sfx('bossAppear');
-    this.events.emit('hud:banner', { text: `БОС: ${BOSSES[this.seg.boss].name}`, ms: BALANCE.boss.bannerSec * 1000 });
+    const kind = this.seg.boss === 'bear' ? 'МІНІ-БОС' : 'БОС';
+    this.events.emit('hud:banner', { text: `${kind}: ${BOSSES[this.seg.boss].name}`, ms: BALANCE.boss.bannerSec * 1000 });
   }
 
   startBoss() {
@@ -701,25 +706,47 @@ export default class GameScene extends Phaser.Scene {
     this.loop = this.seg.loop;
     this.bossSpawned = false;
     this.bannerShown = false;
-    // бомби, що ще лежать, гаснуть разом з босом; малі слимаки Колі й краплі — теж
-    for (const b of this.bombs.getChildren().slice()) b.destroy();
-    for (const e of this.enemies.getChildren().slice()) if (e.kolyaMinion) this.fadeOut(e, this.enemies);
-    for (const p of this.enemyProjectiles.getChildren().slice()) this.fadeOut(p, this.enemyProjectiles);
+    this.clearBossAttacks();
     // унікальні картки боса: 2 з ще не взятих (кожна — раз за забіг). У Шкодька й Колі їх лише 2, тож на наступному колі
-    // пропонується та, яку не взяли. Усе вже взято — +50% Шагів боса (§0).
+    // пропонується та, яку не взяли. Усе вже взято — +50% Шагів боса (§0). Ведмідь (етап 10) трофеїв не має.
     const boss = BOSSES[BOSS_OF_KILL[type]];
-    const loot = boss.loot(this.progression.relics);
-    this.lootCards = loot.length ? loot : null;
-    this.lootTitle = `Трофей: ${boss.name}`;
-    const bonus = lootStepsBonus(stepsForKill(type), loot);
-    if (bonus) {
-      this.meta = { ...this.meta, steps: this.meta.steps + bonus };
-      this.runSteps += bonus;
-      saveMeta(this.storage, this.meta);
-      this.floatText(`+${bonus} Шагів: трофеї вже твої`, '#f2c440');
+    if (boss.loot) {
+      const loot = boss.loot(this.progression.relics);
+      this.lootCards = loot.length ? loot : null;
+      this.lootTitle = `Трофей: ${boss.name}`;
+      const bonus = lootStepsBonus(stepsForKill(type), loot);
+      if (bonus) {
+        this.meta = { ...this.meta, steps: this.meta.steps + bonus };
+        this.runSteps += bonus;
+        saveMeta(this.storage, this.meta);
+        this.floatText(`+${bonus} Шагів: трофеї вже твої`, '#f2c440');
+      }
     }
     this.events.emit('hud:boss', null);
     playMusic('victory');
+  }
+
+  /**
+   * Смерть боса (етап 10, §10.4, для всіх): зникають усі ворожі снаряди, бомби й прислужники боса (рій, малі слимаки,
+   * миші й аура ведмедя), і bossKillGraceMs гравця нічого не б'є. Звичайні вороги лишаються.
+   */
+  clearBossAttacks() {
+    for (const b of this.bombs.getChildren().slice()) b.destroy();
+    for (const e of this.enemies.getChildren().slice()) if (e.kolyaMinion || e.bossMinion) this.fadeOut(e, this.enemies);
+    for (const p of this.enemyProjectiles.getChildren().slice()) this.fadeOut(p, this.enemyProjectiles);
+    const until = this.nowMs + BALANCE.bossKillGraceMs;
+    this.health = { ...this.health, invulnerableUntil: Math.max(this.health.invulnerableUntil, until) };
+  }
+
+  /** Ведмідь на 20% HP: 2 зимові летючі миші з верхніх кутів (прислужники — зникають разом з ним). */
+  spawnBearBats() {
+    const { width } = this.scale;
+    const m = BALANCE.wallWidth + 30;
+    for (let i = 0; i < BALANCE.bearBoss.bats; i++) {
+      const bat = this.spawnEnemy(new Bat(this, { biome: 'winter', x: i % 2 ? width - m : m, y: -20 }));
+      bat.bossMinion = true;
+    }
+    sfx('bossAppear');
   }
 
   /** Звичайні вороги за розкладом Spawner. */
@@ -736,7 +763,7 @@ export default class GameScene extends Phaser.Scene {
       else if (type === 'ninja') this.requestNinja();
       else if (type === 'plant') this.pendingPlants += 1;
       else if (type === 'elf') this.spawnEnemy(new Elf(this));
-      else if (type === 'bear' || type === 'penguin') this.requestWalker(type);
+      else if (type === 'penguin') this.spawnPenguins();
     }
     this.stepWalkers();
     if (this.biome === 'winter') this.spawnWinterExtras();
@@ -763,12 +790,18 @@ export default class GameScene extends Phaser.Scene {
     this.pickups.add(new HeartPickup(this, side, y));
   }
 
-  // ---------- Ходоки по стінах (фідбек-3): ведмідь і пінгвіни ----------
+  // ---------- Ніндзя в черзі (етап 9): з'являється, коли на його стіні біля гравця немає кілків ----------
 
-  /** Стіна, яку вже займають ходоки (активні чи в черзі), або null. */
-  walkerWall() {
-    const active = this.enemies.getChildren().find((e) => e.active && e.walker);
-    return active?.side ?? this.walkerQueue.find((q) => q.type !== 'ninja')?.side ?? null;
+  /**
+   * Пінгвін (етап 10, §10.3): вгорі біля стіни, де гравця немає; посилений (коло 1+) — парою з різницею pairGapMs.
+   */
+  spawnPenguins() {
+    const side = otherSide(this.player.side);
+    this.spawnEnemy(new Penguin(this, side, penguinHp(Math.random)));
+    const t = this.loop >= BALANCE.scaling.enhancedFromLoop ? BALANCE.traits.penguin : null;
+    if (t) this.time.delayedCall(t.pairGapMs, () => {
+      if (!this.dead && !hazardsSuppressed(this.stage)) this.spawnEnemy(new Penguin(this, side, penguinHp(Math.random)));
+    });
   }
 
   /**
@@ -784,7 +817,6 @@ export default class GameScene extends Phaser.Scene {
   /** Крок ніндзі в черзі: true — ще чекає. */
   stepNinja(q, spikes) {
     const side = otherSide(this.player.side);
-    const walker = this.walkerWall();
     if (q.side && q.side !== side) this.spikeState = reserveFree(this.spikeState, q.side, 0, -1, this.distancePx, q.id); // гравець перестрибнув
     q.side = side;
     const p = this.player;
@@ -795,7 +827,7 @@ export default class GameScene extends Phaser.Scene {
     // інакше нові шипи згори заходять у нього швидше, ніж старі виходять
     const waitSec = Math.max(q.until - this.nowMs, 0) / 1000;
     this.spikeState = reserveFree(this.spikeState, side, iv.from, iv.to + scroll * waitSec, this.distancePx, q.id);
-    if ((walker && walker !== side) || spikesBlock(spikes, side, iv, this.distancePx)) {
+    if (spikesBlock(spikes, side, iv, this.distancePx)) {
       if (this.nowMs < q.until) return true;
       this.spikeState = reserveFree(this.spikeState, side, 0, -1, this.distancePx, q.id);
       return false;
@@ -805,32 +837,7 @@ export default class GameScene extends Phaser.Scene {
     return false;
   }
 
-  /** Ходок у чергу: з'явиться, коли на протилежній стіні не буде шипів у зоні зустрічі. */
-  requestWalker(type) {
-    const side = walkerSide(this.player.side, this.walkerWall());
-    const n = type === 'penguin' ? penguinGroup(Math.random) : 1;
-    this.walkerQueue.push({ type, side, n, until: this.nowMs + BALANCE.wallWalk.maxWaitMs, id: `walk${++this.walkerSeq}` });
-  }
-
-  /** Інтервал світу, який має лишатися без шипів на протилежній стіні, якщо ходок з'явиться зараз. */
-  walkerPlan(q) {
-    const tex = this.textures.getFrame(q.type);
-    const halfLen = tex.width / 2;
-    const y0 = -halfLen - 4;
-    const gap = BALANCE.enemies.penguin.groupGapPx;
-    const tail = (q.n - 1) * gap;
-    const scroll = scrollSpeed(this.elapsedSec, false);
-    const iv = meetInterval({
-      w0: worldOf(this.distancePx, y0), tail, halfLen, d0: this.distancePx,
-      zoneY: this.player.baseY, scroll, ...walkerSpeedRange(q.type, loopMul(this.loop).speed),
-    });
-    return { y0, gap, iv };
-  }
-
-  /**
-   * Щокадру: для кожного ходка в черзі резервуємо протилежну стіну (нових шипів там не буде) і, щойно
-   * вже поставлені шипи вийшли з зони зустрічі, випускаємо його. Не дочекався maxWaitMs — не з'являється.
-   */
+  /** Щокадру: ніндзя в черзі чекають, поки на їхній стіні розійдуться шипи (не дочекався maxWaitMs — не з'являється). */
   stepWalkers() {
     if (!this.walkerQueue.length) return;
     if (hazardsSuppressed(this.stage)) {
@@ -838,27 +845,7 @@ export default class GameScene extends Phaser.Scene {
       return;
     }
     const spikes = this.hazards.getChildren().filter((h) => h.active && h.side).map((h) => ({ side: h.side, y: h.y }));
-    const rest = [];
-    for (const q of this.walkerQueue) {
-      if (q.type === 'ninja') {
-        if (this.stepNinja(q, spikes)) rest.push(q);
-        continue;
-      }
-      const safe = q.side === 'left' ? 'right' : 'left';
-      const { y0, gap, iv } = this.walkerPlan(q);
-      // резерв з тим самим id оновлюється, а не накопичується
-      this.spikeState = reserveFree(this.spikeState, safe, iv.from, iv.to, this.distancePx, q.id);
-      if (spikesBlock(spikes, safe, iv, this.distancePx)) {
-        if (this.nowMs < q.until) rest.push(q);
-        else this.spikeState = reserveFree(this.spikeState, safe, 0, -1, this.distancePx, q.id); // зняти резерв
-        continue;
-      }
-      for (let i = 0; i < q.n; i++) {
-        const y = y0 - i * gap;
-        this.spawnEnemy(q.type === 'bear' ? new Bear(this, q.side, y) : new Penguin(this, q.side, y, penguinHp(Math.random)));
-      }
-    }
-    this.walkerQueue = rest;
+    this.walkerQueue = this.walkerQueue.filter((q) => this.stepNinja(q, spikes));
   }
 
   /** Зима: Санта (шанс щохвилини) і подарунки на траєкторії стрибка. */

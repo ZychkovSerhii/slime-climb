@@ -8,6 +8,7 @@ const INFO = {
   spider: { name: BALANCE.boss.name, sprite: 'spider', frame: 0, scale: 2.4, music: 'introSpider' },
   shkodko: { name: BALANCE.shkodko.name, sprite: 'shkodko', frame: 0, scale: 3.6, music: 'introShkodko' },
   kolya: { name: BALANCE.kolya.name, sprite: 'kolya', frame: 0, scale: 2.6, music: 'introKolya' },
+  bear: { name: BALANCE.bearBoss.name, sprite: 'bear', frame: 2, scale: 3.4, music: 'introBear' }, // етап 10, кадр rear
 };
 
 export const INTRO_BOSSES = Object.keys(INFO);

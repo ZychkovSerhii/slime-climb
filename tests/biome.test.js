@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { BALANCE } from '../src/config/balance.js';
 import {
-  createGiftState, createSantaState, giftDue, giftX, penguinGroup, penguinHp, roarReaches, santaDue, wrapAxis, xpToLevelUp,
+  createGiftState, createSantaState, giftDue, giftX, penguinHp, roarReaches, santaDue, wrapAxis, xpToLevelUp,
 } from '../src/systems/Biome.js';
 import { createSpawnState, dueSpawns } from '../src/systems/Spawner.js';
 import { spawnIntervalMs } from '../src/systems/Difficulty.js';
@@ -23,7 +23,7 @@ describe('wrapAxis', () => {
 describe('спавн зими', () => {
   test('у зимі інші вороги, перші появи — від початку зими', () => {
     const s = createSpawnState('winter', 130);
-    expect(s.nextAt).toEqual({ elf: 133, bat: 138, penguin: 142, bear: 152 });
+    expect(s.nextAt).toEqual({ elf: 133, bat: 138, penguin: 142 }); // етап 10: ведмідь — міні-бос, не звичайний спавн
     expect(s.biome).toBe('winter');
   });
   test('немає левів і квіток', () => {
@@ -34,10 +34,10 @@ describe('спавн зими', () => {
       s = r.state;
       r.spawn.forEach((x) => seen.add(x));
     }
-    expect([...seen].sort()).toEqual(['bat', 'bear', 'elf', 'penguin']);
+    expect([...seen].sort()).toEqual(['bat', 'elf', 'penguin']);
   });
   test('інтервали зими беруться з winter.spawnBaseMs', () => {
-    expect(spawnIntervalMs('bear', 0, 'winter')).toBe(BALANCE.winter.spawnBaseMs.bear);
+    expect(spawnIntervalMs('penguin', 0, 'winter')).toBe(BALANCE.winter.spawnBaseMs.penguin);
     expect(spawnIntervalMs('bat', 0, 'winter')).toBe(BALANCE.winter.spawnBaseMs.bat);
     expect(spawnIntervalMs('bat', 0)).toBe(BALANCE.spawnBaseMs.bat);
   });
@@ -87,17 +87,14 @@ describe('пінгвіни', () => {
     expect(penguinHp(() => 0)).toBe(3);
     expect(penguinHp(() => 0.99)).toBe(4);
   });
-  test('група 1–3', () => {
-    expect(penguinGroup(() => 0)).toBe(1);
-    expect(penguinGroup(() => 0.99)).toBe(3);
-  });
 });
 
-describe('ричання ведмедя', () => {
-  const R = BALANCE.enemies.bear.roar;
+describe('аура ведмедя (етап 10; колишнє ричання)', () => {
+  const R = BALANCE.bearBoss.roar;
   test('досягає лише в радіусі', () => {
-    expect(roarReaches({ x: 0, y: 0 }, { x: 0, y: 299 })).toBe(true);
-    expect(roarReaches({ x: 0, y: 0 }, { x: 250, y: 250 })).toBe(false);
+    const r = BALANCE.bearBoss.aura.radiusPx;
+    expect(roarReaches({ x: 0, y: 0 }, { x: 0, y: r - 1 })).toBe(true);
+    expect(roarReaches({ x: 0, y: 0 }, { x: r, y: r })).toBe(false);
   });
   test('стрибок ×speedMul і стрільба ×fireMul на durationMs', () => {
     const s = roar(createStatus(), 1000);
@@ -112,7 +109,7 @@ describe('ричання ведмедя', () => {
     expect(playerSpeedMul(s, 10)).toBeCloseTo(R.speedMul * BALANCE.boss.poison.speedMul);
   });
   test('ричання коротше за паузу між ричаннями — є вікно без сповільнення', () => {
-    expect(R.durationMs).toBeLessThan(BALANCE.enemies.bear.rearEveryMs);
+    expect(R.durationMs).toBeLessThan(BALANCE.bearBoss.rearEveryMs);
     expect(R.speedMul).toBeGreaterThanOrEqual(0.5);
   });
 });

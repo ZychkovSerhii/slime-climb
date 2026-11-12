@@ -17,8 +17,9 @@ export default class Elf extends Enemy {
   constructor(scene) {
     const { width } = scene.scale;
     const tex = scene.textures.getFrame('elf');
-    const minX = BALANCE.wallWidth + tex.width / 2;
-    super(scene, Phaser.Math.FloatBetween(minX, width - minX), -tex.height / 2, 'elf', 'elf');
+    const minX = BALANCE.wallWidth + (tex.width * CFG.scale) / 2;
+    super(scene, Phaser.Math.FloatBetween(minX, width - minX), (-tex.height * CFG.scale) / 2, 'elf', 'elf');
+    this.setScale(CFG.scale); // етап 10: ельф ×1,4, хітбокс росте разом зі спрайтом
     this.scrollsWithWorld = false;
     this.homing = true;
     this.dir = new Phaser.Math.Vector2(0, 1);
@@ -67,7 +68,19 @@ export default class Elf extends Enemy {
     if (now < this.nextThrowAt) return;
     this.endWindup();
     this.nextThrowAt = now + CFG.throwMs / mul;
-    const candy = new Candy(scene, this.x, this.y);
+    this.throwCandy();
+    // посилений (коло 1+, §10.1): ще льодяники з кроком gapMs у ту саму точку
+    const t = this.trait;
+    for (let i = 1; i < (t?.candies ?? 1); i++) {
+      scene.time.delayedCall(t.gapMs * i, () => {
+        if (this.active) this.throwCandy();
+      });
+    }
+  }
+
+  throwCandy() {
+    const scene = this.scene;
+    const candy = new Candy(scene, this.x, this.y).setScale(CFG.candyScale); // етап 10: ×2, хітбокс теж
     scene.enemyProjectiles.add(candy);
     candy.launch(scene.player.x, scene.player.y, CFG.candySpeed);
     sfx('throw');
