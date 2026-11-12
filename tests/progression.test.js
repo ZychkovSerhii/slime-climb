@@ -1,3 +1,6 @@
+import { healForLevels } from '../src/systems/Health.js';
+import { xpToNext as xpToNext10 } from '../src/systems/Progression.js';
+import { BALANCE as B10 } from '../src/config/balance.js';
 import { describe, expect, test } from 'vitest';
 import {
   CARD_IDS,
@@ -258,4 +261,23 @@ test('досвід за Колю — 100 (з множником біому), з�
   expect(killXp('kolya')).toBe(100);
   expect(killXp('kolya', { biome: 2 })).toBe(Math.round(100 * BALANCE.scaling.biomeHpMul ** 2));
   expect(killXp('kolyaPart')).toBe(0);
+});
+
+describe('етап 10: досвід і лікування після 7 рівня', () => {
+  test('до 7 рівня ріст 1,22, далі 1,10', () => {
+    expect(B10.xpGrowthLate).toBe(1.1);
+    expect(xpToNext10(7)).toBe(Math.round(10 * 1.22 ** 6));
+    expect(xpToNext10(8)).toBe(Math.round(10 * 1.22 ** 6 * 1.1));
+    expect(xpToNext10(20)).toBe(Math.round(10 * 1.22 ** 6 * 1.1 ** 13));
+  });
+  test('до 7 рівня лікує кожен рівень, з 8-го — лише парні', () => {
+    expect(healForLevels(1, 2)).toBe(1);
+    expect(healForLevels(6, 9)).toBe(2); // 7 і 8
+    expect(healForLevels(8, 9)).toBe(0);
+    expect(healForLevels(9, 10)).toBe(1);
+    expect(healForLevels(10, 14)).toBe(2); // 12 і 14
+  });
+  test('перший лев — на 6-й секунді', () => {
+    expect(B10.enemies.lion.from).toBe(6);
+  });
 });

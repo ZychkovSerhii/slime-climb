@@ -24,7 +24,9 @@ export function cardWeapon(cardId) {
 
 /** Скільки досвіду треба, щоб з рівня level перейти на наступний. */
 export function xpToNext(level) {
-  return Math.round(BALANCE.xpBase * BALANCE.xpGrowth ** (level - 1));
+  const late = BALANCE.xpLateFrom;
+  const early = Math.min(level, late) - 1;
+  return Math.round(BALANCE.xpBase * BALANCE.xpGrowth ** early * BALANCE.xpGrowthLate ** Math.max(level - late, 0));
 }
 
 export function createProgression() {

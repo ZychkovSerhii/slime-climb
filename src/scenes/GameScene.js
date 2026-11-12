@@ -12,7 +12,7 @@ import { loadSettings } from '../systems/Settings.js';
 import { addXp, applyCard, cardUpgrade, createProgression, killXp, rollLevelUp, weaponCard, weaponUpgrades, xpToNext } from '../systems/Progression.js';
 import { attackDamage, axeRadius, createFireState, hasMiniAxe, inRadius, shotgunAngles, stepFire, weaponJumpMul } from '../systems/Weapons.js';
 import { clampDelta } from '../systems/Time.js';
-import { applyDamage, createHealth, heal } from '../systems/Health.js';
+import { applyDamage, createHealth, heal, healForLevels } from '../systems/Health.js';
 import {
   activateInvis, breakArmor, cardLoot, createArmor, createInvis, hatStats, hitEffects, invisCharge, invisStats,
   isInvisible, jumpMul, maxLivesFor, rollLoot, stepArmor,
@@ -300,10 +300,12 @@ export default class GameScene extends Phaser.Scene {
 
   /** Досвід (вбивства, подарунки): нові рівні лікують і відкривають вікно карток. */
   gainXp(amount) {
+    const before = this.progression.level;
     const r = addXp(this.progression, amount);
     this.progression = r.progression;
     this.levelUpQueue += r.levelsGained;
-    if (r.levelsGained > 0) this.health = heal(this.health, BALANCE.healPerLevel * r.levelsGained, this.maxLives);
+    const healed = healForLevels(before, this.progression.level); // з 8-го рівня лікує кожен другий (етап 10)
+    if (healed > 0) this.health = heal(this.health, healed, this.maxLives);
     if ((this.levelUpQueue > 0 || this.lootCards) && !this.levelUpOpen && !this.introOpen) this.openLevelUp();
   }
 
