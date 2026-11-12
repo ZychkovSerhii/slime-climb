@@ -153,6 +153,16 @@ export const TRACKS = {
       { wave: 'noise', vol: 0.035, pattern: 'x - - - x - - - x - - - x x x x' },
     ],
   },
+  // Пан Казан (етап 11): важке «бульк» на басу і кипіння вгору
+  introKazan: {
+    bpm: 120,
+    loop: false,
+    voices: [
+      { wave: 'triangle', vol: 0.11, pattern: 'C2 . . C2 . . Eb2 . C2 . . G2 . F#2 . .' },
+      { wave: 'square', vol: 0.05, pattern: '. . G4 . Ab4 . G4 . . Bb4 . C5 Db5 C5 . .' },
+      { wave: 'noise', vol: 0.035, pattern: 'x - x - - x - x x - x - x x x x' },
+    ],
+  },
   // Коля: в'язке «буль-буль» униз і важкий бас
   introKolya: {
     bpm: 120,

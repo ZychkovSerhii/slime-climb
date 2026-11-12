@@ -46,6 +46,7 @@ import Fog from '../entities/Fog.js';
 import Ninja from '../entities/Ninja.js';
 import Lantern from '../entities/Lantern.js';
 import Embers from '../entities/Embers.js';
+import KazanBoss from '../entities/KazanBoss.js';
 import Salamander from '../entities/Salamander.js';
 import Spark from '../entities/Spark.js';
 import Sparkling from '../entities/Sparkling.js';
@@ -86,13 +87,14 @@ const HAT_STACK = 12;
 const OKSANA_TINT = 0xffa8d8; // Оксанка — рожевувата, щоб не плутати з ворожими павучками
 const LARVA_SHOT_TINT = 0xb4ff8a; // плювок «Личинки-помічника» — зелений, як постріли слизака, а не рожевий ворожий
 // Боси (етап 9 — третій): тип у події 'enemy:killed' → ключ відрізка, ім'я, клас, трофеї
-const BOSS_OF_KILL = { boss: 'spider', shkodko: 'shkodko', kolya: 'kolya', bear: 'bear' };
+const BOSS_OF_KILL = { boss: 'spider', shkodko: 'shkodko', kolya: 'kolya', bear: 'bear', kazan: 'kazan' };
 const BOSSES = {
   spider: { name: BALANCE.boss.name, make: (s) => new SpiderBoss(s), loot: (relics) => rollLoot(relics, Math.random) },
   shkodko: { name: BALANCE.shkodko.name, make: (s) => new ShkodkoBoss(s), loot: (relics) => rollLoot(relics, Math.random, SHKODKO_LOOT_IDS, BALANCE.shkodkoLoot.offer) },
   kolya: { name: BALANCE.kolya.name, make: (s) => new KolyaBoss(s), loot: (relics) => rollLoot(relics, Math.random, KOLYA_LOOT_IDS, BALANCE.kolyaLoot.offer) },
   // етап 10: міні-бос без трофеїв (і без бонусу Шагів «трофеї вже твої»)
   bear: { name: BALANCE.bearBoss.name, make: (s) => new BearBoss(s), loot: null },
+  kazan: { name: BALANCE.kazan.name, make: (s) => new KazanBoss(s), loot: null }, // етап 11; трофеї — нижче (KazanLoot)
 };
 
 export default class GameScene extends Phaser.Scene {
@@ -789,7 +791,7 @@ export default class GameScene extends Phaser.Scene {
    */
   clearBossAttacks() {
     for (const b of this.bombs.getChildren().slice()) b.destroy();
-    for (const e of this.enemies.getChildren().slice()) if (e.kolyaMinion || e.bossMinion) this.fadeOut(e, this.enemies);
+    for (const e of this.enemies.getChildren().slice()) if (e.kolyaMinion || e.bossMinion || e.kazanMinion) this.fadeOut(e, this.enemies);
     for (const p of this.enemyProjectiles.getChildren().slice()) this.fadeOut(p, this.enemyProjectiles);
     const until = this.nowMs + BALANCE.bossKillGraceMs;
     this.health = { ...this.health, invulnerableUntil: Math.max(this.health.invulnerableUntil, until) };

@@ -294,7 +294,7 @@ export const BALANCE = deepFreeze({
     hp: 230,
     xp: 120,
     points: 2500,
-    y: 220, // висить угорі, гойдається
+    y: 290, // висить угорі (нижче смуги HP боса), гойдається
     swayPx: 90,
     swayMs: 3200,
     phases: { boil: 0.7, rage: 0.35 },

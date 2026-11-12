@@ -6,8 +6,8 @@ import { TRACKS, trackSteps } from '../src/systems/Music.js';
 
 describe('представлення босів', () => {
   test('усі боси й ведмідь (етап 10), ім\'я з BALANCE, спрайт і мелодія існують', () => {
-    expect(INTRO_BOSSES).toEqual(['spider', 'shkodko', 'kolya', 'bear']);
-    const names = { spider: BALANCE.boss.name, shkodko: BALANCE.shkodko.name, kolya: BALANCE.kolya.name, bear: BALANCE.bearBoss.name };
+    expect(INTRO_BOSSES).toEqual(['spider', 'shkodko', 'kolya', 'bear', 'kazan']);
+    const names = { spider: BALANCE.boss.name, shkodko: BALANCE.shkodko.name, kolya: BALANCE.kolya.name, bear: BALANCE.bearBoss.name, kazan: BALANCE.kazan.name };
     const keys = new Set(SPRITES.map((s) => s.key));
     for (const b of INTRO_BOSSES) {
       const i = bossIntroInfo(b, 1);

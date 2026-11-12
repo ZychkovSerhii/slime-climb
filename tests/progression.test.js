@@ -286,3 +286,12 @@ describe('етап 10: досвід і лікування після 7 рівн�
     expect(B10.enemies.lion.from).toBe(6);
   });
 });
+
+test('етап 11: Казан — досвід 120, очки й Шаги з BALANCE', async () => {
+  const { killXp } = await import('../src/systems/Progression.js');
+  const { killPoints } = await import('../src/systems/Score.js');
+  const { BALANCE } = await import('../src/config/balance.js');
+  expect(killXp('kazan')).toBe(120);
+  expect(killPoints('kazan')).toBe(BALANCE.kazan.points);
+  expect(BALANCE.meta.stepsPerKill.kazan).toBe(150);
+});

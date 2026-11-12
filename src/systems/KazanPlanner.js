@@ -7,15 +7,17 @@ const K = BALANCE.kazan;
 
 /** Фаза за часткою HP: 'p1' → 'boil' (раз) → 'p2' → 'rage-start' (раз) → 'rage'. Фази не відкочуються. */
 export function kazanPhase(hpFrac, { boiled, raged }) {
+  const EPS = 1e-9; // HP, що тримається рівно на порозі (kazanHpFloor), — уже поріг, попри похибку дробів
   if (raged) return 'rage';
-  if (boiled) return hpFrac <= K.phases.rage ? 'rage-start' : 'p2';
-  return hpFrac <= K.phases.boil ? 'boil' : 'p1';
+  if (boiled) return hpFrac <= K.phases.rage + EPS ? 'rage-start' : 'p2';
+  return hpFrac <= K.phases.boil + EPS ? 'boil' : 'p1';
 }
 
 /** Нижче цього HP удар не опускає, поки подію фази (кипіння, лють) не відіграно — сильний удар не перескакує її. */
 export function kazanHpFloor(maxHp, { boiled, raged }) {
-  if (!boiled) return Math.round(maxHp * K.phases.boil);
-  if (!raged) return Math.round(maxHp * K.phases.rage);
+  // без округлення (як у Колі): округлене вгору HP лишалось би вище порогу, і подія не запускалась би ніколи
+  if (!boiled) return maxHp * K.phases.boil;
+  if (!raged) return maxHp * K.phases.rage;
   return 0;
 }
 

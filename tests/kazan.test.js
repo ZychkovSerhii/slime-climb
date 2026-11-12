@@ -12,13 +12,21 @@ describe('Казан: фази й пороги (§11.3)', () => {
     expect(kazanPhase(0.35, { boiled: true, raged: false })).toBe('rage-start');
     expect(kazanPhase(0.9, { boiled: true, raged: true })).toBe('rage');
   });
+  test('HP на порозі завжди запускає подію — для будь-якого maxHp (коло, «Складність»)', () => {
+    for (let max = 100; max < 800; max += 7) {
+      const b = kazanHpFloor(max, { boiled: false, raged: false });
+      expect(kazanPhase(b / max, { boiled: false, raged: false }), `boil ${max}`).toBe('boil');
+      const r = kazanHpFloor(max, { boiled: true, raged: false });
+      expect(kazanPhase(r / max, { boiled: true, raged: false }), `rage ${max}`).toBe('rage-start');
+    }
+  });
   test('удар з 100% до 20% за раз — HP тримається на 70%, і кипіння не пропускається', () => {
     const max = 230;
     const floor = kazanHpFloor(max, { boiled: false, raged: false });
     expect(floor).toBe(161);
     const hp = Math.max(0.2 * max, floor);
     expect(kazanPhase(hp / max, { boiled: false, raged: false })).toBe('boil');
-    expect(kazanHpFloor(max, { boiled: true, raged: false })).toBe(81); // 35% від 230 = 80,5 → 81
+    expect(kazanHpFloor(max, { boiled: true, raged: false })).toBeCloseTo(80.5);
     expect(kazanHpFloor(max, { boiled: true, raged: true })).toBe(0);
   });
 });
