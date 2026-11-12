@@ -52,12 +52,19 @@ export default class GameOverScene extends Phaser.Scene {
       else lbLine.disableInteractive().setBackgroundColor('transparent');
     };
     showStatus();
-    if (data.lb.eligible && !data.lb.result) {
-      flush(storage, { url: LEADERBOARD_URL, timeoutMs: REQUEST_TIMEOUT_MS }).then((r) => {
+    // Асинхронні відповіді малюють через this.lbShow — він завжди від поточного create (після resize — новий
+    // рядок). Відповідь для іншого забігу (новий GameOver з іншими data) нічого не чіпає.
+    this.lbShow = showStatus;
+    const net = { url: LEADERBOARD_URL, timeoutMs: REQUEST_TIMEOUT_MS };
+    const send = (task) => {
+      if (data.lb.inFlight) return; // resize під час відправки не має слати вдруге
+      data.lb.inFlight = task().then((r) => {
         data.lb.result = r;
-        if (this.sys.isActive()) showStatus();
+        data.lb.inFlight = null;
+        if (this.sys.isActive() && this.sys.settings.data === data) this.lbShow();
       });
-    }
+    };
+    if (data.lb.eligible && !data.lb.result) send(() => flush(storage, net));
     const hint = this.add.text(cx, height * 0.76, 'Тапни, щоб грати ще', style(40)).setOrigin(0.5).setAlpha(0);
     const menuBtn = this.add
       .text(cx, height * 0.86, 'Меню', { ...style(36, '#cfe8cf'), backgroundColor: '#00000066', padding: { x: 32, y: 12 } })
@@ -75,17 +82,13 @@ export default class GameOverScene extends Phaser.Scene {
           // після збереження ніка — одразу ще раз надіслати результат
           leaderboard().open({
             focusNick: true,
-            closed: async () => {
-              const net = { url: LEADERBOARD_URL, timeoutMs: REQUEST_TIMEOUT_MS };
-              let r = await flush(storage, net);
+            closed: () => send(async () => {
+              const r = await flush(storage, net);
+              if (r.status !== 'empty') return r;
               // шар «Лідери» міг уже надіслати результат сам — тоді місце беремо з таблиці
-              if (r.status === 'empty') {
-                const t = await fetchTop(storage, net);
-                r = t.status === 'ok' && t.me ? { status: 'sent', rank: t.me.rank } : { status: 'offline' };
-              }
-              data.lb.result = r;
-              if (this.sys.isActive()) showStatus();
-            },
+              const t = await fetchTop(storage, net);
+              return t.status === 'ok' && t.me ? { status: 'sent', rank: t.me.rank } : { status: 'offline' };
+            }),
           });
           return;
         }

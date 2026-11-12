@@ -94,7 +94,6 @@ describe('flush', () => {
     expect(JSON.parse(init.body)).toEqual({ id: playerId(s), nick: 'Сашко', height: 100, timeSec: 60 });
   });
   test.each([
-    ['429', reply(429, { error: 'slow' })],
     ['500', reply(500, {})],
     ['мережа', async () => { throw new Error('net'); }],
     ['не JSON', reply(200, 'oops')],
@@ -102,6 +101,11 @@ describe('flush', () => {
   ])('%s → offline, черга лишається', async (_, f) => {
     const s = ready();
     expect((await flush(s, opts(f, 20))).status).toBe('offline');
+    expect(pendingResult(s)).toEqual({ height: 100, timeSec: 60 });
+  });
+  test('429 → later, черга лишається', async () => {
+    const s = ready();
+    expect((await flush(s, opts(reply(429, { error: 'too_often' })))).status).toBe('later');
     expect(pendingResult(s)).toEqual({ height: 100, timeSec: 60 });
   });
   test('422 → rejected, черга порожня', async () => {
@@ -143,5 +147,6 @@ describe('statusLine', () => {
     [{ eligible: true, result: { status: 'sent', rank: 7 } }, 'Твоє місце: 7'],
     [{ eligible: true, result: { status: 'rejected' } }, 'Результат не прийнято'],
     [{ eligible: true, result: { status: 'offline' } }, 'Офлайн — надішлемо пізніше'],
+    [{ eligible: true, result: { status: 'later' } }, 'Надішлемо трохи згодом'],
   ])('%j', (st, line) => expect(statusLine(st)).toBe(line));
 });

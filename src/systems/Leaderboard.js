@@ -107,6 +107,8 @@ export async function flush(storage, { url = '', fetchFn, timeoutMs } = {}) {
     write(storage, PENDING_KEY, null);
     return { status: 'rejected' };
   }
+  // 429 — забіги частіше ніж раз на 20 с: сервер живий, результат лишається в черзі
+  if (r?.status === 429) return { status: 'later' };
   return { status: 'offline' };
 }
 
@@ -138,6 +140,7 @@ export function statusLine({ eligible, result }) {
     case 'sent': return `Твоє місце: ${result.rank}`;
     case 'rejected': return 'Результат не прийнято';
     case 'offline': return 'Офлайн — надішлемо пізніше';
+    case 'later': return 'Надішлемо трохи згодом';
     default: return '';
   }
 }

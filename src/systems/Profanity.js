@@ -2,12 +2,13 @@
 // Це список коренів, а не модерація: щось пропустить, щось зайве зловить («Мусука»). Записи, що проскочили,
 // видаляють вручну в консолі D1 (docs/leaderboard-setup.md).
 
-// Корені після нормалізації (кирилиця без і/ї/є/ё — див. fold)
-const ROOTS = [
-  'хуй', 'хуе', 'хуя', 'хуи', 'пизд', 'еба', 'ебл', 'ебан', 'ебу', 'бля', 'блад', 'сука', 'сучк', 'суки',
-  'мудак', 'мудил', 'залуп', 'гандон', 'пидор', 'пидарас', 'педик', 'шлюх', 'дроч', 'гавн', 'говн',
-  'fuck', 'shit', 'bitch', 'cunt', 'dick', 'nigg', 'fag', 'whore', 'pussy',
+// Корені після нормалізації (кирилиця без і/ї/є/ё — див. fold). Довгі й однозначні — будь-де в рядку
+// (ловлять і «х.у.й»); короткі, що трапляються всередині звичайних слів (Себастьян, Кебаб, Асука), — лише на початку слова.
+const ROOTS_ANYWHERE = [
+  'хуй', 'хуя', 'пизд', 'бля', 'блад', 'залуп', 'гандон', 'пидор', 'пидарас', 'педик', 'шлюх', 'мудак', 'мудил',
+  'дроч', 'гавн', 'говн', 'fuck', 'shit', 'bitch', 'cunt', 'nigg', 'whore', 'pussy',
 ];
+const ROOTS_WORD_START = ['еба', 'ебл', 'ебу', 'ебн', 'хуе', 'хуи', 'сука', 'суки', 'сучка', 'dick', 'fag'];
 
 // Латиниця, схожа на кирилицю за виглядом (xyй → хуй)
 const LOOKALIKE = { a: 'а', b: 'в', c: 'с', e: 'е', h: 'н', k: 'к', m: 'м', o: 'о', p: 'р', t: 'т', x: 'х', y: 'у', i: 'і', u: 'и', '3': 'з', '0': 'о', '6': 'б', '@': 'а', $: 'с' };
@@ -28,16 +29,16 @@ function phonetic(s) {
   return mapChars(r, PHONETIC);
 }
 
-/** Варіанти рядка для зіставлення з коренями. */
+/** Варіанти рядка для зіставлення з коренями: як є (англійські), латиниця-двійники, транслітерація. */
 export function normalizeForFilter(s) {
   const lower = String(s ?? '').toLowerCase();
-  return [
-    squeeze(lower), // англійські корені як є
-    squeeze(fold(mapChars(lower, LOOKALIKE))),
-    squeeze(fold(phonetic(lower))),
-  ];
+  return [squeeze(lower), squeeze(fold(mapChars(lower, LOOKALIKE))), squeeze(fold(phonetic(lower)))];
 }
 
 export function isProfane(s) {
-  return normalizeForFilter(s).some((v) => ROOTS.some((root) => v.includes(root)));
+  const text = String(s ?? '');
+  if (normalizeForFilter(text).some((v) => ROOTS_ANYWHERE.some((r) => v.includes(r)))) return true;
+  // слова розділяє все, крім літер і символів-замінників (@ $ цифри)
+  const words = text.split(/[^\p{L}@$0-9]+/u).filter(Boolean);
+  return words.some((w) => normalizeForFilter(w).some((v) => ROOTS_WORD_START.some((r) => v.startsWith(r))));
 }

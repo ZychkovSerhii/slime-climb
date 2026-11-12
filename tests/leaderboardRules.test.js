@@ -36,14 +36,19 @@ describe('validateNick', () => {
 });
 
 describe('isProfane', () => {
-  test.each(['хуй', 'ХУЙЙЙ', 'xyй', 'х.у.й', 'х_у_й', 'bl@dь', 'бля', 'fuck', 'FuCk_off', 'f.u.c.k', 'сука', 'suka', 'пизда', 'пiзда', 'pizdec', 'єбать', 'ебать', 'ёбаный', 'mudak', 'Shit1', 'xuy', 'huy'])(
+  test.each(['хуй', 'ХУЙЙЙ', 'xyй', 'х.у.й', 'х_у_й', 'bl@dь', 'бля', 'fuck', 'FuCk_off', 'f.u.c.k', 'сука', 'suka', 'пизда', 'пiзда', 'pizdec', 'єбать', 'ебать', 'ёбаный', 'mudak', 'Shit1', 'xuy', 'huy', 'Сука Бро', 'Bro_suka', 'сучка'])(
     'ловить %s', (s) => expect(isProfane(s)).toBe(true),
   );
   test.each(['Сашко', 'Слизень', 'Скупий', 'Hello', 'Корабель', 'Ебен', 'Dr_Slime-2.0', 'Ihor', 'Шлях', 'Тарас', 'Скіпідар', 'Assassin', 'Херсон', 'Мандарин'])(
     'пропускає %s', (s) => expect(isProfane(s)).toBe(false),
   );
-  test('відома хиба: корінь всередині слова теж ловиться', () => {
-    expect(isProfane('Мусука')).toBe(true);
+  // рецензія: короткі корені всередині звичайних імен і слів
+  test.each(['Мусука', 'Себастьян', 'Sebastian', 'Глебушка', 'Глебус', 'Tsukasa', 'Asuka', 'Сучков', 'Kebab', 'Кебаб', 'Nebula', 'Небула', 'Rebuild', 'Небагато', 'Хлебушек', 'Требую', 'Скребу'])(
+    'не ловить %s', (s) => expect(isProfane(s)).toBe(false),
+  );
+  test('відомі хиби: короткий корінь на початку слова', () => {
+    expect(isProfane('Dickson')).toBe(true);
+    expect(isProfane('Ebay')).toBe(true);
   });
 });
 
