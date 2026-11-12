@@ -50,13 +50,29 @@ import slimeSpit from './slimeSpit.js';
 import larva from './larva.js';
 import slimeKolya from './slimeKolya.js';
 import traitStar from './traitStar.js';
+import wallLava from './wallLava.js';
+import basalt from './basalt.js';
+import salamander from './salamander.js';
+import beam from './beam.js';
+import spark from './spark.js';
+import sparkling from './sparkling.js';
+import lavaDrop from './lavaDrop.js';
+import kazan from './kazan.js';
+import lid from './lid.js';
+import magma from './magma.js';
+import bubble from './bubble.js';
+import puddle from './puddle.js';
+import ladle from './ladle.js';
+import slimeKazan from './slimeKazan.js';
+import ember from './ember.js';
 
 export const SPRITES = [slime, wall, spike, projectile, plantBullet, heart, bat, plant, lion, spider, smallSpider, shadow, axe, shotgun, chakraVeins, webBall, hat, webShot, slimeSpider, frost, skinAssassin, skinCommander, skinRaccoon, skinMurzik,
   wallIce, icicle, elf, candy, bear, penguin, santa, gift, snowflake,
   shkodko, giftBomb, wagon, loco,
   slimeShkodko, sack,
   wallBamboo, stake, ninja, smoke, shuriken, lantern, kolya, slug, slimeSpit, larva, slimeKolya,
-  traitStar];
+  traitStar,
+  wallLava, basalt, salamander, beam, spark, sparkling, lavaDrop, kazan, lid, magma, bubble, puddle, ladle, slimeKazan, ember];
 
 /** Ключ анімації в Phaser: 'slime:idle'. */
 export const animKey = (spriteKey, anim) => `${spriteKey}:${anim}`;

@@ -10,7 +10,7 @@ import { outlineAlpha, outlineColor } from '../systems/Outline.js';
 const BOSS_CFG = { boss: BALANCE.boss, shkodko: BALANCE.shkodko, kolya: BALANCE.kolya, kolyaPart: BALANCE.kolya, bear: BALANCE.bearBoss };
 const TRAIT_TINT = BALANCE.traits.tint;
 // посилені з кола 1 (етап 10, §10.1): ті, що мають запис у BALANCE.traits
-const TRAIT_TYPES = new Set(Object.keys(BALANCE.traits).filter((k) => k !== 'tint'));
+const TRAIT_TYPES = new Set(Object.keys(BALANCE.traits).filter((k) => k !== 'tint' && k !== 'outline'));
 
 const SLOW_TINT = 0x6fa8ff;
 const ICE_TINT = 0xa8ecff; // «Крижана атака»: ворог блідо-блакитний, «у кризі»

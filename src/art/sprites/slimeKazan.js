@@ -1,0 +1,58 @@
+// Скін трансформації «Я КАЗАН» (трофей Казана): слизак-казанчик з кришкою. Той самий розмір і кадри, що slime.
+import { C } from '../palette.js';
+
+export default {
+  key: 'slimeKazan',
+  w: 48,
+  h: 48,
+  cell: 4,
+  palette: { k: C.outline, h: C.ironLight, H: C.iron, i: C.ironDark, I: C.iron, w: C.white, p: C.outline, s: C.steam, L: C.lavaHot, f: C.ironDark },
+  frames: {
+    idle1: [
+      '....hhhh....',
+      '..HHHHHHHH..',
+      '............',
+      '.kiiiiiiiik.',
+      '.kIIIIIIIIk.',
+      'kIIwpIIpwIIk',
+      'kIIIIIIIIIIk',
+      'kIIIsLLsIIIk',
+      'kIIIIIIIIIIk',
+      '.kIIIIIIIIk.',
+      '..kkiiiikk..',
+      '..f......f..',
+    ],
+    idle2: [
+      '............',
+      '....hhhh....',
+      '..HHHHHHHH..',
+      '.kiiiiiiiik.',
+      'kIIIIIIIIIIk',
+      'kIIwpIIpwIIk',
+      'kIIIIIIIIIIk',
+      'kIIIsLLsIIIk',
+      'kIIIIIIIIIIk',
+      '.kIIIIIIIIk.',
+      '..kkiiiikk..',
+      '..f......f..',
+    ],
+    jump: [
+      '...hhhh.....',
+      '.HHHHHHHH...',
+      '............',
+      '..kiiiiiik..',
+      '.kIIIIIIIIk.',
+      '.kIwpIIpwIk.',
+      '.kIIIIIIIIk.',
+      '.kIIsLLsIIk.',
+      '.kIIIIIIIIk.',
+      '..kIIIIIIk..',
+      '...kiiiik...',
+      '..f......f..',
+    ],
+  },
+  anims: {
+    idle: { frames: ['idle1', 'idle2'], fps: 2.5, repeat: -1 },
+    jump: { frames: ['jump'], fps: 1 },
+  },
+};

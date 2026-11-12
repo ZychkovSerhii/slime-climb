@@ -2,7 +2,7 @@ import { BALANCE } from '../config/balance.js';
 import { spawnIntervalMs } from './Difficulty.js';
 
 /** Хто з'являється в біомі. Біом 1 (cave) — з BALANCE.enemies.<type>.from; зима й бамбук — з BALANCE.<біом>.from. */
-export const BIOME_TYPES = { cave: ['lion', 'bat', 'plant'], winter: ['elf', 'bat', 'penguin'], bamboo: ['lantern', 'bat', 'ninja'] };
+export const BIOME_TYPES = { cave: ['lion', 'bat', 'plant'], winter: ['elf', 'bat', 'penguin'], bamboo: ['lantern', 'bat', 'ninja'], lava: ['salamander', 'spark', 'bat'] };
 
 /**
  * Стан розкладу: коли (секунда гри) наступна поява кожного типу.

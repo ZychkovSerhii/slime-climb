@@ -20,7 +20,7 @@ export const CATEGORIES = [
   { id: 'skin', name: 'Скіни' },
 ];
 
-export const BIOMES = { cave: 'Печера', winter: 'Зима', bamboo: 'Туманний бамбук' };
+export const BIOMES = { cave: 'Печера', winter: 'Зима', bamboo: 'Туманний бамбук', lava: 'Лавові надра' };
 
 export const SORTS = [
   { id: 'category', name: 'Категорія' }, // порядок buildCodex: персонаж, зброя, … скіни
@@ -252,6 +252,32 @@ const ENEMIES = {
     desc: `Малий слимак «${BALANCE.kolya.name}». Тримається над тобою на ${E.slugSpitter.keepPx} px і плює слизом.`,
     facts: [`Плювок раз на ${sec(E.slugSpitter.spitMs)} с, перед ним блимає жовтим`],
   }),
+  // ---- Лавові надра і Пан Казан (етап 11)
+  salamander: () => ({
+    name: 'Саламандра',
+    biome: 'lava',
+    desc: `Вилазить із тріщини на стіні, де тебе немає. Показує лінію на твоїй висоті і за ${sec(E.salamander.warnMs)} с дихає вогнем через увесь коридор.`,
+    facts: ['Від струменя рятує стрибок: траєкторія йде вгору', 'Збив до видиху — видиху немає', 'Поки вона дихає, на її стіні біля тебе немає кілків'],
+  }),
+  spark: () => ({
+    name: 'Іскра',
+    biome: 'lava',
+    speed: E.spark.speed,
+    desc: `Летить до тебе зигзагом. Збив — розпадається на ${E.spark.splits} дрібні іскри, що летять по прямій.`,
+  }),
+  sparkling: () => ({
+    name: 'Дрібна іскра',
+    biome: 'lava',
+    speed: E.sparkling.speed,
+    desc: `Уламок іскри. Летить по прямій і гасне за ${sec(E.sparkling.lifeMs)} с.`,
+  }),
+  bubble: () => ({
+    name: 'Бульбашка',
+    biome: 'lava',
+    speed: E.bubble.speed,
+    desc: `Її випускає «${BALANCE.kazan.name}», коли закипає. Пливе до тебе і лопається від дотику або за ${sec(E.bubble.lifeMs)} с.`,
+    facts: [`Вибух: радіус ${E.bubble.popPx} px`],
+  }),
   wagon: () => ({
     name: 'Вагон потяга',
     biome: 'winter',
@@ -263,6 +289,7 @@ const ENEMIES = {
 // Властивості посилених ворогів з 2-го кола (етап 10, §10.1)
 const T = BALANCE.traits;
 const BB = BALANCE.bearBoss;
+const Z = BALANCE.kazan;
 const TRAIT_TEXT = {
   lion: () => 'після промаху — другий ривок',
   bat: () => `зависає на ${sec(T.bat.hoverMs)} с і пікірує`,
@@ -273,13 +300,15 @@ const TRAIT_TEXT = {
   lantern: () => `вибух ×${num(T.lantern.radiusMul)} ширший`,
   slugBiter: () => `×${num(T.slugBiter.speedMul)} швидший`,
   slugSpitter: () => `плює раз на ${sec(T.slugSpitter.spitMs)} с`,
+  salamander: () => `дихає ${T.salamander.breaths} рази поспіль`,
+  spark: () => `розпадається на ${T.spark.splits} дрібні`,
 };
 
 function enemies() {
   const list = Object.entries(ENEMIES).map(([id, info]) => {
     const i = info();
     const facts = [...(i.facts ?? [])];
-    if (TRAIT_TEXT[id]) facts.push(`З 2-го кола посилений (зірочка): ${TRAIT_TEXT[id]()}`);
+    if (TRAIT_TEXT[id]) facts.push(`З 2-го кола посилений (контур): ${TRAIT_TEXT[id]()}`);
     if (id !== 'santa') facts.unshift('Дотик — мінус 1 життя');
     facts.push(`Досвід: ${E[id].xp}, Шаги: ${BALANCE.meta.stepsPerKill[id] ?? 0}`);
     const sprite = { wagon: 'wagon', slugBiter: 'slug', slugSpitter: 'slug' }[id] ?? id;
@@ -295,7 +324,7 @@ function enemies() {
       hp: W.bat.hp,
       speed: Math.round(E.bat.speed * W.bat.speedMul),
       desc: 'Зимовий кажан з холодним відливом. Летить прямо на тебе згори, міцніший за печерного.',
-      facts: ['Дотик — мінус 1 життя', `Прилітає парою на допомогу «${BALANCE.bearBoss.name}»`, `З 2-го кола посилена (зірочка): ${TRAIT_TEXT.bat()}`],
+      facts: ['Дотик — мінус 1 життя', `Прилітає парою на допомогу «${BALANCE.bearBoss.name}»`, `З 2-го кола посилена (контур): ${TRAIT_TEXT.bat()}`],
     }),
     entry({
       id: 'enemy:spike',
@@ -343,6 +372,44 @@ function enemies() {
       speed: BALANCE.kolya.spit.speed,
       desc: `Нею плюються «${BALANCE.kolya.name}», його уламки й личинки-стрільці. Летить туди, де ти був.`,
       facts: ['Дотик — мінус 1 життя'],
+    }),
+    entry({
+      id: 'enemy:basalt',
+      category: 'enemy',
+      name: 'Базальтовий кілок',
+      sprite: 'basalt',
+      biome: 'lava',
+      desc: 'Шип лавових стін: так само стирчить зі стіни.',
+      facts: ['Дотик — мінус 1 життя'],
+    }),
+    entry({
+      id: 'enemy:lavaDrop',
+      category: 'enemy',
+      name: 'Лавова крапля',
+      sprite: 'lavaDrop',
+      biome: 'lava',
+      speed: BALANCE.lava.drop.speed,
+      desc: `Набухає ${sec(BALANCE.lava.drop.swellMs)} с на верхньому краю стіни і стікає нею вниз. Не вбивається: перестрибни на іншу стіну.`,
+      facts: ['Дотик — мінус 1 життя', 'На обох стінах одночасно не буває', 'Під час бою з Казаном не падає'],
+    }),
+    entry({
+      id: 'enemy:magma',
+      category: 'enemy',
+      name: 'Крапля магми',
+      sprite: 'magma',
+      biome: 'lava',
+      speed: BALANCE.kazan.magma.speed,
+      desc: `Нею плюється «${BALANCE.kazan.name}». Летить дугою туди, де ти був.`,
+      facts: ['Дотик — мінус 1 життя'],
+    }),
+    entry({
+      id: 'enemy:lid',
+      category: 'enemy',
+      name: 'Кришка Казана',
+      sprite: 'lid',
+      biome: 'lava',
+      desc: `«${BALANCE.kazan.name}» кидає її бумерангом через коридор на твоїй висоті. Перед кидком ${sec(BALANCE.kazan.lid.warnMs)} с видно лінію.`,
+      facts: ['Дотик — мінус 1 життя', 'Повертається тим самим шляхом — рятує стрибок'],
     }),
     entry({
       id: 'enemy:candy',
@@ -434,6 +501,24 @@ function bosses() {
         cycleFact,
       ],
     }),
+    entry({
+      id: 'boss:kazan',
+      category: 'boss',
+      name: Z.name,
+      sprite: 'kazan',
+      biome: 'lava',
+      hp: Z.hp,
+      desc: 'Живий чавунний казан з кришкою-капелюхом і вусами з пари. Висить угорі, виливає лаву на стіни, плюється магмою й кидає кришку.',
+      facts: [
+        `Приходить через ${Math.floor(Z.afterSec / 60)} хв після перемоги над «${BALANCE.kolya.name}»`,
+        `Перед виливанням стіна жевріє ${sec(Z.pour.warnMs)} с — стрибай на іншу; лава ніколи не на обох стінах`,
+        `На ${pct(Z.phases.boil)}% HP закипає: ${Z.boil.bubbles} бульбашки, а сам ${sec(Z.boil.idleMs)} с стоїть і вразливий`,
+        `На ${pct(Z.phases.rage)}% HP — лють: виливає по черзі на обидві стіни, між ними ${sec(Z.rage.gapMs)} с обидві вільні`,
+        'З 2-го кола після виливання на стіні лишається калюжа',
+        `Нагорода: ${BALANCE.meta.stepsPerKill.kazan} Шагів і трофей`,
+        cycleFact,
+      ],
+    }),
   ];
 }
 
@@ -475,7 +560,21 @@ function biomes() {
         `Вороги: ${names(['ninja', 'lantern', 'bat'])}`,
         'Пастки: бамбукові кілки, сюрикени',
         'Туман лише на фоні, вимикається в меню',
-        'Після Колі — знову печера, але важча',
+        `Після Колі — ${BIOMES.lava}`,
+      ],
+    }),
+    entry({
+      id: 'biome:lava',
+      category: 'biome',
+      name: BIOMES.lava,
+      sprite: 'wallLava',
+      biome: 'lava',
+      desc: `Настає після перемоги над «${BALANCE.kolya.name}». Тут чекає бос «${BALANCE.kazan.name}».`,
+      facts: [
+        `Вороги: ${names(['salamander', 'spark', 'bat'])}`,
+        'Пастки: базальтові кілки, лавові краплі',
+        'Іскри лише на фоні, вимикаються в меню',
+        'Після Казана — знову печера, але важча',
       ],
     }),
   ];
@@ -500,7 +599,7 @@ export function buildCodex() {
 }
 
 const lower = (s) => s.toLocaleLowerCase('uk');
-const BIOME_ORDER = { cave: 0, winter: 1, bamboo: 2 };
+const BIOME_ORDER = { cave: 0, winter: 1, bamboo: 2, lava: 3 };
 const sortValue = (e, key) => {
   const v = e[key];
   if (typeof v === 'string') return parseFloat(v); // «3–4» → 3

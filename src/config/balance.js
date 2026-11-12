@@ -95,6 +95,14 @@ export const BALANCE = deepFreeze({
     // завжди вище за гравця щонайменше на minAbovePx (крута траєкторія — від неї рятує стрибок, як від квітки).
     slugBiter: { hp: 6, xp: 3, points: 40, speed: 120 },
     slugSpitter: { hp: 3, xp: 3, points: 40, speed: 160, keepPx: 220, minAbovePx: 160, spitMs: 2000, firstSpitMs: 900 },
+    // Лава (етап 11, §11.2). Саламандра: вилазить із тріщини на протилежній стіні, лінія-попередження, горизонтальний струмінь.
+    salamander: { hp: 4, xp: 4, points: 40, emergeMs: 600, warnMs: 700, breathMs: 400, hideMs: 1000, landGraceMs: 300, beamHalfH: 18,
+      dodgeSec: 0.6, minYFrac: 0.35, maxYFrac: 0.75 },
+    // Іскра: зигзагом до гравця; убита — розпадається на дрібні (sparkling), дрібних на екрані не більше maxSmall
+    spark: { hp: 3, xp: 3, points: 30, speed: 150, zigzagPx: 60, zigzagMs: 900, splits: 2, maxSmall: 6 },
+    sparkling: { hp: 1, xp: 1, points: 10, speed: 260, lifeMs: 3000 },
+    // Бульбашка Казана (кипіння): пливе до гравця, лопається від дотику або через lifeMs радіусом popPx
+    bubble: { hp: 2, xp: 1, points: 20, speed: 60, lifeMs: 4000, popPx: 50 },
   },
   // Біоми. Біом 1 (cave) — як був: його спавн — spawnBaseMs і enemies.<type>.from нижче.
   // Зима настає після смерті павучихи (у 6b — далі Шкодько і чергування). from — секунди від початку зими.
@@ -128,6 +136,18 @@ export const BALANCE = deepFreeze({
     bat: { hp: 2, speedMul: 1.15 }, // як у зимі
     // туман: 2 шари лише на фоні (під стінами, шипами й ворогами), повільний паралакс і дрейф, низький контраст
     fog: { layers: [{ alpha: 0.12, parallax: 0.12, driftX: 7 }, { alpha: 0.08, parallax: 0.22, driftX: -4 }] },
+    transitionMs: 1500,
+  },
+  // ---- Біом 4 «Лавові надра» (етап 11, §11.2). Спавн ×0,9 від бамбука; подарунків і Санти немає.
+  lava: {
+    from: { spark: 3, bat: 8, salamander: 10 },
+    spawnBaseMs: { spark: Math.round(Math.round(9700 * 0.9) * 0.9), bat: Math.round(Math.round(8750 * 0.9) * 0.9),
+      salamander: Math.round(Math.round(13750 * 0.9) * 0.9) },
+    bat: { hp: 2, speedMul: 1.15 },
+    // лавова крапля (перешкода): набухає swellMs на верхньому краю стіни, потім стікає вниз зі швидкістю speed; займає стіну
+    drop: { everyMs: 7000, jitter: 0.3, swellMs: 800, speed: 330, firstMs: 6000 },
+    // іскри на фоні (як сніг): лише фон, вимикаються в меню
+    embers: { count: 22, speedMin: 18, speedMax: 45, alpha: 0.5 },
     transitionMs: 1500,
   },
   boss: {
@@ -266,6 +286,27 @@ export const BALANCE = deepFreeze({
     rage: { speedMul: 1.5, lungeEveryMs: 2000, spitEveryMs: 1200, fan: 3, spreadDeg: 15 },
     debugAtSec: 6, // ?kolya=1
   },
+  // ---- Бос 4 «Пан Казан» (етап 11, §11.3). Частки HP — від maxHp (з множником кола). Числа фаз — припущення, крутимо за плейтестом.
+  kazan: {
+    name: 'Пан Казан',
+    scale: 1.4,
+    afterSec: 180, // через стільки секунд після початку лави (= смерті Колі)
+    hp: 230,
+    xp: 120,
+    points: 2500,
+    y: 220, // висить угорі, гойдається
+    swayPx: 90,
+    swayMs: 3200,
+    phases: { boil: 0.7, rage: 0.35 },
+    pour: { warnMs: 800, pourMs: 1500, puddleMs: 2000 }, // калюжа — лише з кола enhancedFromLoop (+1 атака)
+    p1: { pourEveryMs: 4000, spitEveryMs: 1800, fan: 1 },
+    boil: { bubbles: 4, idleMs: 6000 },
+    p2: { pourEveryMs: 3000, spitEveryMs: 2200, fan: 3, lidEveryMs: 5000 },
+    lid: { warnMs: 700, flightMs: 1600 }, // туди й назад за flightMs
+    rage: { shakeMs: 1000, pourMs: 1500, gapMs: 900, spitEveryMs: 1500, fan: 5 },
+    magma: { speed: 300, gravity: 420, spreadDeg: 14 },
+    debugAtSec: 6, // ?kazan=1
+  },
 
   // Коло біомів (етап 6b, етап 9): печера (павучиха) → зима (Шкодько) → бамбук (Коля) → печера… Коло n (з 0): швидкість ×speedMul^n.
   // Етап 10 (§10.1): HP і досвід — у scaling нижче (замість колишніх cycle.hpMul / xpMul 1,35 за коло).
@@ -289,6 +330,8 @@ export const BALANCE = deepFreeze({
     lantern: { radiusMul: 1.3 },
     slugBiter: { speedMul: 1.2 },
     slugSpitter: { spitMs: 1600 },
+    salamander: { breaths: 2, gapMs: 500 }, // етап 11: струмінь двічі
+    spark: { splits: 3 },
   },
 
   // Ходоки по стінах (фідбек-3): ведмідь і пінгвіни. Інваріант «безпечна стіна»: поки ходок на стіні A,
@@ -406,6 +449,14 @@ export const BALANCE = deepFreeze({
     // кожна стріляє раз на copyEveryMs на copyDamage + бонус «Урону» [рішення плану: частоти в специфікації немає]
     iam: { invulnMs: 2000, copies: 2, copyMs: 4000, copyEveryMs: 600, copyDamage: 1 },
   },
+  // Унікальні картки Казана (етап 11, §11.4). Вибір 1 з 2. Числа — припущення.
+  kazanLoot: {
+    offer: 2,
+    // «Черпачок»: кружляє довкола, раз на everyMs хлюпає в найближчого ворога на damage + бонус «Урону»
+    ladle: { everyMs: 1500, damage: 2, speed: 600, orbitPx: 46, orbitMs: 1800 },
+    // «Я КАЗАН»: раз за рівень замість втрати життя — invulnMs невразливості і кільце лави radiusPx на damage
+    iam: { invulnMs: 2000, radiusPx: 120, damage: 10 },
+  },
   // §0: якщо всі унікальні картки боса вже взяті — бос дає +lootStepsBonus до своїх Шагів
   lootStepsBonus: 0.5,
 
@@ -414,7 +465,8 @@ export const BALANCE = deepFreeze({
   meta: {
     // Шаги за вбивство. smallSpider — павучки рою павучихи: їх за бій десятки, тому 0 [рішення], інакше рій давав би більше за саму павучиху
     stepsPerKill: { lion: 2, bat: 1, plant: 2, smallSpider: 0, boss: 60, elf: 1, penguin: 1, bear: 30, santa: 40, shkodko: 100, wagon: 0,
-      ninja: 2, lantern: 1, slugBiter: 1, slugSpitter: 1, kolya: 120, kolyaPart: 0, bearAura: 0 },
+      ninja: 2, lantern: 1, slugBiter: 1, slugSpitter: 1, kolya: 120, kolyaPart: 0, bearAura: 0,
+      salamander: 2, spark: 1, sparkling: 0, bubble: 0, kazan: 150 },
     // Скіни лише візуальні. sprite — ключ спрайта в src/art/sprites (однаковий розмір полотна → хітбокс той самий)
     skins: [
       { id: 'slime', name: 'Слизак', price: 0, sprite: 'slime' },
