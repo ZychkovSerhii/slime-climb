@@ -46,6 +46,8 @@ import Fog from '../entities/Fog.js';
 import Ninja from '../entities/Ninja.js';
 import Lantern from '../entities/Lantern.js';
 import GiftBomb from '../entities/GiftBomb.js';
+import HeartPickup from '../entities/HeartPickup.js';
+import { createHeartState, heartDue, heartSide } from '../systems/Heart.js';
 import {
   activeForm, bombTargets, formSkin, friendlyBombDamage, rollSack, sackSkillCard, SHKODKO_LOOT_IDS, stepTicker,
 } from '../systems/ShkodkoLoot.js';
@@ -146,6 +148,8 @@ export default class GameScene extends Phaser.Scene {
     this.fog = null; // туман бамбука (етап 9)
     this.santaState = null;
     this.giftState = null;
+    this.heartState = createHeartState(); // сердечка (етап 10)
+    this.heartSeq = 0;
     // ?weapon=axe|chakra|shotgun — одразу з повністю вкачаною зброєю (для перевірки)
     this.debugWeapon = new URLSearchParams(window.location.search).get('weapon');
     // Планувальник шипів для обох стін разом (світові координати = distancePx)
@@ -736,6 +740,27 @@ export default class GameScene extends Phaser.Scene {
     }
     this.stepWalkers();
     if (this.biome === 'winter') this.spawnWinterExtras();
+    this.spawnHeart();
+  }
+
+  /**
+   * Сердечко (етап 10, §10.5): з 1-ї хвилини раз на 20–70 с, якщо життя не повні; у бою — одне за бій.
+   * Стіна — без шипа ближче spikeGapPx; там же резерв, щоб нові шипи не сіли поруч.
+   */
+  spawnHeart() {
+    const fight = this.bossActive ? `${this.seg.boss}@${this.seg.atSec}` : null;
+    if (!fight && hazardsSuppressed(this.stage)) return; // підготовка до боса і тиша після — без сердечок
+    const r = heartDue(this.heartState, { tSec: this.elapsedSec, livesFull: this.health.lives >= this.maxLives, fight }, Math.random);
+    if (!r.spawn) return;
+    const y = -this.textures.getFrame('heart').height;
+    const spikes = this.hazards.getChildren().filter((h) => h.active && h.side).map((h) => ({ side: h.side, y: h.y }));
+    const side = heartSide(spikes, y, Math.random);
+    if (!side) return; // обидві стіни зайняті — спробуємо наступного кадру
+    this.heartState = r.state;
+    const w = this.distancePx - y;
+    const gap = BALANCE.heart.spikeGapPx;
+    this.spikeState = reserveFree(this.spikeState, side, w - gap - BALANCE.spikeHeight, w + gap, this.distancePx, `heart${++this.heartSeq}`);
+    this.pickups.add(new HeartPickup(this, side, y));
   }
 
   // ---------- Ходоки по стінах (фідбек-3): ведмідь і пінгвіни ----------
@@ -858,6 +883,12 @@ export default class GameScene extends Phaser.Scene {
   collectGift(gift) {
     if (this.paused || this.dead || !gift.active) return;
     gift.destroy();
+    if (gift.kind === 'heart') {
+      sfx('levelUp');
+      this.health = heal(this.health, 1, this.maxLives);
+      this.floatText('+1 життя', '#ff7a8a');
+      return;
+    }
     sfx('gift');
     gift.onCollect?.(); // подарунковий дощ Шкодька рахує зібрані
     // подарунковий дощ Шкодька дає фіксований досвід; звичайний зимовий подарунок — випадковий бонус (фідбек-3)
