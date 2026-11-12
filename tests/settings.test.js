@@ -7,10 +7,10 @@ const mem = (init = {}) => {
 };
 
 describe('налаштування', () => {
-  test('новий гравець — сніг і туман увімкнено', () => expect(loadSettings(mem())).toEqual({ snow: true, fog: true }));
+  test('новий гравець — сніг і туман увімкнено', () => expect(loadSettings(mem())).toEqual({ snow: true, fog: true, embers: true }));
   test('старий запис без туману (до етапу 9): сніг не губиться, туман увімкнено', () => {
-    expect(loadSettings(mem({ 'slime-climb.settings': '{"snow":false}' }))).toEqual({ snow: false, fog: true });
-    expect(loadSettings(mem({ 'slime-climb.settings': '{"fog":false}' }))).toEqual({ snow: true, fog: false });
+    expect(loadSettings(mem({ 'slime-climb.settings': '{"snow":false}' }))).toEqual({ snow: false, fog: true, embers: true });
+    expect(loadSettings(mem({ 'slime-climb.settings': '{"fog":false}' }))).toEqual({ snow: true, fog: false, embers: true });
   });
   test('зберігаються й читаються', () => {
     const st = mem();
@@ -27,5 +27,16 @@ describe('налаштування', () => {
     const broken = { getItem: () => { throw new Error('x'); }, setItem: () => { throw new Error('x'); } };
     expect(loadSettings(broken)).toEqual(defaultSettings());
     expect(saveSettings(broken, { snow: true })).toBe(false);
+  });
+});
+
+describe('етап 11: іскри лави', () => {
+  test('старі налаштування без embers — іскри увімкнені, сніг і туман збережені', () => {
+    const store = { getItem: () => JSON.stringify({ snow: false, fog: false }) };
+    expect(loadSettings(store)).toEqual({ snow: false, fog: false, embers: true });
+  });
+  test('embers зберігається', () => {
+    const store = { getItem: () => JSON.stringify({ embers: false }) };
+    expect(loadSettings(store).embers).toBe(false);
   });
 });

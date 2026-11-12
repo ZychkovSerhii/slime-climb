@@ -76,3 +76,10 @@ export const SPRITES = [slime, wall, spike, projectile, plantBullet, heart, bat,
 
 /** Ключ анімації в Phaser: 'slime:idle'. */
 export const animKey = (spriteKey, anim) => `${spriteKey}:${anim}`;
+
+/** Номер кадру name у стрічці текстури спрайта key (кадри в Phaser — числа, див. textures.js); невідомий — 0. */
+export function frameOf(key, name) {
+  const sprite = SPRITES.find((s) => s.key === key);
+  const i = sprite ? Object.keys(sprite.frames ?? {}).indexOf(name) : -1;
+  return Math.max(i, 0);
+}

@@ -128,3 +128,13 @@ test('src/art/* (крім textures.js і overrides.js) не імпортує Pha
   expect(files.length).toBeGreaterThan(5);
   for (const f of files) expect(readFileSync(join(dir, f), 'utf8'), f).not.toMatch(/from\s+['"]phaser['"]/);
 });
+
+describe('frameOf (етап 11): номер кадру в стрічці за назвою', () => {
+  test('номер = позиція в sprite.frames; невідома назва — 0', async () => {
+    const { frameOf } = await import('../src/art/sprites/index.js');
+    expect(frameOf('lavaDrop', 'swell1')).toBe(0);
+    expect(frameOf('lavaDrop', 'run')).toBe(2);
+    expect(frameOf('salamander', 'breathe')).toBe(2);
+    expect(frameOf('kazan', 'nope')).toBe(0);
+  });
+});

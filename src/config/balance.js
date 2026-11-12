@@ -97,7 +97,7 @@ export const BALANCE = deepFreeze({
     slugSpitter: { hp: 3, xp: 3, points: 40, speed: 160, keepPx: 220, minAbovePx: 160, spitMs: 2000, firstSpitMs: 900 },
     // Лава (етап 11, §11.2). Саламандра: вилазить із тріщини на протилежній стіні, лінія-попередження, горизонтальний струмінь.
     salamander: { hp: 4, xp: 4, points: 40, emergeMs: 600, warnMs: 700, breathMs: 400, hideMs: 1000, landGraceMs: 300, beamHalfH: 18,
-      dodgeSec: 0.6, minYFrac: 0.35, maxYFrac: 0.75 },
+      dodgeSec: 0.6, minYFrac: 0.15, maxYFrac: 0.45 }, // сидить вище гравця; струмінь — на висоті гравця (baseY)
     // Іскра: зигзагом до гравця; убита — розпадається на дрібні (sparkling), дрібних на екрані не більше maxSmall
     spark: { hp: 3, xp: 3, points: 30, speed: 150, zigzagPx: 60, zigzagMs: 900, splits: 2, maxSmall: 6 },
     sparkling: { hp: 1, xp: 1, points: 10, speed: 260, lifeMs: 3000 },

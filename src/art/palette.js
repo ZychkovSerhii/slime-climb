@@ -126,6 +126,7 @@ export const C = {
   // ---- Лавові надра (етап 11)
   basaltDark: 0x1a1210,
   basalt: 0x3a2a24,
+  basaltSpike: 0x8a7a70, // кілок світліший за стіну — мусить читатися на її фоні
   lavaDark: 0xa8321a,
   lava: 0xf06a1e,
   lavaHot: 0xffd25a,

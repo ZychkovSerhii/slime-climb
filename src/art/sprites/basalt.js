@@ -7,7 +7,7 @@ export default {
   w: 40,
   h: 40,
   cell: 4,
-  palette: { k: C.outline, j: C.basaltDark, i: C.basalt, I: C.lava },
+  palette: { k: C.outline, j: C.basalt, i: C.basaltSpike, I: C.lavaHot },
   frames: {
     basalt: outline([
       'j.........',
