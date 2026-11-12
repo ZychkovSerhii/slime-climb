@@ -143,6 +143,16 @@ export const TRACKS = {
       { wave: 'noise', vol: 0.025, pattern: 'x - x - x - x - x - x - x x x -' },
     ],
   },
+  // Білий ведмідь (етап 10): важкі кроки й ричання вгору
+  introBear: {
+    bpm: 120,
+    loop: false,
+    voices: [
+      { wave: 'triangle', vol: 0.11, pattern: 'E2 . E2 . . . E2 . G2 . E2 . B2 . . .' },
+      { wave: 'square', vol: 0.05, pattern: '. . . . B4 . . . . . C5 . D5 E5 . .' },
+      { wave: 'noise', vol: 0.035, pattern: 'x - - - x - - - x - - - x x x x' },
+    ],
+  },
   // Коля: в'язке «буль-буль» униз і важкий бас
   introKolya: {
     bpm: 120,

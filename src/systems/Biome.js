@@ -56,13 +56,9 @@ export function penguinHp(rng) {
   return P.hp + Math.floor(rng() * (P.hpMax - P.hp + 1));
 }
 
-/** Розмір групи пінгвінів: 1..groupMax. */
-export function penguinGroup(rng) {
-  return 1 + Math.floor(rng() * BALANCE.enemies.penguin.groupMax);
-}
 
 /** Чи зачіпає ричання ведмедя гравця: відстань між центрами ≤ радіуса. */
-export function roarReaches(bear, player, radius = BALANCE.enemies.bear.roarRadiusPx) {
+export function roarReaches(bear, player, radius = BALANCE.bearBoss.aura.radiusPx) {
   return Math.hypot(bear.x - player.x, bear.y - player.y) <= radius;
 }
 

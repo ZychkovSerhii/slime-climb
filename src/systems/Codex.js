@@ -59,8 +59,21 @@ function character() {
       facts: [
         `Життя: ${BALANCE.maxLives} (картками — до ${BALANCE.skills.extraLife.maxLives})`,
         `Після удару невразливий ${sec(BALANCE.invulnerableMs)} с`,
-        `Кожен новий рівень повертає ${BALANCE.healPerLevel} життя`,
+        `До ${BALANCE.healLateFrom} рівня кожен новий рівень повертає ${BALANCE.healPerLevel} життя, далі — кожен другий`,
         `Стрибок: ${sec(BALANCE.jumpDurationMs)} с, з утриманням ×${num(BALANCE.holdDurationMul)} довше`,
+      ],
+    }),
+    entry({
+      id: 'heart',
+      category: 'character',
+      name: 'Сердечко',
+      sprite: 'heart',
+      desc: 'З\'являється на одній зі стін і їде разом з нею. Торкнися — +1 життя.',
+      facts: [
+        `З ${BALANCE.heart.firstSec}-ї секунди гри, далі раз на ${BALANCE.heart.minSec}–${BALANCE.heart.maxSec} с`,
+        'Коли життя повні — не з\'являється',
+        'У бою з босом — щонайбільше одне',
+        'Поруч на стіні шипів не буває',
       ],
     }),
   ];
@@ -96,7 +109,7 @@ function weapons() {
       facts: [
         `Стає основною після ${w.steps} карток`,
         'Основна зброя одна: нова замінює попередню',
-        `Основну можна прокачати ${U.max} разів, +${num(U.damageAdd)} шкоди за кожну прокачку`,
+        `Основну можна прокачувати без межі: +${num(U.damageAdd)} шкоди за кожну прокачку; швидкість і радіус — до стелі`,
       ],
     }),
   );
@@ -175,7 +188,7 @@ const ENEMIES = {
     biome: 'cave',
     speed: E.bat.speed,
     desc: 'Летить прямо на тебе згори. Б\'є лише дотиком.',
-    facts: [`У зимі й бамбуку: ${W.bat.hp} HP і на ${pct(W.bat.speedMul - 1)}% швидший`],
+    facts: [`У бамбуку: ${BALANCE.bamboo.bat.hp} HP і на ${pct(BALANCE.bamboo.bat.speedMul - 1)}% швидший`],
   }),
   plant: () => ({
     name: 'Квітка',
@@ -197,24 +210,13 @@ const ENEMIES = {
     desc: `Летить на крильцях до тебе і кидає льодяник туди, де ти був. Перед кидком ${sec(E.elf.windupMs)} с замахується.`,
     facts: [`Кидок раз на ${sec(E.elf.throwMs)} с`, `Вилетів за край — ще ${E.elf.wraps} раз з'являється з іншого боку`],
   }),
-  bear: () => ({
-    name: 'Білий ведмідь',
-    biome: 'winter',
-    speed: E.bear.climbSpeed,
-    desc: `Лізе по стіні, де тебе немає, і займає її — туди не стрибай. Коли ти поруч, стає на задні лапи й ричить: у радіусі ${E.bear.roarRadiusPx} px сповільнює.`,
-    facts: [
-      'Друга стіна поки він іде — без бурульок: там безпечно',
-      `Ричання: ${sec(E.bear.roar.durationMs)} с стрибок на ${pct(1 - E.bear.roar.speedMul)}% повільніший, постріл рідший`,
-      `Попередження за ${sec(E.bear.warnMs)} с`,
-    ],
-  }),
   penguin: () => ({
     name: 'Пінгвін',
     biome: 'winter',
     hp: `${E.penguin.hp}–${E.penguin.hpMax}`,
     speed: E.penguin.slideSpeed,
-    desc: `Ковзає на пузі вниз по стіні, де тебе немає. Приходить «потягом» до ${E.penguin.groupMax}.`,
-    facts: ['Друга стіна поки вони їдуть — без бурульок: там безпечно'],
+    desc: `З'являється вгорі біля стіни, де тебе немає, блимає ${sec(E.penguin.warnMs)} с і ковзає на пузі прямо туди, де ти був.`,
+    facts: [`Вилетів за край — ще ${E.penguin.wraps} раз атакує з іншого боку`, 'Ухиляйся стрибком на іншу стіну'],
   }),
   santa: () => ({
     name: 'Санта',
@@ -258,16 +260,43 @@ const ENEMIES = {
   }),
 };
 
+// Властивості посилених ворогів з 2-го кола (етап 10, §10.1)
+const T = BALANCE.traits;
+const BB = BALANCE.bearBoss;
+const TRAIT_TEXT = {
+  lion: () => 'після промаху — другий ривок',
+  bat: () => `зависає на ${sec(T.bat.hoverMs)} с і пікірує`,
+  plant: () => `віяло з ${T.plant.fan} куль`,
+  elf: () => `${T.elf.candies} льодяники поспіль`,
+  penguin: () => 'летять парою',
+  ninja: () => `${T.ninja.shurikens} сюрикени поспіль`,
+  lantern: () => `вибух ×${num(T.lantern.radiusMul)} ширший`,
+  slugBiter: () => `×${num(T.slugBiter.speedMul)} швидший`,
+  slugSpitter: () => `плює раз на ${sec(T.slugSpitter.spitMs)} с`,
+};
+
 function enemies() {
   const list = Object.entries(ENEMIES).map(([id, info]) => {
     const i = info();
     const facts = [...(i.facts ?? [])];
+    if (TRAIT_TEXT[id]) facts.push(`З 2-го кола посилений (зірочка): ${TRAIT_TEXT[id]()}`);
     if (id !== 'santa') facts.unshift('Дотик — мінус 1 життя');
     facts.push(`Досвід: ${E[id].xp}, Шаги: ${BALANCE.meta.stepsPerKill[id] ?? 0}`);
     const sprite = { wagon: 'wagon', slugBiter: 'slug', slugSpitter: 'slug' }[id] ?? id;
     return entry({ id: `enemy:${id}`, category: 'enemy', sprite, hp: i.hp ?? E[id].hp, ...i, facts });
   });
   const hazards = [
+    entry({
+      id: 'enemy:winterBat',
+      category: 'enemy',
+      name: W.bat.name,
+      sprite: 'bat',
+      biome: 'winter',
+      hp: W.bat.hp,
+      speed: Math.round(E.bat.speed * W.bat.speedMul),
+      desc: 'Зимовий кажан з холодним відливом. Летить прямо на тебе згори, міцніший за печерного.',
+      facts: ['Дотик — мінус 1 життя', `Прилітає парою на допомогу «${BALANCE.bearBoss.name}»`, `З 2-го кола посилена (зірочка): ${TRAIT_TEXT.bat()}`],
+    }),
     entry({
       id: 'enemy:spike',
       category: 'enemy',
@@ -333,7 +362,7 @@ function bosses() {
   const B = BALANCE.boss;
   const S = BALANCE.shkodko;
   const c = BALANCE.cycle;
-  const cycleFact = `Кожне наступне коло: HP ×${num(c.hpMul)}, швидкість ×${num(c.speedMul)}`;
+  const cycleFact = `Кожне наступне коло: HP ×${num(BALANCE.scaling.bossHpMul)}, швидкість ×${num(c.speedMul)}; з 2-го кола — додаткова атака`;
   return [
     entry({
       id: 'boss:spider',
@@ -353,6 +382,24 @@ function bosses() {
       ],
     }),
     entry({
+      id: 'boss:bear',
+      category: 'boss',
+      name: `${BB.name} (міні-бос)`,
+      sprite: 'bear',
+      biome: 'winter',
+      hp: BB.hp,
+      speed: BB.jump.speed,
+      desc: 'Величезний білий ведмідь. Повзає по стінах, присідає і стрибає туди, де ти стоїш, а вилетівши за край, стрибає знову з іншого боку.',
+      facts: [
+        `Приходить через ${sec(BB.afterSec * 1000)} с після перемоги над «${B.name}», раз за кожну зиму`,
+        `Перед стрибком присідає на ${sec(BB.jump.warnMs)} с і показує стрілку — стрибай на іншу стіну`,
+        `Ричить: аура з ${BB.aura.hp} HP захищає його від куль ${sec(BB.aura.ms)} с або поки її не розбили; дотик до аури сповільнює`,
+        `На ${pct(BB.batsAt)}% HP прилітають ${BB.bats} «${W.bat.name}»`,
+        `Нагорода: ${BALANCE.meta.stepsPerKill.bear} Шагів`,
+        cycleFact,
+      ],
+    }),
+    entry({
       id: 'boss:shkodko',
       category: 'boss',
       name: S.name,
@@ -362,7 +409,7 @@ function bosses() {
       speed: S.dance.p1.speed,
       desc: 'Зелений гоблін у шапці-ялинці. Танцює, кидає подарунки-бомби й льодяники, а наприкінці сідає на потяг.',
       facts: [
-        `Приходить через ${Math.floor(S.afterSec / 60)} хв після перемоги над «${B.name}»`,
+        `Приходить через ${Math.floor(S.afterSec / 60)} хв після перемоги над «${B.name}» (і не раніше ніж через ${BB.shkodkoGapSec} с після ведмедя)`,
         `Подарунковий дощ: збери ${S.rush.goal} з ${S.rush.count}, інакше він лікується`,
         `Після потяга оглушений на ${sec(S.stunMs)} с`,
         `Нагорода: ${BALANCE.meta.stepsPerKill.shkodko} Шагів і трофей`,
@@ -410,7 +457,7 @@ function biomes() {
       biome: 'winter',
       desc: `Настає після перемоги над «${BALANCE.boss.name}». Тут чекає бос «${BALANCE.shkodko.name}».`,
       facts: [
-        `Вороги: ${names(['elf', 'bat', 'penguin', 'bear'])}`,
+        `Вороги: ${names(['elf', 'penguin'])}, ${W.bat.name}; міні-бос «${BB.name}»`,
         'Пастки: бурульки, льодяники',
         `Подарунок: випадково досвід (${pct(W.gift.xpShare)}% рівня), ${W.gift.steps} Шаги, щит на ${sec(W.gift.shieldMs)} с або рідко +1 життя`,
         'Сніг вимикається в меню',

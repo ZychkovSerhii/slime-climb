@@ -38,8 +38,10 @@ test('ids are unique, every entry has a name, a description and a known sprite',
 });
 
 test('numbers come from BALANCE, so the codex follows balance changes', () => {
-  const bear = all.find((e) => e.id === 'enemy:bear');
-  expect(bear.hp).toBe(BALANCE.enemies.bear.hp);
+  const bear = all.find((e) => e.id === 'boss:bear');
+  expect(bear.hp).toBe(BALANCE.bearBoss.hp);
+  expect(all.find((e) => e.id === 'enemy:winterBat').hp).toBe(BALANCE.winter.bat.hp);
+  expect(ids.has('heart')).toBe(true);
   expect(all.find((e) => e.id === 'boss:shkodko').hp).toBe(BALANCE.shkodko.hp);
   expect(all.find((e) => e.id === 'skin:murzik').desc).toContain(String(BALANCE.meta.skins.find((s) => s.id === 'murzik').price));
 });
@@ -51,7 +53,7 @@ test('achievements are not in the codex (hidden by design)', () => {
 
 test('search is case-insensitive and by name', () => {
   const r = queryCodex(all, { query: 'ВЕДМ' });
-  expect(r.map((e) => e.id)).toEqual(['enemy:bear']);
+  expect(r.map((e) => e.id)).toEqual(['boss:bear']);
   expect(queryCodex(all, { query: '  ' }).length).toBe(all.length);
   expect(queryCodex(all, { query: 'немає такого' })).toEqual([]);
 });
@@ -59,7 +61,7 @@ test('search is case-insensitive and by name', () => {
 test('category filter', () => {
   const r = queryCodex(all, { category: 'boss' });
   expect(r.every((e) => e.category === 'boss')).toBe(true);
-  expect(r.length).toBe(3);
+  expect(r.length).toBe(4);
 });
 
 test('numeric sort: strongest first, entries without the value last', () => {
@@ -68,7 +70,7 @@ test('numeric sort: strongest first, entries without the value last', () => {
   const known = hp.filter((v) => v != null);
   expect(known).toEqual([...known].sort((a, b) => b - a));
   expect(hp.slice(known.length).every((v) => v == null)).toBe(true);
-  expect(r[0].id).toBe('enemy:bear');
+  expect(r[0].id).toBe('enemy:wagon');
 });
 
 test('biome sort: cave, then winter, then bamboo, then entries without a biome', () => {

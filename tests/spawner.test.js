@@ -14,7 +14,7 @@ function run(times, bossActive = false) {
 
 describe('dueSpawns', () => {
   test('initial nextAt equals each type\'s "from"', () => {
-    expect(createSpawnState().nextAt).toEqual({ lion: 10, bat: 30, plant: 45 });
+    expect(createSpawnState().nextAt).toEqual({ lion: 6, bat: 30, plant: 45 });
   });
 
   test('nothing before the first enemy time', () => {
@@ -43,7 +43,7 @@ describe('dueSpawns', () => {
   test('does not mutate the input state', () => {
     const s = createSpawnState();
     dueSpawns(s, 10, false);
-    expect(s.nextAt.lion).toBe(10);
+    expect(s.nextAt.lion).toBe(6);
   });
 
   test('boss active → no spawns, and no burst after the boss', () => {

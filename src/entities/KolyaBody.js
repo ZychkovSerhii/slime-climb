@@ -161,7 +161,9 @@ export default class KolyaBody extends Enemy {
     this.lunging = false;
     const owner = this.lungeOwner;
     if (owner?.active || owner === this) owner.lungeClock = endLunge(owner.lungeClock, now);
-    this.nextLungeAt = now + this.mode.lungeEveryMs;
+    // з 2-го кола (етап 10): ривки парами — другий одразу після першого (через lunge.gapMs черги)
+    this.pairNext = this.enhanced && !this.pairNext;
+    this.nextLungeAt = now + (this.pairNext ? K.lunge.gapMs : this.mode.lungeEveryMs);
   }
 
   /** Перервати ривок і стати (народження, поділ, з'їдання). Якщо був у ривку — спершу повертається в зону. */

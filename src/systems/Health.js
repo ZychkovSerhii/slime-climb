@@ -20,3 +20,13 @@ export function applyDamage(h, nowMs) {
 export function heal(h, amount, maxLives = BALANCE.maxLives) {
   return { ...h, lives: Math.min(h.lives + amount, maxLives) };
 }
+
+/**
+ * Скільки життів повертає перехід з рівня fromLevel на toLevel (етап 10, §10.5):
+ * рівні до healLateFrom включно — по healPerLevel; далі — лише парні.
+ */
+export function healForLevels(fromLevel, toLevel) {
+  let n = 0;
+  for (let l = fromLevel + 1; l <= toLevel; l++) if (l <= BALANCE.healLateFrom || l % 2 === 0) n += BALANCE.healPerLevel;
+  return n;
+}

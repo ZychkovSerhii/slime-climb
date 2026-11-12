@@ -79,6 +79,11 @@ export default class Lion extends Enemy {
         sfx('bite');
       }
       if (this.isOffscreen()) {
+        // посилена (коло 1+, етап 10): після промаху — ще один ривок з тим самим попередженням
+        if (this.trait?.secondLunge && !this.secondDone) {
+          this.secondDone = true;
+          this.returnsLeft += 1;
+        }
         if (this.returnsLeft > 0) this.comeBack();
         else this.destroy();
       }

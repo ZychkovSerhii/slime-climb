@@ -1,3 +1,6 @@
+import { healForLevels } from '../src/systems/Health.js';
+import { xpToNext as xpToNext10 } from '../src/systems/Progression.js';
+import { BALANCE as B10 } from '../src/config/balance.js';
 import { describe, expect, test } from 'vitest';
 import {
   CARD_IDS,
@@ -153,15 +156,15 @@ describe('weapon cards (stage 4a)', () => {
   test('progress is kept, full progress makes the weapon main; replaced by the next full one', () => {
     const steps = (id) => BALANCE.weapons[id].steps;
     let p = createProgression();
-    p = applyCard(p, weaponCard('axe'));
+    p = applyCard(p, weaponCard('chakra'));
     p = applyCard(p, weaponCard('shotgun'));
-    expect(weaponProgress(p, 'axe')).toBe(1);
+    expect(weaponProgress(p, 'chakra')).toBe(1);
     expect(p.arsenal.main).toBeNull();
-    for (let i = 1; i < steps('axe'); i++) p = applyCard(p, weaponCard('axe'));
-    expect(p.arsenal.main).toBe('axe');
+    for (let i = 1; i < steps('chakra'); i++) p = applyCard(p, weaponCard('chakra'));
+    expect(p.arsenal.main).toBe('chakra');
     for (let i = 1; i < steps('shotgun'); i++) p = applyCard(p, weaponCard('shotgun'));
     expect(p.arsenal.main).toBe('shotgun');
-    expect(weaponProgress(p, 'axe')).toBe(steps('axe'));
+    expect(weaponProgress(p, 'chakra')).toBe(steps('chakra'));
   });
 
   test('a taken, not finished weapon is offered again in the next window', () => {
@@ -181,12 +184,12 @@ describe('weapon cards (stage 4a)', () => {
   });
 
   test('declined weapon: the next window offers a different one', () => {
-    let p = applyCard(createProgression(), weaponCard('axe'));
+    let p = applyCard(createProgression(), weaponCard('chakra'));
     let r = rollLevelUp(p, Math.random);
-    expect(cardWeapon(r.cards[2])).toBe('axe');
+    expect(cardWeapon(r.cards[2])).toBe('chakra');
     p = applyCard(r.progression, r.cards[0]); // узяв звичайну картку
     r = rollLevelUp(p, Math.random);
-    expect(cardWeapon(r.cards[2])).not.toBe('axe');
+    expect(cardWeapon(r.cards[2])).not.toBe('chakra');
   });
 
   test('every weapon can be finished before the boss: at most 3 windows', () => {
@@ -237,12 +240,17 @@ describe('weapon upgrades (feedback-2)', () => {
     }
   });
 
-  test('upgrades stop at max → 3 regular cards', () => {
+  test('етап 10: прокачка без межі — після 30 прокачок 3-тя картка все ще прокачка', () => {
     let p = maxed('shotgun');
-    for (let i = 0; i < BALANCE.weaponUpgrades.max + 2; i++) p = applyCard(p, upgradeCard('shotgun'));
-    expect(weaponUpgrades(p, 'shotgun')).toBe(BALANCE.weaponUpgrades.max);
+    for (let i = 0; i < 30; i++) p = applyCard(p, upgradeCard('shotgun'));
+    expect(weaponUpgrades(p, 'shotgun')).toBe(30);
     const { cards } = rollLevelUp(p, seq(0, 0, 0));
-    expect(cards.every((c) => CARD_IDS.includes(c))).toBe(true);
+    expect(cards[2]).toBe(upgradeCard('shotgun'));
+  });
+
+  test('етап 10: сокира відкривається за 1 прокачку', () => {
+    const p = applyCard(createProgression(), weaponCard('axe'));
+    expect(p.arsenal.main).toBe('axe');
   });
 
   test('a partly upgraded other weapon is not offered once a main exists', () => {
@@ -252,10 +260,29 @@ describe('weapon upgrades (feedback-2)', () => {
   });
 });
 
-test('досвід за Колю — 100 (з множником кола), за уламок — 0', async () => {
+test('досвід за Колю — 100 (з множником біому), за уламок — 0', async () => {
   const { killXp } = await import('../src/systems/Progression.js');
   const { BALANCE } = await import('../src/config/balance.js');
   expect(killXp('kolya')).toBe(100);
-  expect(killXp('kolya', 1)).toBe(Math.round(100 * BALANCE.cycle.xpMul));
+  expect(killXp('kolya', { biome: 2 })).toBe(Math.round(100 * BALANCE.scaling.biomeHpMul ** 2));
   expect(killXp('kolyaPart')).toBe(0);
+});
+
+describe('етап 10: досвід і лікування після 7 рівня', () => {
+  test('до 7 рівня ріст 1,22, далі 1,10', () => {
+    expect(B10.xpGrowthLate).toBe(1.1);
+    expect(xpToNext10(7)).toBe(Math.round(10 * 1.22 ** 6));
+    expect(xpToNext10(8)).toBe(Math.round(10 * 1.22 ** 6 * 1.1));
+    expect(xpToNext10(20)).toBe(Math.round(10 * 1.22 ** 6 * 1.1 ** 13));
+  });
+  test('до 7 рівня лікує кожен рівень, з 8-го — лише парні', () => {
+    expect(healForLevels(1, 2)).toBe(1);
+    expect(healForLevels(6, 9)).toBe(2); // 7 і 8
+    expect(healForLevels(8, 9)).toBe(0);
+    expect(healForLevels(9, 10)).toBe(1);
+    expect(healForLevels(10, 14)).toBe(2); // 12 і 14
+  });
+  test('перший лев — на 6-й секунді', () => {
+    expect(B10.enemies.lion.from).toBe(6);
+  });
 });

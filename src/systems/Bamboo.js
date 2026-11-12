@@ -13,9 +13,10 @@ export function ninjaY(rng, height) {
  * Коли гравцю потрібна стіна ніндзі (секунди від появи ніндзі): сюрикен вилітає після диму і летить dist;
  * ухилитися — за dodgeLeadSec до прильоту, перечекати — dodgeSec після. Повертає { fromSec, toSec }.
  */
-export function ninjaDodgeWindow(dist) {
+export function ninjaDodgeWindow(dist, extraSec = 0) {
+  // extraSec — посилений ніндзя (етап 10) кидає ще сюрикени: стіна вільна довше
   const arrive = N.smokeMs / 1000 + dist / N.shurikenSpeed;
-  return { fromSec: Math.max(arrive - N.dodgeLeadSec, 0), toSec: arrive + N.dodgeSec };
+  return { fromSec: Math.max(arrive - N.dodgeLeadSec, 0), toSec: arrive + N.dodgeSec + extraSec };
 }
 
 /** Ніндзя стає вразливим на другій половині диму: убив до кидка — кидка немає. */

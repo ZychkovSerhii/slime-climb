@@ -54,9 +54,16 @@ export default class Plant extends Enemy {
     this.nextFireAt = now + CFG.fireMs / mul;
     this.play(animKey('plant', 'shoot'));
     this.chain(animKey('plant', 'idle'));
-    const bullet = new PlantBullet(scene, this.x, this.y);
-    scene.enemyProjectiles.add(bullet);
-    bullet.launch(scene.player.x, scene.player.y, CFG.bulletSpeed);
+    // посилена (коло 1+, етап 10): віяло з fan куль через spreadDeg
+    const fan = this.trait?.fan ?? 1;
+    const spread = ((this.trait?.spreadDeg ?? 0) * Math.PI) / 180;
+    const aim = Math.atan2(scene.player.y - this.y, scene.player.x - this.x);
+    for (let i = 0; i < fan; i++) {
+      const a = aim + (i - (fan - 1) / 2) * spread;
+      const bullet = new PlantBullet(scene, this.x, this.y);
+      scene.enemyProjectiles.add(bullet);
+      bullet.launch(this.x + Math.cos(a) * 100, this.y + Math.sin(a) * 100, CFG.bulletSpeed);
+    }
   }
 
   cancelWindup() {

@@ -24,7 +24,9 @@ export function cardWeapon(cardId) {
 
 /** Скільки досвіду треба, щоб з рівня level перейти на наступний. */
 export function xpToNext(level) {
-  return Math.round(BALANCE.xpBase * BALANCE.xpGrowth ** (level - 1));
+  const late = BALANCE.xpLateFrom;
+  const early = Math.min(level, late) - 1;
+  return Math.round(BALANCE.xpBase * BALANCE.xpGrowth ** early * BALANCE.xpGrowthLate ** Math.max(level - late, 0));
 }
 
 export function createProgression() {
@@ -167,7 +169,7 @@ export function applyCard(p, id) {
   if (weaponId) return applyWeaponCard(p, weaponId, id);
   const upId = cardUpgrade(id);
   if (upId) {
-    const upgrades = { ...p.arsenal.upgrades, [upId]: Math.min(weaponUpgrades(p, upId) + 1, BALANCE.weaponUpgrades.max) };
+    const upgrades = { ...p.arsenal.upgrades, [upId]: Math.min(weaponUpgrades(p, upId) + 1, BALANCE.weaponUpgrades.max) }; // max — Infinity (етап 10)
     return { ...p, arsenal: { ...p.arsenal, upgrades }, picks: { ...p.picks, [id]: (p.picks[id] ?? 0) + 1 } };
   }
   const loot = cardLoot(id);
@@ -198,11 +200,11 @@ function applyWeaponCard(p, weaponId, cardId) {
 }
 
 /**
- * Досвід за вбивство ворога типу type ('boss' — павучиха, 'shkodko' — Шкодько) на колі loop (з 0).
- * Фідбек-3: ×cycle.xpMul^loop — на наступних колах вороги міцніші, тож і досвіду більше.
+ * Досвід за вбивство ворога типу type ('boss' — павучиха, 'shkodko', 'kolya', 'bear').
+ * Етап 10 (§10.1): ×biomeHpMul^biome — разом з HP ворогів, плавно по біомах (biome — Cycle.biomeIndex).
  */
-export function killXp(type, loop = 0) {
-  const BOSS_XP = { boss: BALANCE.boss.xp, shkodko: BALANCE.shkodko.xp, kolya: BALANCE.kolya.xp };
+export function killXp(type, { biome = 0 } = {}) {
+  const BOSS_XP = { boss: BALANCE.boss.xp, shkodko: BALANCE.shkodko.xp, kolya: BALANCE.kolya.xp, bear: BALANCE.bearBoss?.xp };
   const base = BOSS_XP[type] ?? BALANCE.enemies[type]?.xp ?? 0;
-  return Math.round(base * BALANCE.cycle.xpMul ** loop);
+  return Math.round(base * BALANCE.scaling.biomeHpMul ** biome);
 }

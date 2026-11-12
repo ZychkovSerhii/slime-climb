@@ -5,9 +5,9 @@ import { SPRITES } from '../src/art/sprites/index.js';
 import { TRACKS, trackSteps } from '../src/systems/Music.js';
 
 describe('представлення босів', () => {
-  test('усі три боси, ім\'я з BALANCE, спрайт і мелодія існують', () => {
-    expect(INTRO_BOSSES).toEqual(['spider', 'shkodko', 'kolya']);
-    const names = { spider: BALANCE.boss.name, shkodko: BALANCE.shkodko.name, kolya: BALANCE.kolya.name };
+  test('усі боси й ведмідь (етап 10), ім\'я з BALANCE, спрайт і мелодія існують', () => {
+    expect(INTRO_BOSSES).toEqual(['spider', 'shkodko', 'kolya', 'bear']);
+    const names = { spider: BALANCE.boss.name, shkodko: BALANCE.shkodko.name, kolya: BALANCE.kolya.name, bear: BALANCE.bearBoss.name };
     const keys = new Set(SPRITES.map((s) => s.key));
     for (const b of INTRO_BOSSES) {
       const i = bossIntroInfo(b, 1);
@@ -20,7 +20,7 @@ describe('представлення босів', () => {
 
   test('мелодія своя для кожного, одноразова, ~2 с', () => {
     const music = INTRO_BOSSES.map((b) => bossIntroInfo(b).music);
-    expect(new Set(music).size).toBe(3);
+    expect(new Set(music).size).toBe(INTRO_BOSSES.length);
     for (const m of music) {
       const t = TRACKS[m];
       expect(t.loop, m).toBe(false);

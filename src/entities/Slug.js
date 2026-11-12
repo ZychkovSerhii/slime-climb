@@ -36,7 +36,7 @@ export default class Slug extends Enemy {
     const mul = this.speedMul(now);
     if (this.kind === 'biter') {
       const angle = Phaser.Math.Angle.Between(this.x, this.y, p.x, p.y);
-      scene.physics.velocityFromRotation(angle, BITER.speed * mul, this.body.velocity);
+      scene.physics.velocityFromRotation(angle, BITER.speed * (this.trait?.speedMul ?? 1) * mul, this.body.velocity); // посилений — швидший
       this.setFlipX(p.x < this.x);
       return;
     }
@@ -56,7 +56,7 @@ export default class Slug extends Enemy {
     this.windup = false;
     this.tintedSlow = undefined;
     this.clearTint();
-    this.nextSpitAt = now + SPITTER.spitMs / spitMul;
+    this.nextSpitAt = now + (this.trait?.spitMs ?? SPITTER.spitMs) / spitMul; // посилена — плює частіше
     const s = new SlimeSpit(scene, this.x, this.y);
     scene.enemyProjectiles.add(s);
     s.launch(p.x, p.y, BALANCE.kolya.spit.speed);
