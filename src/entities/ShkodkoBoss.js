@@ -35,6 +35,8 @@ export default class ShkodkoBoss extends Enemy {
     this.setScale(SCALE);
     this.scrollsWithWorld = false;
     this.maxHp = this.hp;
+    // з 2-го кола (етап 10): залп частіше
+    this.volleyEveryMs = this.enhanced ? S.volley.enhancedEveryMs : S.volley.everyMs;
     this.halfW = (tex.width * SCALE) / 2;
     this.phase = 1;
     this.rage = false;
@@ -88,7 +90,7 @@ export default class ShkodkoBoss extends Enemy {
     if (next === this.phase) return;
     this.phase = next;
     const now = this.scene.nowMs;
-    if (next >= 2 && this.nextVolleyAt === Infinity) this.nextVolleyAt = now + S.volley.everyMs;
+    if (next >= 2 && this.nextVolleyAt === Infinity) this.nextVolleyAt = now + this.volleyEveryMs;
     if (next === 2) {
       sfx('bossPain');
       this.scene.events.emit('hud:banner', { text: 'Шкодько злиться!', ms: 1200 });
@@ -205,7 +207,7 @@ export default class ShkodkoBoss extends Enemy {
     this.play(animKey('shkodko', 'laugh'), true);
     sfx('laugh');
     this.throwBombs(S.volley.count);
-    this.nextVolleyAt = this.scene.nowMs + S.volley.holdMs + S.volley.everyMs;
+    this.nextVolleyAt = this.scene.nowMs + S.volley.holdMs + this.volleyEveryMs;
     this.setState('volley', S.volley.holdMs);
     this.emitHud();
   }

@@ -148,6 +148,8 @@ export const BALANCE = deepFreeze({
     strikeChance: 0.6, // імовірність удару прямо над гравцем
     strikeSpreadPx: 40, // розкид такого удару по x
     strikeToFeet: true, // фідбек-2: павучиха падає до низу спрайта гравця, а не до його центру (не «долітала» до голови)
+    // етап 10 (§10.4): ще нижче — strikeBelowFeetPx під ногами (≈2–2,5 см на телефоні; припущення, підбираємо за відгуком)
+    strikeBelowFeetPx: 200,
     hangY: 260, // на якій висоті павук висить між атаками (px від верху) — нижче смуги HP у HUD
     dropSpeed: 1265, // (було 900 → 1100; фідбек-2 +15%) швидкість падіння на павутині (px/s)
     retreatSpeed: 500, // швидкість підйому (px/s)
@@ -155,6 +157,8 @@ export const BALANCE = deepFreeze({
     // Плювок павутиною (правки після 4a): кожна every-та атака замість удару — віяло грудок у гравця.
     // Після плювка павучиха чекає recoverMs, щоб удар не збігся з грудками в польоті (інакше може не бути безпечної стіни).
     spit: { every: 3, rageEvery: 2, count: 3, rageCount: 5, spreadDeg: 14, speed: 330, recoverMs: 1500 },
+    // з 2-го кола (етап 10): плювок кожну enhancedEvery-ту атаку; у люті — кожну rageEvery-ту, але віяло ширше на enhancedRageExtra
+    spitEnhanced: { every: 2, rageExtra: 2 },
     // Фідбек-2: рій 14 → 12 (макс 20 → 18); випустивши рій, павучиха не стоїть, а атакує як звичайно
     // (лишаючись невразливою, доки рій живий). flailMs — скільки триває «розмахування лапами» при випуску.
     swarmFlailMs: 700,
@@ -186,7 +190,7 @@ export const BALANCE = deepFreeze({
       rage: { speed: 440, pauseMs: 350, aimEvery: 2, bombs: 2 },
     },
     // фаза 2+: раз на everyMs — угору по центру, невразливий holdMs, залп з count бомб
-    volley: { everyMs: 12000, holdMs: 3000, count: 6, centerY: 220 },
+    volley: { everyMs: 12000, enhancedEveryMs: 9000, holdMs: 3000, count: 6, centerY: 220 },
     bomb: { flightMs: 650, fuseMinMs: 2000, fuseMaxMs: 3000, radiusPx: 75, nearPlayerShare: 0.5, nearSpreadPx: 90 },
     // фаза 3: подарунковий дощ; heal — частка maxHp за кожен незібраний, якщо ціль не виконано
     rush: { count: 10, durationMs: 8000, goal: 6, xp: 3, healEach: 0.05, healCap: 0.65, fallSpeed: 260 },

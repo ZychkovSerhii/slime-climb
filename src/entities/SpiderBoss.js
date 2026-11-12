@@ -170,10 +170,13 @@ export default class SpiderBoss extends Enemy {
     this.web.lineStyle(3, WEB_COLOR, 0.8).lineBetween(this.x, 0, this.x, this.y);
   }
 
-  /** Нижня точка удару: низ спрайта гравця (фідбек-2: раніше павучиха «не долітала», зупиняючись на його центрі). */
+  /**
+   * Нижня точка удару: низ спрайта гравця (фідбек-2) і ще strikeBelowFeetPx нижче (етап 10) — павучиха пролітає
+   * крізь гравця глибше, тож від удару не врятує «стояння трохи вище».
+   */
   strikeY() {
     const p = this.scene.player;
-    return B.strikeToFeet ? p.y + p.displayHeight / 2 : p.y;
+    return (B.strikeToFeet ? p.y + p.displayHeight / 2 : p.y) + B.strikeBelowFeetPx;
   }
 
   /**
@@ -198,7 +201,7 @@ export default class SpiderBoss extends Enemy {
   /** Наступна атака: кожна spit.every-та — плювок павутиною, решта — удар. */
   nextAttack() {
     this.attackNo += 1;
-    if (isSpitAttack(this.attackNo, this.rage)) this.spit();
+    if (isSpitAttack(this.attackNo, this.rage, this.enhanced)) this.spit();
     else this.startTelegraph();
   }
 
@@ -209,7 +212,7 @@ export default class SpiderBoss extends Enemy {
     const y = this.y + this.height / 3;
     const aim = Math.atan2(p.y - y, p.x - this.x);
     sfx('bossPain');
-    for (const a of spitAngles(aim, this.rage)) {
+    for (const a of spitAngles(aim, this.rage, this.enhanced)) {
       const ball = new Projectile(scene, this.x, y, 'webBall');
       ball.type = 'webBall';
       scene.enemyProjectiles.add(ball);

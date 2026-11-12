@@ -22,7 +22,8 @@ export default class Lantern extends Enemy {
     super(scene, Phaser.Math.FloatBetween(minX, width - minX), -tex.height / 2, 'lantern', 'lantern');
     this.scrollsWithWorld = false;
     this.armedAt = null;
-    this.radius = CFG.radiusPx; // читає бот-плейтест
+    // посилений (коло 1+, етап 10): вибух ×radiusMul ширший
+    this.radius = CFG.radiusPx * (this.trait?.radiusMul ?? 1); // читає й бот-плейтест
     this.play({ key: animKey('lantern', 'glow'), startFrame: Phaser.Math.Between(0, 1) });
   }
 
@@ -48,9 +49,9 @@ export default class Lantern extends Enemy {
   explode() {
     const scene = this.scene;
     sfx('boom');
-    const ring = scene.add.circle(this.x, this.y, CFG.radiusPx, BLAST_COLOR, 0.45).setDepth(this.depth + 1);
+    const ring = scene.add.circle(this.x, this.y, this.radius, BLAST_COLOR, 0.45).setDepth(this.depth + 1);
     scene.tweens.add({ targets: ring, alpha: 0, scale: 1.15, duration: 280, onComplete: () => ring.destroy() });
-    if (!scene.dead && blastHits(this, scene.player, CFG.radiusPx)) scene.hurtPlayer();
+    if (!scene.dead && blastHits(this, scene.player, this.radius)) scene.hurtPlayer();
     this.destroy();
   }
 }

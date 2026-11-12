@@ -822,7 +822,9 @@ export default class GameScene extends Phaser.Scene {
     const p = this.player;
     const dist = Math.hypot(this.scale.width - 2 * BALANCE.wallWidth, p.baseY - q.y);
     const scroll = scrollSpeed(this.elapsedSec, false);
-    const iv = ninjaInterval({ d0: this.distancePx, zoneY: p.baseY, scroll, ...ninjaDodgeWindow(dist) });
+    const t = this.loop >= BALANCE.scaling.enhancedFromLoop ? BALANCE.traits.ninja : null;
+    const extra = t ? ((t.shurikens - 1) * t.gapMs) / 1000 : 0;
+    const iv = ninjaInterval({ d0: this.distancePx, zoneY: p.baseY, scroll, ...ninjaDodgeWindow(dist, extra) });
     // поки чекаємо: відрізок рухається разом із гравцем, тож резервуємо його з запасом на весь час очікування —
     // інакше нові шипи згори заходять у нього швидше, ніж старі виходять
     const waitSec = Math.max(q.until - this.nowMs, 0) / 1000;

@@ -132,3 +132,14 @@ describe('web spit (balance fixes after 4a)', () => {
     expect(strikeAt).toBeGreaterThan(flight * 0.75);
   });
 });
+
+describe('етап 10: павучиха з 2-го кола', () => {
+  test('плювок кожну 2-гу атаку (було кожну 3-тю)', () => {
+    expect(isSpitAttack(2, false, false)).toBe(false);
+    expect(isSpitAttack(2, false, true)).toBe(true);
+    expect(isSpitAttack(3, false, true)).toBe(false);
+  });
+  test('у люті віяло ширше', () => {
+    expect(spitAngles(0, true, true).length).toBe(spitAngles(0, true, false).length + 2);
+  });
+});
