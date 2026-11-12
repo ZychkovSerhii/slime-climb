@@ -6,4 +6,4 @@ compatibility_date = "2026-11-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "slime-climb"
-database_id = "REPLACE_ME" # id з дашборда Cloudflare (не секрет)
+database_id = "e69bc1ba-7897-4279-9269-9fc3879404f9" # D1 «slime-climb», EEUR (не секрет)
