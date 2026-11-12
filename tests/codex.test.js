@@ -1,3 +1,4 @@
+import { KAZAN_LOOT_IDS } from '../src/systems/KazanLoot.js';
 import { expect, test } from 'vitest';
 import { BALANCE } from '../src/config/balance.js';
 import { buildCodex, CATEGORIES, queryCodex, SORTS } from '../src/systems/Codex.js';
@@ -18,11 +19,11 @@ test('every category from the spec has entries', () => {
 test('nothing from BALANCE is forgotten', () => {
   for (const id of Object.keys(BALANCE.weapons)) expect(ids.has(`weapon:${id}`), id).toBe(true);
   for (const id of CARD_IDS) expect(ids.has(id), id).toBe(true);
-  for (const id of [...LOOT_IDS, ...SHKODKO_LOOT_IDS, ...KOLYA_LOOT_IDS]) expect(ids.has(`loot:${id}`), id).toBe(true);
+  for (const id of [...LOOT_IDS, ...SHKODKO_LOOT_IDS, ...KOLYA_LOOT_IDS, ...KAZAN_LOOT_IDS]) expect(ids.has(`loot:${id}`), id).toBe(true);
   for (const id of Object.keys(BALANCE.enemies)) expect(ids.has(`enemy:${id}`), id).toBe(true);
   for (const s of BALANCE.meta.skins) expect(ids.has(`skin:${s.id}`), s.id).toBe(true);
-  expect(ids.has('boss:spider') && ids.has('boss:shkodko') && ids.has('boss:kolya')).toBe(true);
-  expect(ids.has('biome:bamboo')).toBe(true);
+  expect(ids.has('boss:spider') && ids.has('boss:shkodko') && ids.has('boss:kolya') && ids.has('boss:kazan')).toBe(true);
+  expect(ids.has('biome:bamboo') && ids.has('biome:lava')).toBe(true);
 });
 
 test('ids are unique, every entry has a name, a description and a known sprite', () => {
@@ -61,7 +62,7 @@ test('search is case-insensitive and by name', () => {
 test('category filter', () => {
   const r = queryCodex(all, { category: 'boss' });
   expect(r.every((e) => e.category === 'boss')).toBe(true);
-  expect(r.length).toBe(4);
+  expect(r.length).toBe(5);
 });
 
 test('numeric sort: strongest first, entries without the value last', () => {

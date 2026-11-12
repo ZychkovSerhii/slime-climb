@@ -57,6 +57,21 @@ describe('Tuning: збереження і межі', () => {
   });
 });
 
+describe('Tuning: поле Казана (етап 11)', () => {
+  test('старі збереження без kazan → 1, межі 0,5–4', () => {
+    expect(normalizeTuning({}).kazan).toBe(1);
+    expect(normalizeTuning({ kazan: 9 }).kazan).toBe(4);
+    expect(bossHpTuning('kazan')).toBe(1);
+  });
+  test('«Важко» не множить нові HP двічі', () => {
+    expect(PRESETS.hard.values).toMatchObject({ shkodko: 1.2, kolya: 1.3, kazan: 1.3 });
+  });
+  test('множник kazan діє на HP Казана', () => {
+    setTuning({ ...defaultTuning(), kazan: 2 });
+    expect(bossHpTuning('kazan')).toBe(2);
+  });
+});
+
 describe('Tuning: множники в грі', () => {
   test('«Норма» нічого не міняє', () => {
     expect(enemyHp(4, 0)).toBe(4);
@@ -89,5 +104,21 @@ describe('Tuning: множники в грі', () => {
 
   test('«Назад» на екрані складності — у меню', () => {
     expect(backAction(['Tuning'], false)).toBe('menu');
+  });
+});
+
+describe('Tuning: старі збережені набори (фінальне рев\'ю, Important #3)', () => {
+  test('старий «Важко» (shkodko 1,6, kolya 2, без kazan) → новий «Важко»', () => {
+    const old = { enemyHp: 1.3, enemySpeed: 1.1, spawn: 1.2, spider: 1.3, bear: 1.3, shkodko: 1.6, kolya: 2, xp: 0.8, heal: 'even' };
+    expect(normalizeTuning(old)).toEqual(PRESETS.hard.values);
+  });
+  test('старий «Легко» без kazan → новий «Легко»', () => {
+    const old = { enemyHp: 0.8, enemySpeed: 0.9, spawn: 0.8, spider: 0.8, bear: 0.8, shkodko: 0.8, kolya: 0.8, xp: 1.2, heal: 'every' };
+    expect(normalizeTuning(old)).toEqual(PRESETS.easy.values);
+  });
+  test('свої значення без kazan не чіпаємо, лише kazan = 1', () => {
+    const own = { ...defaultTuning(), kolya: 2 };
+    delete own.kazan;
+    expect(normalizeTuning(own)).toEqual({ ...defaultTuning(), kolya: 2 });
   });
 });

@@ -1,9 +1,10 @@
 // Бот-плейтест: справжня гра в headless Chromium, бот сам стрибає і вибирає картки.
 // Смерть вимкнена: рахуємо кожен удар (з джерелом і часом), щоб оцінити, чи реально дожити до боса і вбити його.
-// Використання: node scripts/playtest.mjs [--seconds 160] [--runs 1] [--no-enemies] [--weapon axe|chakra|shotgun] [--cards hat,hat,extraLife] [--winter] [--shkodko] [--bamboo] [--kolya] [--bear]
+// Використання: node scripts/playtest.mjs [--seconds 160] [--runs 1] [--no-enemies] [--weapon axe|chakra|shotgun] [--cards hat,hat,extraLife] [--winter] [--shkodko] [--bamboo] [--kolya] [--bear] [--lava] [--kazan]
 // --winter — одразу зимовий біом без павучихи (?winter=1); --shkodko — зима і Шкодько на 6-й с (?shkodko=1)
 // --bamboo — одразу бамбук без боса (?bamboo=1); --kolya — бамбук і Коля на 6-й с (?kolya=1)
 // --bear — зима і ведмідь-міні-бос на 6-й с (?bear=1), далі Шкодько (етап 10)
+// --lava — одразу лава без боса (?lava=1); --kazan — лава і Пан Казан на 6-й с (?kazan=1) (етап 11)
 // Потрібен браузер Playwright (npx playwright install chromium) або CHROME_PATH.
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
@@ -24,6 +25,8 @@ const SHKODKO = process.argv.includes('--shkodko');
 const BAMBOO = process.argv.includes('--bamboo');
 const KOLYA = process.argv.includes('--kolya');
 const BEAR = process.argv.includes('--bear');
+const LAVA = process.argv.includes('--lava');
+const KAZAN = process.argv.includes('--kazan');
 
 // Код бота виконується всередині сторінки (dev-режим дає window.game)
 function installBot() {
@@ -56,6 +59,11 @@ function installBot() {
       }
     }
     report.hits.push({ t: +this.elapsedSec.toFixed(1), src });
+    if (window.__hitctx) {
+      const k = this.enemies.getChildren().find((e) => e.type === 'kazan');
+      const near = [...this.enemyProjectiles.getChildren(), ...this.enemies.getChildren(), ...this.hazards.getChildren()].filter((o) => o.active && Math.hypot(o.x - p.x, o.y - p.y) < 140).map((o) => `${o.type ?? (o.lavaDrop ? "drop" : "haz")}@${Math.round(o.x)},${Math.round(o.y)}`);
+      (report.hitCtx ??= []).push({ t: +this.elapsedSec.toFixed(1), side: p.side, jumping: p.isJumping, y: Math.round(p.y), near, pours: k ? k.pours.map((q) => `${q.side}:${Math.round(q.pourFrom - this.nowMs)}..${Math.round(q.pourTo - this.nowMs)}`) : [], lid: k?.lidWarn ? 'warn' : '' });
+    }
     return took;
   };
 
@@ -75,7 +83,7 @@ function installBot() {
   s.events.on('hud:banner', (b) => {
     if (b?.text === 'Санта!') report.winter.santa += 1;
     // фази Шкодька видно з плашок
-    if (b?.text && /Шкодько|Коля|Потяг|Ціль|подарунки!|Коло|БОС|ведмідь/.test(b.text) && !/Лови подарунки! [1-9]/.test(b.text)) report.boss.push(`${b.text}@${s.elapsedSec.toFixed(1)}`);
+    if (b?.text && /Шкодько|Коля|Казан|Потяг|Ціль|подарунки!|Коло|БОС|ведмідь/.test(b.text) && !/Лови подарунки! [1-9]/.test(b.text)) report.boss.push(`${b.text}@${s.elapsedSec.toFixed(1)}`);
   });
   let immune = false;
   s.events.on('hud:boss', (b) => {
@@ -94,6 +102,8 @@ function installBot() {
 
   /** Чи зачепить об'єкт o гравця, якщо той стоїть у (x, y) в момент t (сек від зараз). */
   function hitsAt(o, x, y, t, scroll) {
+    // етап 11: віртуальні загрози з вікном часу (струмінь саламандри, лава й кришка Казана)
+    if (o.from !== undefined && (t < o.from || t > o.to)) return false;
     const bw = (o.displayWidth || 40) / 2;
     const bh = (o.displayHeight || 40) / 2;
     const vx = o.body ? o.body.velocity.x : 0;
@@ -113,7 +123,31 @@ function installBot() {
     const bombs = s.bombs.getChildren().filter((b) => b.landed).map((b) => ({ x: b.x, y: b.y, displayWidth: b.radius * 2, displayHeight: b.radius * 2, active: true, type: 'bomb' }));
     // ліхтарик, що зайнявся, — небезпека розміром з радіус вибуху
     const lanterns = s.enemies.getChildren().filter((e) => e.active && e.type === 'lantern' && e.armedAt != null).map((e) => ({ x: e.x, y: e.y, displayWidth: e.radius * 2, displayHeight: e.radius * 2, active: true, type: 'lanternBlast', body: e.body, scrollsWithWorld: false }));
-    return [...s.hazards.getChildren(), ...s.enemies.getChildren(), ...s.enemyProjectiles.getChildren(), ...bombs, ...lanterns].filter(
+    // етап 11: струмінь саламандри — смуга через коридор на висоті beamY у вікні видиху
+    const now = s.nowMs;
+    const W = s.scale.width;
+    const virt = [];
+    for (const e of s.enemies.getChildren()) {
+      if (!e.active) continue;
+      if (e.salamander && ['warn', 'breath', 'gap'].includes(e.state)) {
+        const left = Math.max(e.nextAt - now, 0) / 1000;
+        const from = e.state === 'breath' ? 0 : left;
+        const to = from + (e.tl.breathMs * e.breathsLeft + e.tl.gapMs * Math.max(e.breathsLeft - 1, 0)) / 1000 + 0.1;
+        virt.push({ x: W / 2, y: e.beamY ?? s.player.baseY, displayWidth: W, displayHeight: 36, active: true, type: 'beam', scrollsWithWorld: false, from, to });
+      }
+      if (e.type === 'kazan' && e.pours) {
+        for (const p of e.pours) {
+          const busyTo = p.pourTo + (p.enhanced ? 2000 : 0);
+          if (busyTo < now) continue;
+          virt.push({ x: s.player.wallX(p.side), y: s.player.baseY, displayWidth: 20, displayHeight: 2000, active: true, type: 'lava', scrollsWithWorld: false, from: (p.pourFrom - now) / 1000 - 0.05, to: (busyTo - now) / 1000 });
+        }
+        if (e.lidWarn) virt.push({ x: W / 2, y: e.lidWarn.y, displayWidth: W, displayHeight: 40, active: true, type: 'lid', scrollsWithWorld: false, from: (e.lidWarn.at - now) / 1000, to: (e.lidWarn.at - now + 900) / 1000 }); // туди — на висоті гравця, назад — вище
+      }
+    }
+    for (const l of s.enemyProjectiles.getChildren()) {
+      if (l.active && l.type === 'lid') virt.push({ x: W / 2, y: l.y, displayWidth: W, displayHeight: 40, active: true, type: 'lid', scrollsWithWorld: false, from: 0, to: (1600 - (now - l.bornAt)) / 1000 });
+    }
+    return [...s.hazards.getChildren(), ...s.enemies.getChildren(), ...s.enemyProjectiles.getChildren().filter((o) => o.type !== 'lid'), ...bombs, ...lanterns, ...virt].filter(
       (o) => o.active && !o.harmless && o.visible !== false && !(CHASERS.has(o.type) && Math.hypot(o.x - p.x, o.y - p.y) > CHASER_RANGE),
     );
   }
@@ -222,6 +256,7 @@ function installBot() {
     if (e.type === 'shkodko') report.shkodkoKilled = +s.elapsedSec.toFixed(1);
     if (e.type === 'kolya') report.kolyaKilled = +s.elapsedSec.toFixed(1);
     if (e.type === 'bear') report.bearKilled = +s.elapsedSec.toFixed(1);
+    if (e.type === 'kazan') report.kazanKilled = +s.elapsedSec.toFixed(1);
     report.kills = report.kills || {};
     report.kills[e.type] = (report.kills[e.type] || 0) + 1;
   });
@@ -256,12 +291,13 @@ for (let r = 0; r < RUNS; r++) {
   const page = await browser.newPage({ viewport: { width: 360, height: 640 } });
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  const q = [WEAPON && `weapon=${WEAPON}`, CARDS && `cards=${CARDS}`, WINTER && 'winter=1', SHKODKO && 'shkodko=1', BAMBOO && 'bamboo=1', KOLYA && 'kolya=1', BEAR && 'bear=1'].filter(Boolean).join('&');
+  const q = [WEAPON && `weapon=${WEAPON}`, CARDS && `cards=${CARDS}`, WINTER && 'winter=1', SHKODKO && 'shkodko=1', BAMBOO && 'bamboo=1', KOLYA && 'kolya=1', BEAR && 'bear=1', LAVA && 'lava=1', KAZAN && 'kazan=1'].filter(Boolean).join('&');
   await page.goto(q ? `${url}?${q}` : url);
   await page.waitForTimeout(800);
   await page.mouse.click(180, 320); // меню → гра
   await page.waitForTimeout(500);
   await page.evaluate(installBot);
+  if (process.env.HITCTX) await page.evaluate(() => { window.__hitctx = true; });
   if (NO_ENEMIES) {
     await page.evaluate(() => {
       const s = window.game.scene.getScene('Game');
@@ -305,8 +341,9 @@ for (const [i, rep] of results.entries()) {
   console.log(`  Шаги: ${rep.steps} (на першій смерті: ${rep.stepsAtDeath ?? '-'}), вбивства: ${JSON.stringify(rep.kills ?? {})}`);
   if (rep.relics) console.log(`  relics: ${rep.relics.join(', ')}`);
   console.log(`  зима: ричань по гравцю ${rep.winter.roars}, подарунків ${rep.winter.gifts}, Санта ${rep.winter.santa}`);
-  console.log(`  boss start ${rep.bossStart ?? '-'}, boss killed ${rep.bossKilled ?? '-'}, Шкодько killed ${rep.shkodkoKilled ?? '-'}, Коля killed ${rep.kolyaKilled ?? '-'}, ведмідь killed ${rep.bearKilled ?? '-'}, phases: ${rep.boss.join(' ') || '-'}`);
+  console.log(`  boss start ${rep.bossStart ?? '-'}, boss killed ${rep.bossKilled ?? '-'}, Шкодько killed ${rep.shkodkoKilled ?? '-'}, Коля killed ${rep.kolyaKilled ?? '-'}, ведмідь killed ${rep.bearKilled ?? "-"}, Казан killed ${rep.kazanKilled ?? "-"}, phases: ${rep.boss.join(' ') || '-'}`);
   console.log(`  picks: ${rep.picks.join(', ')}`, 'decisions', JSON.stringify(rep.decisions), 'panicBy', JSON.stringify(rep.panicBy));
+  if (rep.hitCtx) console.log('  hitCtx:', JSON.stringify(rep.hitCtx));
   if (rep.errors.length) console.log('  ERRORS:', rep.errors);
 }
 await browser.close();

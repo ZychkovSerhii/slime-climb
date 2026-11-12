@@ -122,4 +122,19 @@ export const C = {
   larvaDark: 0xc2b07e,
   spitter: 0xc89ad8,
   spitterDark: 0x8e5ea6,
+
+  // ---- Лавові надра (етап 11)
+  basaltDark: 0x1a1210,
+  basalt: 0x3a2a24,
+  basaltSpike: 0x8a7a70, // кілок світліший за стіну — мусить читатися на її фоні
+  lavaDark: 0xa8321a,
+  lava: 0xf06a1e,
+  lavaHot: 0xffd25a,
+  salamanderDark: 0x7a2a12,
+  salamander: 0xd2541f,
+  // ---- Пан Казан: чавун і пара
+  ironDark: 0x24262c,
+  iron: 0x4a4e58,
+  ironLight: 0x8a90a0,
+  steam: 0xdfe6ea,
 };

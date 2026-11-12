@@ -84,6 +84,18 @@ export const LOOT_TEXT = {
       desc: `скін слимака (скасовує інші). Раз за рівень\nзамість мінус життя: ${num(I.invulnMs / 1000)} с щит і ${I.copies} мінікопії`,
     };
   },
+  // етап 11 — трофеї Казана
+  ladle: () => {
+    const L = BALANCE.kazanLoot.ladle;
+    return { title: 'Черпачок', desc: `кружляє довкола й хлюпає лавою\nраз на ${num(L.everyMs / 1000)} с на ${L.damage} (росте з «Уроном»)` };
+  },
+  iamkazan: () => {
+    const I = BALANCE.kazanLoot.iam;
+    return {
+      title: 'Я КАЗАН',
+      desc: `скін казанчика (скасовує інші). Раз за рівень\nзамість мінус життя: ${num(I.invulnMs / 1000)} с щит і кільце лави на ${I.damage}`,
+    };
+  },
 };
 
 export function cardText(id, picks, arsenal) {

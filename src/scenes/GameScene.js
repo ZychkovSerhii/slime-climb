@@ -45,6 +45,13 @@ import Snow from '../entities/Snow.js';
 import Fog from '../entities/Fog.js';
 import Ninja from '../entities/Ninja.js';
 import Lantern from '../entities/Lantern.js';
+import Embers from '../entities/Embers.js';
+import KazanBoss from '../entities/KazanBoss.js';
+import Salamander from '../entities/Salamander.js';
+import Spark from '../entities/Spark.js';
+import Sparkling from '../entities/Sparkling.js';
+import LavaDrop from '../entities/LavaDrop.js';
+import { dropPassWindow, dropSide, dropsAllowed, nextDropMs, salamanderDodgeWindow, sparkSplit } from '../systems/Lava.js';
 import GiftBomb from '../entities/GiftBomb.js';
 import HeartPickup from '../entities/HeartPickup.js';
 import { createHeartState, heartDue, heartSide } from '../systems/Heart.js';
@@ -59,6 +66,7 @@ const PAUSE_MENU_LABEL = 'У меню';
 const PAUSE_MENU_CONFIRM = 'Точно вийти?';
 const PAUSE_MENU_DY = 150; // кнопка «У меню» нижче «Продовжити»
 import { canSplit, KOLYA_LOOT_IDS, lootShotDamage, lootStepsBonus, useSplit } from '../systems/KolyaLoot.js';
+import { canBoil, KAZAN_LOOT_IDS, ladleDamage, ringVictims, useBoil } from '../systems/KazanLoot.js';
 
 const POISON_TINT = 0xb0d040; // слизак і так зелений — під отрутою він темніший, болотний
 const ROAR_TINT = 0x9fb4c8; // приголомшений ричанням — сірувато-блакитний
@@ -69,8 +77,9 @@ const TEX = {
   cave: { bg: 'bg', wall: 'wall', spike: 'spike' },
   winter: { bg: 'bgWinter', wall: 'wallIce', spike: 'icicle' },
   bamboo: { bg: 'bgBamboo', wall: 'wallBamboo', spike: 'stake' },
+  lava: { bg: 'bgLava', wall: 'wallLava', spike: 'basalt' },
 };
-const BIOME_BANNER = { winter: 'Зима', bamboo: 'Туманний бамбук' };
+const BIOME_BANNER = { winter: 'Зима', bamboo: 'Туманний бамбук', lava: 'Лавові надра' };
 const FADE_MS = 600; // шипи й вороги плавно зникають перед босом
 const VENOM_SHOT_TINT = 0x9cff3a; // постріли з «Ядовитою мордою» — кислотні
 // шляпа на голові слизака: центр шляпи відносно центру слизака і зсув другої шляпи
@@ -79,13 +88,14 @@ const HAT_STACK = 12;
 const OKSANA_TINT = 0xffa8d8; // Оксанка — рожевувата, щоб не плутати з ворожими павучками
 const LARVA_SHOT_TINT = 0xb4ff8a; // плювок «Личинки-помічника» — зелений, як постріли слизака, а не рожевий ворожий
 // Боси (етап 9 — третій): тип у події 'enemy:killed' → ключ відрізка, ім'я, клас, трофеї
-const BOSS_OF_KILL = { boss: 'spider', shkodko: 'shkodko', kolya: 'kolya', bear: 'bear' };
+const BOSS_OF_KILL = { boss: 'spider', shkodko: 'shkodko', kolya: 'kolya', bear: 'bear', kazan: 'kazan' };
 const BOSSES = {
   spider: { name: BALANCE.boss.name, make: (s) => new SpiderBoss(s), loot: (relics) => rollLoot(relics, Math.random) },
   shkodko: { name: BALANCE.shkodko.name, make: (s) => new ShkodkoBoss(s), loot: (relics) => rollLoot(relics, Math.random, SHKODKO_LOOT_IDS, BALANCE.shkodkoLoot.offer) },
   kolya: { name: BALANCE.kolya.name, make: (s) => new KolyaBoss(s), loot: (relics) => rollLoot(relics, Math.random, KOLYA_LOOT_IDS, BALANCE.kolyaLoot.offer) },
   // етап 10: міні-бос без трофеїв (і без бонусу Шагів «трофеї вже твої»)
   bear: { name: BALANCE.bearBoss.name, make: (s) => new BearBoss(s), loot: null },
+  kazan: { name: BALANCE.kazan.name, make: (s) => new KazanBoss(s), loot: (relics) => rollLoot(relics, Math.random, KAZAN_LOOT_IDS, BALANCE.kazanLoot.offer) }, // етап 11
 };
 
 export default class GameScene extends Phaser.Scene {
@@ -118,6 +128,9 @@ export default class GameScene extends Phaser.Scene {
     this.larva = null; // «Личинка-помічник» (етап 9)
     this.kolyaSplit = null; // «Я КОЛЯ»: { usedAtLevel }
     this.kolyaCopies = []; // мінікопії після поділу
+    this.kazanBoil = null; // «Я КАЗАН»: { usedAtLevel } (етап 11)
+    this.ladle = null; // «Черпачок» (етап 11)
+    this.ladleTick = null;
     this.killScore = 0;
     // мета-прогрес (етап 5): Шаги й лічильники пишуться в сховище одразу при вбивстві — закритий посеред забігу застосунок їх не губить
     this.storage = browserStorage();
@@ -139,13 +152,14 @@ export default class GameScene extends Phaser.Scene {
     // Коло біомів (етап 6b, systems/Cycle): відрізок — біом і бос наприкінці; етап рахує runStage
     // (calm → before/after → prep → fight). killedAtSec — секунда смерті попереднього боса (тиша й плавний спавн).
     // Перевірка: ?boss=1 — павучиха на 6-й с, ?winter=1 — зима без боса, ?shkodko=1 — зима і Шкодько на 6-й с,
-    // ?bamboo=1 — бамбук без боса, ?kolya=1 — бамбук і Коля на 6-й с (етап 9).
+    // ?bamboo=1 — бамбук без боса, ?kolya=1 — бамбук і Коля на 6-й с (етап 9);
+    // ?lava=1 — лава без боса, ?kazan=1 — лава і Казан на 6-й с, ?loop=N — почати з кола N (етап 11).
     const q = new URLSearchParams(window.location.search);
-    const start = ['bear', 'kolya', 'bamboo', 'shkodko', 'winter'].find((k) => q.get(k) === '1') ?? (q.get('boss') === '1' ? 'spider' : 'cave');
-    this.seg = firstSegment(start);
+    const start = ['kazan', 'lava', 'bear', 'kolya', 'bamboo', 'shkodko', 'winter'].find((k) => q.get(k) === '1') ?? (q.get('boss') === '1' ? 'spider' : 'cave');
+    this.seg = firstSegment(start, Math.max(0, Math.min(9, parseInt(q.get('loop') ?? '0', 10) || 0)));
     this.walkerSeq = 0;
     this.walkerQueue = []; // ніндзя, що чекають, поки на їхній стіні розійдуться шипи (етап 9)
-    this.loop = 0; // номер кола з 0: вороги й боси міцніші (Enemy читає scene.loop)
+    this.loop = this.seg.loop; // номер кола з 0: вороги й боси міцніші (Enemy читає scene.loop)
     this.stage = 'before';
     this.bossSpawned = false;
     this.bannerShown = false;
@@ -155,6 +169,9 @@ export default class GameScene extends Phaser.Scene {
     this.settings = loadSettings(browserStorage());
     this.snow = null;
     this.fog = null; // туман бамбука (етап 9)
+    this.embers = null; // іскри лави (етап 11)
+    this.dropAt = Infinity; // наступна лавова крапля (мс гри)
+    this.landedAt = -Infinity; // коли слизак востаннє приземлився (пільга від струменя саламандри)
     this.santaState = null;
     this.giftState = null;
     this.heartState = createHeartState(); // сердечка (етап 10)
@@ -227,8 +244,9 @@ export default class GameScene extends Phaser.Scene {
       if (enemy.active) sfx('hit');
     });
 
-    const onKilled = ({ type }) => {
+    const onKilled = ({ type, x, y }) => {
       if (this.dead) return;
+      if (type === 'spark') this.splitSpark(x, y);
       sfx('kill');
       this.killScore += killPoints(type);
       this.onMetaKill(type);
@@ -268,6 +286,9 @@ export default class GameScene extends Phaser.Scene {
     // відпускання рахуємо завжди: інакше утримання «застрягне», якщо палець підняли під час паузи
     this.input.on('pointerup', () => this.player.release());
     this.player.on('jumped', () => sfx('jump'));
+    this.player.on('landed', () => {
+      this.landedAt = this.nowMs;
+    });
     this.player.on('reversed', () => sfx('reverse'));
 
     if (this.seg.biome !== 'cave') this.enterBiome(this.seg.biome); // до перших шипів — щоб одразу були бурульки
@@ -546,6 +567,12 @@ export default class GameScene extends Phaser.Scene {
       this.splitIntoCopies();
       return false;
     }
+    // «Я КАЗАН» (етап 11): раз за рівень замість втрати життя — щит і кільце лави
+    if (activeForm(this.progression.relics) === 'iamkazan' && this.nowMs >= this.health.invulnerableUntil && canBoil(this.kazanBoil, this.progression.level)) {
+      this.kazanBoil = useBoil(this.kazanBoil, this.progression.level);
+      this.lavaRing();
+      return false;
+    }
     const r = applyDamage(this.health, this.nowMs);
     this.health = r.health;
     if (!r.tookDamage) return false;
@@ -774,7 +801,7 @@ export default class GameScene extends Phaser.Scene {
    */
   clearBossAttacks() {
     for (const b of this.bombs.getChildren().slice()) b.destroy();
-    for (const e of this.enemies.getChildren().slice()) if (e.kolyaMinion || e.bossMinion) this.fadeOut(e, this.enemies);
+    for (const e of this.enemies.getChildren().slice()) if (e.kolyaMinion || e.bossMinion || e.kazanMinion) this.fadeOut(e, this.enemies);
     for (const p of this.enemyProjectiles.getChildren().slice()) this.fadeOut(p, this.enemyProjectiles);
     const until = this.nowMs + BALANCE.bossKillGraceMs;
     this.health = { ...this.health, invulnerableUntil: Math.max(this.health.invulnerableUntil, until) };
@@ -803,12 +830,15 @@ export default class GameScene extends Phaser.Scene {
       else if (type === 'bat') this.spawnEnemy(new Bat(this, { biome: this.biome }));
       else if (type === 'lantern') this.spawnEnemy(new Lantern(this));
       else if (type === 'ninja') this.requestNinja();
+      else if (type === 'spark') this.spawnEnemy(new Spark(this));
+      else if (type === 'salamander') this.requestSalamander();
       else if (type === 'plant') this.pendingPlants += 1;
       else if (type === 'elf') this.spawnEnemy(new Elf(this));
       else if (type === 'penguin') this.spawnPenguins();
     }
     this.stepWalkers();
     if (this.biome === 'winter') this.spawnWinterExtras();
+    if (this.biome === 'lava') this.spawnLavaDrop();
     this.spawnHeart();
   }
 
@@ -856,17 +886,59 @@ export default class GameScene extends Phaser.Scene {
     this.walkerQueue.push({ type: 'ninja', y: ninjaY(Math.random, this.scale.height), until: this.nowMs + BALANCE.wallWalk.maxWaitMs, id: `walk${++this.walkerSeq}` });
   }
 
+  /**
+   * Саламандра (етап 11, §11.2): як ніндзя — не більше однієї, на стіні, де гравця немає; від струменя рятує стрибок
+   * на її стіну, тож там резерв без шипів (Lava.salamanderDodgeWindow). Поки летить крапля — не з'являється.
+   */
+  requestSalamander() {
+    if (this.lavaWallBusy) return;
+    const S = BALANCE.enemies.salamander;
+    const y = this.scale.height * (S.minYFrac + Math.random() * (S.maxYFrac - S.minYFrac));
+    this.walkerQueue.push({ type: 'salamander', y, until: this.nowMs + BALANCE.wallWalk.maxWaitMs, id: `walk${++this.walkerSeq}` });
+  }
+
+  /** Активна лавова крапля або саламандра (жива чи в черзі): вони не з'являються одночасно (§11.2, ruling плану). */
+  get lavaWallBusy() {
+    return this.hazards.getChildren().some((h) => h.active && h.lavaDrop)
+      || this.enemies.getChildren().some((e) => e.active && e.salamander)
+      || this.walkerQueue.some((q) => q.type === 'salamander' || q.type === 'drop');
+  }
+
+  /**
+   * Лавова крапля (етап 11): раз на everyMs ± jitter, не під час бою з Казаном і не разом із саламандрою.
+   * Як ніндзя — через чергу: стіна краплі випадкова, протилежна резервується без шипів на час проходу краплі
+   * повз гравця (Lava.dropPassWindow); крапля з'являється, коли там розійдуться шипи (не дочекалась — не з'являється).
+   */
+  spawnLavaDrop() {
+    if (this.nowMs < this.dropAt) return;
+    if (!dropsAllowed(this.bossActive) || hazardsSuppressed(this.stage) || this.lavaWallBusy) return;
+    const dropSideNow = dropSide(Math.random, { left: false, right: false });
+    this.walkerQueue.push({ type: 'drop', dropSide: dropSideNow, until: this.nowMs + BALANCE.wallWalk.maxWaitMs, id: `walk${++this.walkerSeq}` });
+    this.dropAt = this.nowMs + nextDropMs(Math.random);
+  }
+
+  /** Убита іскра розпадається на дрібні (етап 11): віялом, не більше maxSmall на екрані. */
+  splitSpark(x, y) {
+    const alive = this.enemies.getChildren().filter((e) => e.active && e.sparkling).length;
+    const n = sparkSplit(this.loop >= BALANCE.scaling.enhancedFromLoop, alive);
+    const base = Math.random() * Math.PI * 2;
+    for (let i = 0; i < n; i++) this.spawnEnemy(new Sparkling(this, x, y, base + (i * 2 * Math.PI) / n));
+  }
+
   /** Крок ніндзі в черзі: true — ще чекає. */
   stepNinja(q, spikes) {
-    const side = otherSide(this.player.side);
+    // крапля (етап 11): вільною має лишитися стіна навпроти краплі; ніндзя й саламандра — стіна, де гравця немає
+    const side = q.type === 'drop' ? otherSide(q.dropSide) : otherSide(this.player.side);
     if (q.side && q.side !== side) this.spikeState = reserveFree(this.spikeState, q.side, 0, -1, this.distancePx, q.id); // гравець перестрибнув
     q.side = side;
     const p = this.player;
     const dist = Math.hypot(this.scale.width - 2 * BALANCE.wallWidth, p.baseY - q.y);
     const scroll = scrollSpeed(this.elapsedSec, false);
-    const t = this.loop >= BALANCE.scaling.enhancedFromLoop ? BALANCE.traits.ninja : null;
+    const enh = this.loop >= BALANCE.scaling.enhancedFromLoop;
+    const t = enh ? BALANCE.traits.ninja : null;
     const extra = t ? ((t.shurikens - 1) * t.gapMs) / 1000 : 0;
-    const iv = ninjaInterval({ d0: this.distancePx, zoneY: p.baseY, scroll, ...ninjaDodgeWindow(dist, extra) });
+    const win = q.type === 'salamander' ? salamanderDodgeWindow(enh) : q.type === 'drop' ? dropPassWindow(p.baseY) : ninjaDodgeWindow(dist, extra);
+    const iv = ninjaInterval({ d0: this.distancePx, zoneY: p.baseY, scroll, ...win });
     // поки чекаємо: відрізок рухається разом із гравцем, тож резервуємо його з запасом на весь час очікування —
     // інакше нові шипи згори заходять у нього швидше, ніж старі виходять
     const waitSec = Math.max(q.until - this.nowMs, 0) / 1000;
@@ -877,7 +949,8 @@ export default class GameScene extends Phaser.Scene {
       return false;
     }
     this.spikeState = reserveFree(this.spikeState, side, iv.from, iv.to, this.distancePx, q.id); // ніндзя з'явився — лише його вікно
-    this.spawnEnemy(new Ninja(this, side, q.y));
+    if (q.type === 'drop') this.hazards.add(new LavaDrop(this, q.dropSide));
+    else this.spawnEnemy(q.type === 'salamander' ? new Salamander(this, side, q.y) : new Ninja(this, side, q.y));
     return false;
   }
 
@@ -1002,6 +1075,13 @@ export default class GameScene extends Phaser.Scene {
       this.fog.destroy();
       this.fog = null;
     }
+    // іскри — лише в лаві (етап 11), вимикаються в меню
+    if (biome === 'lava' && this.settings.embers && !this.embers) this.embers = new Embers(this);
+    else if (biome !== 'lava' && this.embers) {
+      this.embers.destroy();
+      this.embers = null;
+    }
+    this.dropAt = biome === 'lava' ? this.nowMs + BALANCE.lava.drop.firstMs + BALANCE.boss.calmSec * 1000 : Infinity;
     this.swapTiles(TEX[biome], instant ? 0 : BALANCE.winter.transitionMs);
     if (!instant) this.events.emit('hud:banner', { text: BIOME_BANNER[biome] ?? `Коло ${this.loop + 1}`, ms: 1800 });
   }
@@ -1094,6 +1174,7 @@ export default class GameScene extends Phaser.Scene {
     this.scrollObjects(dy);
     this.snow?.step(dt, dy);
     this.fog?.step(dt, dy);
+    this.embers?.step(dt, dy);
     this.spawnSpikes();
     this.spawnEnemies();
     this.autoFire(dt);
@@ -1102,6 +1183,7 @@ export default class GameScene extends Phaser.Scene {
     this.miniAxe?.step(dt);
     this.stepShkodkoLoot();
     this.stepKolyaLoot();
+    this.stepKazanLoot();
     this.stepShield();
     this.emitHud();
   }
@@ -1164,12 +1246,13 @@ export default class GameScene extends Phaser.Scene {
     }
     // трансформації: діє остання взята (павук або Шкодько), скін — її
     if (id === 'form' || id === 'iam') this.player.setSkin(formSkin(this.progression.relics));
-    if (id === 'iamkolya') this.player.setSkin(formSkin(this.progression.relics));
+    if (id === 'iamkolya' || id === 'iamkazan') this.player.setSkin(formSkin(this.progression.relics));
+    if (id === 'ladle' && !this.ladle) this.ladle = this.add.image(this.player.x, this.player.y, 'ladle').setDepth(this.player.depth + 1);
     if (id === 'sack' && !this.sack) this.sack = this.add.sprite(this.player.x, this.player.y, 'sack', 'sack').setDepth(this.player.depth - 1);
     if (id === 'larva' && !this.larva) this.larva = this.add.sprite(this.player.x, this.player.y, 'larva').setDepth(this.player.depth + 1);
     const names = {
       armor: 'Кожух з павучихи', venom: 'Ядовита морда', oksana: 'Оксанка з тобою', web: 'Дупа павучихи', form: 'Ти став павуком',
-      sack: 'Мішок Шкодька', iam: 'Я ШКОДЬКО', larva: 'Личинка-помічник', iamkolya: 'Я КОЛЯ',
+      sack: 'Мішок Шкодька', iam: 'Я ШКОДЬКО', larva: 'Личинка-помічник', iamkolya: 'Я КОЛЯ', ladle: 'Черпачок', iamkazan: 'Я КАЗАН',
     };
     this.events.emit('hud:banner', { text: names[id], ms: 1500 });
   }
@@ -1266,12 +1349,41 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
+  // ---------- Картки Казана (етап 11) ----------
+
+  /** «Черпачок» кружляє довкола слизака і раз на everyMs хлюпає краплею лави в найближчого ворога. */
+  stepKazanLoot() {
+    if (!this.ladle) return;
+    const L = BALANCE.kazanLoot.ladle;
+    const now = this.nowMs;
+    const a = (2 * Math.PI * now) / L.orbitMs;
+    this.ladle.setPosition(this.player.x + Math.cos(a) * L.orbitPx, this.player.y + Math.sin(a) * L.orbitPx * 0.6);
+    const r = stepTicker(this.ladleTick, now, L.everyMs);
+    this.ladleTick = r.state;
+    if (r.count) this.lootShot(this.ladle, ladleDamage(this.weapon.damage), L.speed, 'magma');
+  }
+
+  /** «Я КАЗАН»: замість втрати життя — щит invulnMs і кільце лави, що б'є ворогів у radiusPx. */
+  lavaRing() {
+    const I = BALANCE.kazanLoot.iam;
+    const now = this.nowMs;
+    this.health = { ...this.health, invulnerableUntil: Math.max(this.health.invulnerableUntil, now + I.invulnMs) };
+    this.showShield(I.invulnMs);
+    sfx('boom');
+    const p = this.player;
+    const ring = this.add.circle(p.x, p.y, I.radiusPx, 0xf06a1e, 0.35).setStrokeStyle(4, 0xffd25a, 0.9).setDepth(40);
+    this.tweens.add({ targets: ring, alpha: 0, scale: 1.1, duration: 400, onComplete: () => ring.destroy() });
+    for (const e of ringVictims(p, this.visibleEnemies())) e.takeHit(I.damage, null, now);
+    this.events.emit('hud:banner', { text: 'Кришка!', ms: 900 });
+  }
+
   /** Постріл помічника в найближчого видимого ворога. false — цілей немає. */
-  lootShot(from, damage, speed) {
+  lootShot(from, damage, speed, texture = 'slimeSpit') {
     const targets = this.visibleEnemies();
     if (!targets.length) return false;
     const t = pickNearest(from, targets);
-    const proj = new Projectile(this, from.x, from.y, 'slimeSpit', { damage, fx: null }).setTint(LARVA_SHOT_TINT).setScale(0.7);
+    const proj = new Projectile(this, from.x, from.y, texture, { damage, fx: null }).setScale(0.7);
+    if (texture === 'slimeSpit') proj.setTint(LARVA_SHOT_TINT); // магма черпачка — своїм кольором
     this.playerProjectiles.add(proj);
     proj.launch(t.x, t.y, speed);
     return true;

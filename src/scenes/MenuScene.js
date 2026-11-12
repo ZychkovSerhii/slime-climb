@@ -62,8 +62,10 @@ export default class MenuScene extends Phaser.Scene {
       }, undefined, 30);
       return b;
     };
-    const snowBtn = toggle(cx - width * 0.22, 'snow', 'Сніг');
-    const fogBtn = toggle(cx + width * 0.22, 'fog', 'Туман');
+    // етап 11: іскри лави — третій перемикач у тому ж рядку
+    const snowBtn = toggle(cx - width * 0.31, 'snow', 'Сніг');
+    const fogBtn = toggle(cx, 'fog', 'Туман');
+    const embersBtn = toggle(cx + width * 0.31, 'embers', 'Іскри');
 
     if (new URLSearchParams(window.location.search).get('codex') === '1' && !this.registry.get('codexShown')) {
       this.registry.set('codexShown', true);
@@ -71,7 +73,7 @@ export default class MenuScene extends Phaser.Scene {
     }
 
     // тап будь-де, крім кнопок, — старт гри
-    const buttons = [shopBtn, achBtn, codexBtn, soundBtn, tuningBtn, snowBtn, fogBtn];
+    const buttons = [shopBtn, achBtn, codexBtn, soundBtn, tuningBtn, snowBtn, fogBtn, embersBtn];
     let started = false;
     this.input.on('pointerdown', (pointer, over) => {
       if (started || codexOpen() || over.some((o) => buttons.includes(o))) return;

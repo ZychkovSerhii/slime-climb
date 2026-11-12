@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { createSpawnState, dueSpawns } from '../src/systems/Spawner.js';
+import { BIOME_TYPES, createSpawnState, dueSpawns } from '../src/systems/Spawner.js';
 
 function run(times, bossActive = false) {
   let state = createSpawnState();
@@ -69,5 +69,13 @@ describe('бамбук (етап 9)', () => {
     const st = createSpawnState('bamboo', 400);
     expect(st.nextAt).toEqual({ lantern: 403, bat: 408, ninja: 410 });
     expect(dueSpawns(st, 403, false).spawn).toEqual(['lantern']);
+  });
+});
+
+describe('етап 11: лава', () => {
+  test('у лаві саламандра, іскра й кажан з BALANCE.lava.from від початку біому', () => {
+    expect(BIOME_TYPES.lava).toEqual(['salamander', 'spark', 'bat']);
+    const st = createSpawnState('lava', 900);
+    expect(st.nextAt).toEqual({ salamander: 910, spark: 903, bat: 908 });
   });
 });

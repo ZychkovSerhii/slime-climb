@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'vitest';
+import { BALANCE } from '../src/config/balance.js';
 import { scrollSpeed, spawnIntervalMs } from '../src/systems/Difficulty.js';
 
 describe('scrollSpeed', () => {
@@ -25,4 +26,13 @@ test('бамбук: інтервали ×0,9 від зими (на ~10% біль
   expect(B.bat).toBe(Math.round(W.bat * 0.9));
   expect(B.ninja).toBe(Math.round(W.penguin * 0.9));
   expect(spawnIntervalMs('ninja', 0, 'bamboo')).toBe(B.ninja);
+});
+
+test('етап 11: лава ×0,9 від бамбука (саламандра ← ніндзя, іскра ← ліхтарик, кажан ← кажан)', () => {
+  const B = BALANCE.bamboo.spawnBaseMs;
+  const L = BALANCE.lava.spawnBaseMs;
+  expect(L.salamander).toBe(Math.round(B.ninja * 0.9));
+  expect(L.spark).toBe(Math.round(B.lantern * 0.9));
+  expect(L.bat).toBe(Math.round(B.bat * 0.9));
+  expect(spawnIntervalMs('salamander', 0, 'lava')).toBe(L.salamander);
 });

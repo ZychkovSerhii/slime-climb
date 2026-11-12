@@ -33,7 +33,7 @@ export default class TuningScene extends Phaser.Scene {
     });
 
     const top = height * 0.23;
-    const rowH = height * 0.068;
+    const rowH = height * 0.062; // 10 рядків (етап 11: «HP Казана») — не залазять на підпис унизу
     TUNING_FIELDS.forEach((f, i) => {
       const y = top + i * rowH;
       const v = this.t[f.key];
@@ -48,7 +48,7 @@ export default class TuningScene extends Phaser.Scene {
     });
 
     this.add
-      .text(cx, height * 0.85, 'Діє з наступного забігу.\nНабір видно в грі під рахунком.', textStyle(26, '#cccccc'))
+      .text(cx, height * 0.865, 'Діє з наступного забігу.\nНабір видно в грі під рахунком.', textStyle(26, '#cccccc'))
       .setOrigin(0.5);
     backButton(this);
   }
