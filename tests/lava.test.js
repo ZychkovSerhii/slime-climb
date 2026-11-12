@@ -10,8 +10,11 @@ const D = BALANCE.lava.drop;
 
 describe('Саламандра (§11.2)', () => {
   test('таймлайн: 0,6 с жевріння, 0,7 с лінія, струмінь 0,4 с; посилена дихає двічі', () => {
-    expect(salamanderTimeline(false)).toMatchObject({ emergeMs: 600, warnMs: 700, breathMs: 400, breaths: 1 });
+    expect(salamanderTimeline(false)).toMatchObject({ emergeMs: 600, warnMs: 700, breaths: 1 });
     expect(salamanderTimeline(true)).toMatchObject({ breaths: 2, gapMs: 500 });
+  });
+  test('видих коротший за стрибок — від струменя рятує стрибок (бот: 0,4 с проти 0,38 с стрибка)', () => {
+    expect(S.breathMs).toBeLessThan(BALANCE.jumpDurationMs);
   });
   test('струмінь не стартує в перші 0,3 с після приземлення', () => {
     expect(beamCanFire(299)).toBe(false);

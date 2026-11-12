@@ -189,3 +189,20 @@ test('Коля: 120 Шагів, досягнення 200 і 500; уламки Ш
   for (let i = 0; i < 3; i++) m = recordKill(m, 'kolya').meta;
   expect(recordKill(m, 'kolya').unlocked.map((a) => [a.id, a.reward])).toEqual([['kolya5', 500]]);
 });
+
+test('етап 11: Казан — 150 Шагів, досягнення 250 і 600; 50 саламандр і 50 іскор', async () => {
+  const { emptyMeta, recordKill, stepsForKill } = await import('../src/systems/Meta.js');
+  expect(stepsForKill('kazan')).toBe(150);
+  let m = emptyMeta();
+  const r = recordKill(m, 'kazan');
+  expect(r.unlocked.map((a) => [a.id, a.reward])).toEqual([['kazan1', 250]]);
+  m = r.meta;
+  for (let i = 0; i < 3; i++) m = recordKill(m, 'kazan').meta;
+  expect(recordKill(m, 'kazan').unlocked.map((a) => [a.id, a.reward])).toEqual([['kazan5', 600]]);
+  let s = emptyMeta();
+  for (let i = 0; i < 49; i++) s = recordKill(s, 'salamander').meta;
+  expect(recordKill(s, 'salamander').unlocked.map((a) => a.id)).toEqual(['salamander50']);
+  let k = emptyMeta();
+  for (let i = 0; i < 49; i++) k = recordKill(k, 'spark').meta;
+  expect(recordKill(k, 'spark').unlocked.map((a) => a.id)).toEqual(['spark50']);
+});

@@ -52,8 +52,34 @@ export function wallsBusy(pours, nowMs) {
   return busy;
 }
 
-/** Кришка-бумеранг: x за t мс польоту — туди за половину flightMs і назад тим самим шляхом. */
+/**
+ * Кришка-бумеранг: туди — рівномірно на висоті гравця за половину flightMs, назад — так само, але на returnDyPx вище.
+ * Рівномірно, бо синусоїда зависала біля стіни гравця довше за стрибок; назад вище — щоб, перестрибнувши її,
+ * гравець не отримав нею ж на іншій стіні. Повертає { x, dy, returning }.
+ */
 export function lidPath(t, startX, endX, flightMs) {
-  const k = Math.sin((Math.PI * Math.min(Math.max(t, 0), flightMs)) / flightMs);
-  return { x: startX + (endX - startX) * k, returning: t > flightMs / 2 };
+  const tt = Math.min(Math.max(t, 0), flightMs);
+  const half = flightMs / 2;
+  const returning = tt > half;
+  const k = returning ? (flightMs - tt) / half : tt / half;
+  return { x: startX + (endX - startX) * k, dy: returning ? -K.lid.returnDyPx : 0, returning };
+}
+
+/**
+ * Від магми й кришки рятує стрибок на протилежну стіну — тож Казан б'є ними лише тоді, коли та стіна
+ * (від гравця на playerSide) вільна від лави від nowMs до nowMs + windowMs (політ + стрибок із запасом).
+ */
+export function otherWallFree(pours, playerSide, nowMs, windowMs) {
+  const side = otherSide(playerSide);
+  const end = nowMs + windowMs;
+  return !pours.some((p) => p.side === side && p.pourFrom < end && pourBusyTo(p) > nowMs);
+}
+
+/**
+ * Жодна стіна не жевріє й не в лаві (з калюжею) у [nowMs, nowMs + windowMs). Магма й кришка летять лише тоді:
+ * інакше лава змушує стрибати в один бік, а снаряд — в інший (бот у фазі 2 отримував удари без виходу).
+ */
+export function pourFree(pours, nowMs, windowMs) {
+  const end = nowMs + windowMs;
+  return !pours.some((p) => p.warnFrom < end && pourBusyTo(p) > nowMs);
 }

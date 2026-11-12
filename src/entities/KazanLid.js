@@ -20,6 +20,7 @@ export default class KazanLid extends Phaser.Physics.Arcade.Image {
     this.type = 'lid';
     this.scrollsWithWorld = false;
     this.startX = this.x;
+    this.y0 = y;
     this.endX = fromSide === 'left' ? right : left;
     this.bornAt = scene.nowMs;
     this.kazanAttack = true;
@@ -32,7 +33,9 @@ export default class KazanLid extends Phaser.Physics.Arcade.Image {
       this.destroy();
       return;
     }
-    this.x = lidPath(t, this.startX, this.endX, L.flightMs).x;
+    const p = lidPath(t, this.startX, this.endX, L.flightMs);
+    this.x = p.x;
+    this.y = this.y0 + p.dy;
     this.rotation += 0.35;
     this.body?.setVelocity(0, 0);
   }

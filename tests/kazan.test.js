@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { BALANCE } from '../src/config/balance.js';
-import { kazanHpFloor, kazanPhase, lidPath, planPour, pourBusyTo, wallsBusy } from '../src/systems/KazanPlanner.js';
+import { kazanHpFloor, kazanPhase, lidPath, otherWallFree, planPour, pourBusyTo, pourFree, wallsBusy } from '../src/systems/KazanPlanner.js';
 
 const K = BALANCE.kazan;
 
@@ -77,11 +77,43 @@ describe('Казан: виливання не займає обидві стін
 });
 
 describe('Кришка-бумеранг (§11.3)', () => {
-  test('на половині польоту — на іншому боці, наприкінці — назад', () => {
+  test('туди — на висоті гравця рівномірно, назад — вище (бот: синусоїда зависала біля стіни гравця)', () => {
     const f = K.lid.flightMs;
-    expect(lidPath(0, 100, 600, f)).toMatchObject({ x: 100, returning: false });
+    expect(lidPath(0, 100, 600, f)).toMatchObject({ x: 100, dy: 0, returning: false });
+    expect(lidPath(f / 4, 100, 600, f).x).toBeCloseTo(350);
     expect(lidPath(f / 2, 100, 600, f).x).toBeCloseTo(600);
-    expect(lidPath(f * 0.75, 100, 600, f).returning).toBe(true);
+    const back = lidPath(f * 0.75, 100, 600, f);
+    expect(back.returning).toBe(true);
+    expect(back.dy).toBe(-K.lid.returnDyPx);
     expect(lidPath(f, 100, 600, f).x).toBeCloseTo(100);
+  });
+  test('біля стіни гравця кришка буває коротше за стрибок — від неї рятує стрибок', () => {
+    const f = K.lid.flightMs;
+    let near = 0;
+    for (let t = 0; t <= f; t += 1) {
+      const p = lidPath(t, 100, 600, f);
+      if (p.dy === 0 && Math.abs(p.x - 600) < BALANCE.playerSize) near += 1;
+    }
+    expect(near).toBeLessThan(BALANCE.jumpDurationMs);
+  });
+});
+
+describe('Казан: від магми й кришки завжди є куди стрибнути (бот: 237 «безвихідних» магм)', () => {
+  test('атака на висоту гравця лише тоді, коли протилежна стіна вільна на весь час ухилу', () => {
+    const pour = { side: 'right', warnFrom: 1000, pourFrom: 1800, pourTo: 3300, enhanced: true }; // зайнята 1800–5300
+    expect(otherWallFree([pour], 'left', 0, 1700)).toBe(true); // закінчиться до лави
+    expect(otherWallFree([pour], 'left', 0, 1900)).toBe(false);
+    expect(otherWallFree([pour], 'left', 5400, 1000)).toBe(true); // калюжа вже зникла
+    expect(otherWallFree([pour], 'right', 2000, 1000)).toBe(true); // гравець на правій — тікати на ліву
+  });
+});
+
+describe('Казан: магма й кришка не під час виливання (бот: удар без виходу в фазі 2)', () => {
+  test('атаки на висоту гравця — лише коли жодна стіна не жевріє й не в лаві на весь час польоту', () => {
+    const pour = { side: 'left', warnFrom: 1000, pourFrom: 1800, pourTo: 3300, enhanced: false };
+    expect(pourFree([pour], 0, 900)).toBe(true);
+    expect(pourFree([pour], 0, 1100)).toBe(false); // жевріння вже теж рахується: гравець мусить стрибати
+    expect(pourFree([pour], 3400, 1000)).toBe(true);
+    expect(pourFree([{ ...pour, enhanced: true }], 3400, 1000)).toBe(false); // калюжа
   });
 });

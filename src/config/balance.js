@@ -96,7 +96,7 @@ export const BALANCE = deepFreeze({
     slugBiter: { hp: 6, xp: 3, points: 40, speed: 120 },
     slugSpitter: { hp: 3, xp: 3, points: 40, speed: 160, keepPx: 220, minAbovePx: 160, spitMs: 2000, firstSpitMs: 900 },
     // Лава (етап 11, §11.2). Саламандра: вилазить із тріщини на протилежній стіні, лінія-попередження, горизонтальний струмінь.
-    salamander: { hp: 4, xp: 4, points: 40, emergeMs: 600, warnMs: 700, breathMs: 400, hideMs: 1000, landGraceMs: 300, beamHalfH: 18,
+    salamander: { hp: 4, xp: 4, points: 40, emergeMs: 600, warnMs: 700, breathMs: 300, hideMs: 1000, landGraceMs: 300, beamHalfH: 18, // видих коротший за стрибок (380 мс)
       dodgeSec: 0.6, minYFrac: 0.15, maxYFrac: 0.45 }, // сидить вище гравця; струмінь — на висоті гравця (baseY)
     // Іскра: зигзагом до гравця; убита — розпадається на дрібні (sparkling), дрібних на екрані не більше maxSmall
     spark: { hp: 3, xp: 3, points: 30, speed: 150, zigzagPx: 60, zigzagMs: 900, splits: 2, maxSmall: 6 },
@@ -289,22 +289,24 @@ export const BALANCE = deepFreeze({
   // ---- Бос 4 «Пан Казан» (етап 11, §11.3). Частки HP — від maxHp (з множником кола). Числа фаз — припущення, крутимо за плейтестом.
   kazan: {
     name: 'Пан Казан',
-    scale: 1.4,
+    scale: 1.6,
     afterSec: 180, // через стільки секунд після початку лави (= смерті Колі)
     hp: 230,
     xp: 120,
     points: 2500,
-    y: 290, // висить угорі (нижче смуги HP боса), гойдається
-    swayPx: 90,
+    y: 430, // висить у верхній половині: вище — дробовик і кулі здебільшого мазали (бот: 12% влучань на y=290)
+    swayPx: 70,
     swayMs: 3200,
     phases: { boil: 0.7, rage: 0.35 },
     pour: { warnMs: 800, pourMs: 1500, puddleMs: 2000 }, // калюжа — лише з кола enhancedFromLoop (+1 атака)
-    p1: { pourEveryMs: 4000, spitEveryMs: 1800, fan: 1 },
+    p1: { pourEveryMs: 4500, spitEveryMs: 1800, fan: 1 },
     boil: { bubbles: 4, idleMs: 6000 },
-    p2: { pourEveryMs: 3000, spitEveryMs: 2200, fan: 3, lidEveryMs: 5000 },
-    lid: { warnMs: 700, flightMs: 1600 }, // туди й назад за flightMs
+    p2: { pourEveryMs: 4000, spitEveryMs: 1500, fan: 3, lidEveryMs: 5000 }, // між виливаннями ~1,7 с на магму й кришку
+    lid: { warnMs: 700, flightMs: 1600, returnDyPx: 240 }, // туди й назад за flightMs; назад — на returnDyPx вище
     rage: { shakeMs: 1000, pourMs: 1500, gapMs: 900, spitEveryMs: 1500, fan: 5 },
-    magma: { speed: 300, gravity: 420, spreadDeg: 14 },
+    magma: { speed: 300, spreadDeg: 14 },
+    // магма й кришка — лише між виливаннями: жодна стіна не жевріє й не в лаві dodgeWindowMs (бот: інакше удар без виходу)
+    dodgeWindowMs: 1600,
     debugAtSec: 6, // ?kazan=1
   },
 
@@ -498,6 +500,11 @@ export const BALANCE = deepFreeze({
       { id: 'lantern50', stat: 'lantern', count: 50, reward: 50, title: '50 ліхтариків', caption: 'Хто тепер освітить туман?' },
       { id: 'kolya1', stat: 'kolya', count: 1, reward: 200, title: 'Вбивство Колі', caption: 'Він просто хотів повзати...' },
       { id: 'kolya5', stat: 'kolya', count: 5, reward: 500, title: '5 разів вбити Колю', caption: 'Слимаки тебе не пробачать.' },
+      // етап 11: лава і Пан Казан
+      { id: 'salamander50', stat: 'salamander', count: 50, reward: 50, title: '50 саламандр', caption: 'Тріщини охололи.' },
+      { id: 'spark50', stat: 'spark', count: 50, reward: 50, title: '50 іскор', caption: 'Жодна не долетіла.' },
+      { id: 'kazan1', stat: 'kazan', count: 1, reward: 250, title: 'Вбивство Казана', caption: 'Зварив його самого.' },
+      { id: 'kazan5', stat: 'kazan', count: 5, reward: 600, title: '5 разів вбити Казана', caption: 'Кришка вже не тримається.' },
     ],
     toastMs: 2500,
   },

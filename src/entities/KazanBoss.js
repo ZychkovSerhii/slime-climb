@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser';
 import { BALANCE } from '../config/balance.js';
-import { kazanHpFloor, kazanPhase, planPour, pourBusyTo, wallsBusy } from '../systems/KazanPlanner.js';
+import { kazanHpFloor, kazanPhase, planPour, pourFree, pourBusyTo, wallsBusy } from '../systems/KazanPlanner.js';
 import { fanAngles } from '../systems/KolyaPlanner.js';
 import { otherSide } from '../systems/WallWalkers.js';
 import { sfx } from '../systems/Audio.js';
@@ -171,8 +171,12 @@ export default class KazanBoss extends Enemy {
       this.setFrame(frameOf('kazan', 'tilt')).setFlipX(this.next.side === 'right');
     }
     this.pours = this.pours.filter((p) => pourBusyTo(p) > now - 50);
-    if (now >= this.nextSpitAt) this.spit(now);
-    if (now >= this.nextLidAt && !this.lidWarn) this.warnLid(now);
+    // від магми й кришки рятує стрибок — б'ємо ними лише між виливаннями (KazanPlanner.pourFree);
+    // враховуємо й ще не заплановане виливання
+    const upcoming = this.next ? [] : [planPour({ phase: this.modeName, last: this.last, nowMs: now, playerSide: scene.player.side, enhanced: this.enhanced })];
+    const canDodge = pourFree([...this.pours, ...upcoming], now, K.dodgeWindowMs);
+    if (now >= this.nextSpitAt && canDodge) this.spit(now);
+    if (now >= this.nextLidAt && !this.lidWarn && canDodge) this.warnLid(now);
     if (this.lidWarn && now >= this.lidWarn.at) this.throwLid();
   }
 
