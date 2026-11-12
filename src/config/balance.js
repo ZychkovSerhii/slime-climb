@@ -177,7 +177,7 @@ export const BALANCE = deepFreeze({
     name: 'Шкодько',
     scale: 1.5, // розмір спрайта на екрані (хітбокс теж)
     afterSec: 180, // через стільки секунд після смерті павучихи (у зимі)
-    hp: 85, // рішення користувача: +50% до павучихи (55); вагони — окремо
+    hp: 130, // етап 11 (фідбек-5, §11.1): було 85; вагони — окремо
     xp: 90,
     points: 1600,
     phases: { p2: 0.8, p3: 0.5, p4: 0.3 },
@@ -249,7 +249,7 @@ export const BALANCE = deepFreeze({
     name: 'Слимак Коля',
     scale: 1.5,
     afterSec: 180, // через стільки секунд після початку бамбука (= смерті Шкодька)
-    hp: 110,
+    hp: 175, // етап 11 (фідбек-5, §11.1): було 110
     xp: 100,
     points: 2000,
     phases: { birth: 0.8, split: 0.4 },
@@ -275,9 +275,11 @@ export const BALANCE = deepFreeze({
   // Звичайні вороги: HP і досвід ×biomeHpMul^biomeIndex. Боси (і ведмідь): HP ×bossHpMul^коло.
   // Властивості (traits) і +1 атака босів — з кола enhancedFromLoop.
   scaling: { biomeHpMul: 1.15, bossHpMul: 1.5, enhancedFromLoop: 1 },
-  // Властивості посилених ворогів (коло ≥ 1), по одній на ворога (§10.1). tint — холодний відтінок, значок — спрайт traitStar.
+  // Властивості посилених ворогів (коло ≥ 1), по одній на ворога (§10.1). tint — холодний відтінок, позначка — контур (outline, етап 11).
   traits: {
     tint: 0xbfd8ff,
+    // етап 11 (§11.1): контур замість зірочки — один колір для всіх; у лаві холодно-блакитний
+    outline: { color: 0xeaf6ff, lavaColor: 0x5fe3ff, pulseMs: 700, scale: 1.18, alphaMin: 0.35, alphaMax: 0.85 },
     lion: { secondLunge: true }, // після промаху — другий ривок з тим самим попередженням
     bat: { hoverMs: 400, diveSpeedMul: 1.6, diveAtPx: 260 }, // раз зависає і пікірує в точку гравця
     plant: { fan: 3, spreadDeg: 12 },

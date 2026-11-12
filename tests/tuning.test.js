@@ -57,6 +57,21 @@ describe('Tuning: збереження і межі', () => {
   });
 });
 
+describe('Tuning: поле Казана (етап 11)', () => {
+  test('старі збереження без kazan → 1, межі 0,5–4', () => {
+    expect(normalizeTuning({}).kazan).toBe(1);
+    expect(normalizeTuning({ kazan: 9 }).kazan).toBe(4);
+    expect(bossHpTuning('kazan')).toBe(1);
+  });
+  test('«Важко» не множить нові HP двічі', () => {
+    expect(PRESETS.hard.values).toMatchObject({ shkodko: 1.2, kolya: 1.3, kazan: 1.3 });
+  });
+  test('множник kazan діє на HP Казана', () => {
+    setTuning({ ...defaultTuning(), kazan: 2 });
+    expect(bossHpTuning('kazan')).toBe(2);
+  });
+});
+
 describe('Tuning: множники в грі', () => {
   test('«Норма» нічого не міняє', () => {
     expect(enemyHp(4, 0)).toBe(4);

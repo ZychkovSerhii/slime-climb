@@ -9,8 +9,11 @@ import { bossHp } from '../src/systems/Cycle.js';
 const K = BALANCE.kolya;
 
 describe('Коля: фази й пороги', () => {
-  test('HP 110 — сумарно ×1,3 від Шкодька', () => {
-    expect(Math.abs(K.hp - BALANCE.shkodko.hp * 1.3)).toBeLessThanOrEqual(1); // 85 × 1,3 = 110,5 → у специфікації 110
+  test('фідбек-5 (§11.1): Шкодько 130, Коля 175, Казан 230 — драбина HP росте', () => {
+    expect(BALANCE.shkodko.hp).toBe(130);
+    expect(K.hp).toBe(175);
+    expect(BALANCE.boss.hp).toBeLessThan(BALANCE.shkodko.hp);
+    expect(BALANCE.bearBoss.hp).toBeLessThan(BALANCE.shkodko.hp); // міні-бос слабший за головного
   });
 
   test('народження на 80%, поділ на 40%; фази не відкочуються', () => {
@@ -36,6 +39,7 @@ describe('Коля: фази й пороги', () => {
 
   test('з\'їдання лікує до 15% від maxHp кола, але не зменшує HP', () => {
     expect(eatHeal(3, 110)).toBe(17);
+    expect(eatHeal(3, K.hp)).toBe(26); // 15% від 175
     expect(eatHeal(3, bossHp(110, 1))).toBe(Math.round(0.15 * bossHp(110, 1)));
     expect(eatHeal(30, 110)).toBe(30);
   });

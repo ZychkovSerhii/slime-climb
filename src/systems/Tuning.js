@@ -18,12 +18,13 @@ export const TUNING_FIELDS = [
   { key: 'bear', label: 'HP ведмедя', min: 0.5, max: 4, step: 0.1 },
   { key: 'shkodko', label: 'HP Шкодька', min: 0.5, max: 4, step: 0.1 },
   { key: 'kolya', label: 'HP Колі', min: 0.5, max: 4, step: 0.1 },
+  { key: 'kazan', label: 'HP Казана', min: 0.5, max: 4, step: 0.1 },
   { key: 'xp', label: 'Досвід', min: 0.3, max: 2, step: 0.1 },
   { key: 'heal', label: 'Лікування', options: HEAL_MODES },
 ];
 
 export function defaultTuning() {
-  return { enemyHp: 1, enemySpeed: 1, spawn: 1, spider: 1, bear: 1, shkodko: 1, kolya: 1, xp: 1, heal: 'game' };
+  return { enemyHp: 1, enemySpeed: 1, spawn: 1, spider: 1, bear: 1, shkodko: 1, kolya: 1, kazan: 1, xp: 1, heal: 'game' };
 }
 
 /**
@@ -31,9 +32,9 @@ export function defaultTuning() {
  * бо в першому колі між босами складність майже не росла (відгук після етапу 10).
  */
 export const PRESETS = {
-  easy: { name: 'Легко', values: { enemyHp: 0.8, enemySpeed: 0.9, spawn: 0.8, spider: 0.8, bear: 0.8, shkodko: 0.8, kolya: 0.8, xp: 1.2, heal: 'every' } },
+  easy: { name: 'Легко', values: { enemyHp: 0.8, enemySpeed: 0.9, spawn: 0.8, spider: 0.8, bear: 0.8, shkodko: 0.8, kolya: 0.8, kazan: 0.8, xp: 1.2, heal: 'every' } },
   normal: { name: 'Норма', values: defaultTuning() },
-  hard: { name: 'Важко', values: { enemyHp: 1.3, enemySpeed: 1.1, spawn: 1.2, spider: 1.3, bear: 1.3, shkodko: 1.6, kolya: 2, xp: 0.8, heal: 'even' } },
+  hard: { name: 'Важко', values: { enemyHp: 1.3, enemySpeed: 1.1, spawn: 1.2, spider: 1.3, bear: 1.3, shkodko: 1.2, kolya: 1.3, kazan: 1.3, xp: 0.8, heal: 'even' } },
 };
 
 const round = (v) => Math.round(v * 100) / 100;
@@ -107,7 +108,7 @@ export function setTuning(t) {
 }
 
 // бос у таблиці HP → ключ налаштувань (уламки Колі — як Коля)
-const BOSS_KEY = { boss: 'spider', shkodko: 'shkodko', kolya: 'kolya', kolyaPart: 'kolya', bear: 'bear' };
+const BOSS_KEY = { boss: 'spider', shkodko: 'shkodko', kolya: 'kolya', kolyaPart: 'kolya', bear: 'bear', kazan: 'kazan' };
 
 /** Множник HP боса type (1, якщо тип не бос). */
 export function bossHpTuning(type) {

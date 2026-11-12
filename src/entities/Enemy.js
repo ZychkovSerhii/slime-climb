@@ -3,6 +3,7 @@ import { BALANCE } from '../config/balance.js';
 import { applyDot, stepDot } from '../systems/Skills.js';
 import { wrapAxis } from '../systems/Biome.js';
 import { bossHp, enemyHp, enhanced, loopMul } from '../systems/Cycle.js';
+import { outlineAlpha, outlineColor } from '../systems/Outline.js';
 
 // боси: свої блоки балансу, трішки сповільнюються, не «замерзають» (див. takeHit)
 // kolyaPart — уламок Колі: HP задає сам бос при поділі
@@ -37,10 +38,10 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
     this.biomeIdx = scene.biomeIdx ?? 0;
     this.hp = this.isBoss ? bossHp(BOSS_CFG[type].hp, loop, type) : enemyHp(BALANCE.enemies[type]?.hp ?? 1, this.biomeIdx);
     this.loopSpeed = loopMul(loop).speed;
-    // властивість посиленого ворога (з кола 1): холодний відтінок і зірочка; боси — +1 атака (кожен сам читає this.enhanced)
+    // властивість посиленого ворога (з кола 1): холодний відтінок і контур (етап 11); боси — +1 атака (кожен сам читає this.enhanced)
     this.enhanced = enhanced(loop);
     this.trait = this.enhanced && TRAIT_TYPES.has(type) ? BALANCE.traits[type] : null;
-    this.star = null;
+    this.outline = null;
     this.slowUntil = 0;
     this.slowFactor = 1;
     this.scrollsWithWorld = true;
@@ -56,7 +57,9 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
     if (this.trait) {
       this.baseTint = TRAIT_TINT;
       this.setTint(TRAIT_TINT);
-      this.star = scene.add.image(x, y, 'traitStar').setDepth(this.depth + 2).setScale(1.5);
+      // етап 11: контур — копія спрайта позаду, залита одним кольором, трохи більша; пульсує
+      this.outline = scene.add.image(x, y, this.texture.key, this.frame.name).setDepth(this.depth - 0.01)
+        .setTint(outlineColor(scene.biome)).setTintMode(Phaser.TintModes.FILL);
     }
   }
 
@@ -133,14 +136,20 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
 
   postUpdateFrost() {
     if (this.frost) this.frost.setPosition(this.x, this.y);
-    if (this.star) this.star.setPosition(this.x, this.y - this.displayHeight / 2 - 10).setVisible(this.visible && this.alpha > 0.3);
+    if (this.outline) {
+      const O = BALANCE.traits.outline;
+      this.outline.setTexture(this.texture.key, this.frame.name).setPosition(this.x, this.y)
+        .setScale(this.scaleX * O.scale, this.scaleY * O.scale).setRotation(this.rotation).setFlip(this.flipX, this.flipY)
+        .setDepth(this.depth - 0.01).setVisible(this.visible && this.alpha > 0.3)
+        .setAlpha(outlineAlpha(this.scene.time.now) * this.alpha);
+    }
   }
 
   destroy(fromScene) {
     this.frost?.destroy();
     this.frost = null;
-    this.star?.destroy();
-    this.star = null;
+    this.outline?.destroy();
+    this.outline = null;
     super.destroy(fromScene);
   }
 
