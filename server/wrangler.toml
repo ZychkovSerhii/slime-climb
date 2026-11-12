@@ -1,0 +1,9 @@
+# Worker таблиці лідерів (етап 12). Розгортання: docs/leaderboard-setup.md
+name = "slime-climb-leaderboard"
+main = "src/index.js"
+compatibility_date = "2026-11-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "slime-climb"
+database_id = "REPLACE_ME" # id з дашборда Cloudflare (не секрет)
