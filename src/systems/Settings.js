@@ -1,8 +1,8 @@
-// Налаштування гравця (етап 6a: сніг). Сховище передається ззовні — localStorage або підробка в тестах.
+// Налаштування гравця (етап 6a: сніг; етап 9: туман). Сховище передається ззовні — localStorage або підробка в тестах.
 const KEY = 'slime-climb.settings';
 
 export function defaultSettings() {
-  return { snow: true };
+  return { snow: true, fog: true };
 }
 
 /** Будь-що (зламаний JSON, старі значення) → коректні налаштування. */
@@ -11,6 +11,7 @@ export function loadSettings(storage) {
   try {
     const raw = JSON.parse(storage?.getItem(KEY) ?? 'null');
     if (raw && typeof raw.snow === 'boolean') s.snow = raw.snow;
+    if (raw && typeof raw.fog === 'boolean') s.fog = raw.fog;
   } catch {
     // лишаються типові
   }

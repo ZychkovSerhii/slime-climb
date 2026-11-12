@@ -61,3 +61,15 @@ export function spikesBlock(spikes, side, interval, distancePx) {
     return c + half >= interval.from && c - half <= interval.to;
   });
 }
+
+/**
+ * Ніндзя (етап 9) [рішення плану]: тримається за стіну у верхній частині екрана, тож сам гравця не зустріне.
+ * Від його сюрикена ухиляються стрибком на стіну ніндзі — там має бути вільно, коли сюрикен підлітає.
+ * Повертає світовий відрізок, який гравець пройде між fromSec і toSec від зараз (з запасом, як у ходоків):
+ * на стіні ніндзі в ньому не має бути шипів. d0 — distancePx зараз, zoneY — y гравця на екрані,
+ * scroll — прокрутка (px/s; поточна — найгірший випадок, бо прокрутка лише росте).
+ */
+export function ninjaInterval({ d0, zoneY, scroll, fromSec, toSec }) {
+  const margin = BALANCE.playerSize / 2 + spikeBand(scroll);
+  return { from: d0 + scroll * fromSec - zoneY - margin, to: d0 + scroll * toSec - zoneY + margin };
+}

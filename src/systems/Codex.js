@@ -7,6 +7,7 @@ import { cardText, LOOT_TEXT, WEAPON_DESC } from './CardText.js';
 import { CARD_IDS, weaponCard } from './Progression.js';
 import { invisStats, LOOT_IDS, lootCard } from './Skills.js';
 import { SHKODKO_LOOT_IDS } from './ShkodkoLoot.js';
+import { KOLYA_LOOT_IDS } from './KolyaLoot.js';
 
 export const CATEGORIES = [
   { id: 'character', name: 'Персонаж' },
@@ -19,7 +20,7 @@ export const CATEGORIES = [
   { id: 'skin', name: 'Скіни' },
 ];
 
-export const BIOMES = { cave: 'Печера', winter: 'Зима' };
+export const BIOMES = { cave: 'Печера', winter: 'Зима', bamboo: 'Туманний бамбук' };
 
 export const SORTS = [
   { id: 'category', name: 'Категорія' }, // порядок buildCodex: персонаж, зброя, … скіни
@@ -132,7 +133,7 @@ function skills() {
   });
 }
 
-const LOOT_SPRITES = { oksana: 'smallSpider', web: 'webShot', form: 'slimeSpider', sack: 'sack', iam: 'slimeShkodko' };
+const LOOT_SPRITES = { oksana: 'smallSpider', web: 'webShot', form: 'slimeSpider', sack: 'sack', iam: 'slimeShkodko', larva: 'larva', iamkolya: 'slimeKolya' };
 
 function loot() {
   const make = (id, from) => {
@@ -141,6 +142,8 @@ function loot() {
     if (id === 'oksana') damage = BALANCE.bossLoot.oksana.damage;
     if (id === 'venom') damage = BALANCE.bossLoot.venom.dps;
     if (id === 'sack' || id === 'iam') damage = BALANCE.shkodkoLoot.bomb.damage;
+    if (id === 'larva') damage = BALANCE.kolyaLoot.larva.damage;
+    if (id === 'iamkolya') damage = BALANCE.kolyaLoot.iam.copyDamage;
     return entry({
       id: lootCard(id),
       category: 'loot',
@@ -154,6 +157,7 @@ function loot() {
   return [
     ...LOOT_IDS.map((id) => make(id, `Трофей з «${BALANCE.boss.name}»: ${BALANCE.bossLoot.offer} картки на вибір, кожна раз за забіг`)),
     ...SHKODKO_LOOT_IDS.map((id) => make(id, `Трофей з «${BALANCE.shkodko.name}»: 1 з ${BALANCE.shkodkoLoot.offer}, невзята лишається на наступне коло`)),
+    ...KOLYA_LOOT_IDS.map((id) => make(id, `Трофей з «${BALANCE.kolya.name}»: 1 з ${BALANCE.kolyaLoot.offer}, невзята лишається на наступне коло`)),
   ];
 }
 
@@ -171,7 +175,7 @@ const ENEMIES = {
     biome: 'cave',
     speed: E.bat.speed,
     desc: 'Летить прямо на тебе згори. Б\'є лише дотиком.',
-    facts: [`У зимі: ${W.bat.hp} HP і на ${pct(W.bat.speedMul - 1)}% швидший`],
+    facts: [`У зимі й бамбуку: ${W.bat.hp} HP і на ${pct(W.bat.speedMul - 1)}% швидший`],
   }),
   plant: () => ({
     name: 'Квітка',
@@ -219,6 +223,33 @@ const ENEMIES = {
     desc: 'Пролітає поперек екрана й тебе не б\'є. Зіб\'єш — отримаєш рівень і Шаги.',
     facts: [`Шанс появи: ${pct(E.santa.chancePerMin)}% щохвилини`],
   }),
+  // ---- Туманний бамбук і Коля (етап 9)
+  ninja: () => ({
+    name: 'Ніндзя',
+    biome: 'bamboo',
+    desc: `З'являється в клубі диму вгорі на стіні, де тебе немає, кидає сюрикен і за ${sec(E.ninja.stayMs)} с зникає. Збив до кидка — кидка немає.`,
+    facts: [`Сюрикен: ${E.ninja.shurikenSpeed} px/с, від нього рятує стрибок`, 'Поки летить сюрикен, на стіні ніндзі біля тебе немає кілків', 'Дим не б\'є'],
+  }),
+  lantern: () => ({
+    name: 'Ліхтарик-дух',
+    biome: 'bamboo',
+    speed: E.lantern.speed,
+    desc: `Паперовий ліхтар з вогником. Повільно пливе до тебе, за ${E.lantern.armPx} px блимає ${sec(E.lantern.blinkMs)} с і вибухає.`,
+    facts: [`Вибух: радіус ${E.lantern.radiusPx} px — стрибни на іншу стіну`, 'Збив раніше — вибуху немає'],
+  }),
+  slugBiter: () => ({
+    name: 'Слимак-кусака',
+    biome: 'bamboo',
+    speed: E.slugBiter.speed,
+    desc: `Малий слимак «${BALANCE.kolya.name}». Повзе по повітрю прямо на тебе.`,
+  }),
+  slugSpitter: () => ({
+    name: 'Личинка-стрілець',
+    biome: 'bamboo',
+    speed: E.slugSpitter.speed,
+    desc: `Малий слимак «${BALANCE.kolya.name}». Тримається над тобою на ${E.slugSpitter.keepPx} px і плює слизом.`,
+    facts: [`Плювок раз на ${sec(E.slugSpitter.spitMs)} с, перед ним блимає жовтим`],
+  }),
   wagon: () => ({
     name: 'Вагон потяга',
     biome: 'winter',
@@ -233,7 +264,8 @@ function enemies() {
     const facts = [...(i.facts ?? [])];
     if (id !== 'santa') facts.unshift('Дотик — мінус 1 життя');
     facts.push(`Досвід: ${E[id].xp}, Шаги: ${BALANCE.meta.stepsPerKill[id] ?? 0}`);
-    return entry({ id: `enemy:${id}`, category: 'enemy', sprite: id === 'wagon' ? 'wagon' : id, hp: i.hp ?? E[id].hp, ...i, facts });
+    const sprite = { wagon: 'wagon', slugBiter: 'slug', slugSpitter: 'slug' }[id] ?? id;
+    return entry({ id: `enemy:${id}`, category: 'enemy', sprite, hp: i.hp ?? E[id].hp, ...i, facts });
   });
   const hazards = [
     entry({
@@ -252,6 +284,35 @@ function enemies() {
       sprite: 'icicle',
       biome: 'winter',
       desc: 'Зимовий шип: так само стирчить зі стіни.',
+      facts: ['Дотик — мінус 1 життя'],
+    }),
+    entry({
+      id: 'enemy:stake',
+      category: 'enemy',
+      name: 'Бамбуковий кілок',
+      sprite: 'stake',
+      biome: 'bamboo',
+      desc: 'Шип бамбукових стін: так само стирчить зі стіни.',
+      facts: ['Дотик — мінус 1 життя'],
+    }),
+    entry({
+      id: 'enemy:shuriken',
+      category: 'enemy',
+      name: 'Сюрикен',
+      sprite: 'shuriken',
+      biome: 'bamboo',
+      speed: E.ninja.shurikenSpeed,
+      desc: 'Його кидають ніндзя. Летить по прямій туди, де ти був.',
+      facts: ['Дотик — мінус 1 життя'],
+    }),
+    entry({
+      id: 'enemy:spit',
+      category: 'enemy',
+      name: 'Крапля слизу',
+      sprite: 'slimeSpit',
+      biome: 'bamboo',
+      speed: BALANCE.kolya.spit.speed,
+      desc: `Нею плюються «${BALANCE.kolya.name}», його уламки й личинки-стрільці. Летить туди, де ти був.`,
       facts: ['Дотик — мінус 1 життя'],
     }),
     entry({
@@ -308,6 +369,24 @@ function bosses() {
         cycleFact,
       ],
     }),
+    entry({
+      id: 'boss:kolya',
+      category: 'boss',
+      name: BALANCE.kolya.name,
+      sprite: 'kolya',
+      biome: 'bamboo',
+      hp: BALANCE.kolya.hp,
+      speed: BALANCE.kolya.lunge.speed,
+      desc: 'Великий рожевий слимак з ріжками-очима. Повзе змійкою, робить ривки туди, де ти стоїш, плюється слизом.',
+      facts: [
+        `Приходить через ${Math.floor(BALANCE.kolya.afterSec / 60)} хв після перемоги над «${S.name}»`,
+        `Перед ривком стискається на ${sec(BALANCE.kolya.lunge.warnMs)} с — стрибай на іншу стіну`,
+        `На ${pct(BALANCE.kolya.phases.birth)}% HP народжує малих слимаків, на ${pct(BALANCE.kolya.phases.split)}% — ділиться на ${BALANCE.kolya.split.parts}`,
+        `Останній уламок з'їдає рештки, лікується до ${pct(BALANCE.kolya.eat.healTo)}% і впадає в лють`,
+        `Нагорода: ${BALANCE.meta.stepsPerKill.kolya} Шагів і трофей`,
+        cycleFact,
+      ],
+    }),
   ];
 }
 
@@ -335,7 +414,21 @@ function biomes() {
         'Пастки: бурульки, льодяники',
         `Подарунок: випадково досвід (${pct(W.gift.xpShare)}% рівня), ${W.gift.steps} Шаги, щит на ${sec(W.gift.shieldMs)} с або рідко +1 життя`,
         'Сніг вимикається в меню',
-        'Після Шкодька — знову печера, але важча',
+        `Після Шкодька — ${BIOMES.bamboo}`,
+      ],
+    }),
+    entry({
+      id: 'biome:bamboo',
+      category: 'biome',
+      name: BIOMES.bamboo,
+      sprite: 'wallBamboo',
+      biome: 'bamboo',
+      desc: `Настає після перемоги над «${BALANCE.shkodko.name}». Тут чекає бос «${BALANCE.kolya.name}».`,
+      facts: [
+        `Вороги: ${names(['ninja', 'lantern', 'bat'])}`,
+        'Пастки: бамбукові кілки, сюрикени',
+        'Туман лише на фоні, вимикається в меню',
+        'Після Колі — знову печера, але важча',
       ],
     }),
   ];
@@ -360,7 +453,7 @@ export function buildCodex() {
 }
 
 const lower = (s) => s.toLocaleLowerCase('uk');
-const BIOME_ORDER = { cave: 0, winter: 1 };
+const BIOME_ORDER = { cave: 0, winter: 1, bamboo: 2 };
 const sortValue = (e, key) => {
   const v = e[key];
   if (typeof v === 'string') return parseFloat(v); // «3–4» → 3

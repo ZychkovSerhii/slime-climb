@@ -1,0 +1,58 @@
+// Скін трансформації «Я КОЛЯ» (трофей Колі): рожевий слизак з ріжками-очима. Той самий розмір і кадри, що slime.
+import { C } from '../palette.js';
+
+export default {
+  key: 'slimeKolya',
+  w: 48,
+  h: 48,
+  cell: 4,
+  palette: { k: C.outline, g: C.kolyaDark, G: C.kolya, L: C.kolyaLight, w: C.white },
+  frames: {
+    idle1: [
+      '...w....w...',
+      '...k....k...',
+      '...kkkkkk...',
+      '.kkGLLGGGkk.',
+      '.kGLGGGGGGk.',
+      'kGGGGGGGGGGk',
+      'kGGGGGkGGGGk',
+      'kGGGGGGGGGGk',
+      'kgGGGGGGGGgk',
+      'kggGGGGGGggk',
+      'kggggggggggk',
+      '.kkkkkkkkkk.',
+    ],
+    idle2: [
+      '............',
+      '...w....w...',
+      '...kkkkkk...',
+      '.kkGLLGGGkk.',
+      'kGGLGGGGGGGk',
+      'kGGGGGGGGGGk',
+      'kGGGGGkGGGGk',
+      'kGGGGGGGGGGk',
+      'kgGGGGGGGGgk',
+      'kggGGGGGGggk',
+      'kggggggggggk',
+      '.kkkkkkkkkk.',
+    ],
+    jump: [
+      '..w......w..',
+      '...k....k...',
+      '...kGGGGk...',
+      '..kGLLGGGk..',
+      '..kGLGGGGk..',
+      '.kGGGGGGGGk.',
+      '.kGGGGkGGGk.',
+      '.kGGGGGGGGk.',
+      '.kgGGGGGGgk.',
+      '..kgGGGGgk..',
+      '...kggggk...',
+      '....kkkk....',
+    ],
+  },
+  anims: {
+    idle: { frames: ['idle1', 'idle2'], fps: 2.5, repeat: -1 },
+    jump: { frames: ['jump'], fps: 1 },
+  },
+};

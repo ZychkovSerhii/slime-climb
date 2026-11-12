@@ -1,7 +1,8 @@
 // Бот-плейтест: справжня гра в headless Chromium, бот сам стрибає і вибирає картки.
 // Смерть вимкнена: рахуємо кожен удар (з джерелом і часом), щоб оцінити, чи реально дожити до боса і вбити його.
-// Використання: node scripts/playtest.mjs [--seconds 160] [--runs 1] [--no-enemies] [--weapon axe|chakra|shotgun] [--cards hat,hat,extraLife] [--winter] [--shkodko]
+// Використання: node scripts/playtest.mjs [--seconds 160] [--runs 1] [--no-enemies] [--weapon axe|chakra|shotgun] [--cards hat,hat,extraLife] [--winter] [--shkodko] [--bamboo] [--kolya]
 // --winter — одразу зимовий біом без павучихи (?winter=1); --shkodko — зима і Шкодько на 6-й с (?shkodko=1)
+// --bamboo — одразу бамбук без боса (?bamboo=1); --kolya — бамбук і Коля на 6-й с (?kolya=1)
 // Потрібен браузер Playwright (npx playwright install chromium) або CHROME_PATH.
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
@@ -19,6 +20,8 @@ const cIdx = process.argv.indexOf('--cards');
 const CARDS = cIdx > -1 ? process.argv[cIdx + 1] : null; // з цими картками з першої секунди (?cards=)
 const WINTER = process.argv.includes('--winter');
 const SHKODKO = process.argv.includes('--shkodko');
+const BAMBOO = process.argv.includes('--bamboo');
+const KOLYA = process.argv.includes('--kolya');
 
 // Код бота виконується всередині сторінки (dev-режим дає window.game)
 function installBot() {
@@ -70,7 +73,7 @@ function installBot() {
   s.events.on('hud:banner', (b) => {
     if (b?.text === 'Санта!') report.winter.santa += 1;
     // фази Шкодька видно з плашок
-    if (b?.text && /Шкодько|Потяг|Ціль|подарунки!|Коло|БОС/.test(b.text) && !/Лови подарунки! [1-9]/.test(b.text)) report.boss.push(`${b.text}@${s.elapsedSec.toFixed(1)}`);
+    if (b?.text && /Шкодько|Коля|Потяг|Ціль|подарунки!|Коло|БОС/.test(b.text) && !/Лови подарунки! [1-9]/.test(b.text)) report.boss.push(`${b.text}@${s.elapsedSec.toFixed(1)}`);
   });
   let immune = false;
   s.events.on('hud:boss', (b) => {
@@ -106,7 +109,9 @@ function installBot() {
     const p = s.player;
     // бомба Шкодька, що лежить, — небезпека розміром з радіус вибуху (стоїть і їде зі світом)
     const bombs = s.bombs.getChildren().filter((b) => b.landed).map((b) => ({ x: b.x, y: b.y, displayWidth: b.radius * 2, displayHeight: b.radius * 2, active: true, type: 'bomb' }));
-    return [...s.hazards.getChildren(), ...s.enemies.getChildren(), ...s.enemyProjectiles.getChildren(), ...bombs].filter(
+    // ліхтарик, що зайнявся, — небезпека розміром з радіус вибуху
+    const lanterns = s.enemies.getChildren().filter((e) => e.active && e.type === 'lantern' && e.armedAt != null).map((e) => ({ x: e.x, y: e.y, displayWidth: e.radius * 2, displayHeight: e.radius * 2, active: true, type: 'lanternBlast', body: e.body, scrollsWithWorld: false }));
+    return [...s.hazards.getChildren(), ...s.enemies.getChildren(), ...s.enemyProjectiles.getChildren(), ...bombs, ...lanterns].filter(
       (o) => o.active && !o.harmless && o.visible !== false && !(CHASERS.has(o.type) && Math.hypot(o.x - p.x, o.y - p.y) > CHASER_RANGE),
     );
   }
@@ -217,6 +222,7 @@ function installBot() {
   s.events.on('enemy:killed', (e) => {
     if (e.type === 'boss') report.bossKilled = +s.elapsedSec.toFixed(1);
     if (e.type === 'shkodko') report.shkodkoKilled = +s.elapsedSec.toFixed(1);
+    if (e.type === 'kolya') report.kolyaKilled = +s.elapsedSec.toFixed(1);
     report.kills = report.kills || {};
     report.kills[e.type] = (report.kills[e.type] || 0) + 1;
   });
@@ -251,7 +257,7 @@ for (let r = 0; r < RUNS; r++) {
   const page = await browser.newPage({ viewport: { width: 360, height: 640 } });
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  const q = [WEAPON && `weapon=${WEAPON}`, CARDS && `cards=${CARDS}`, WINTER && 'winter=1', SHKODKO && 'shkodko=1'].filter(Boolean).join('&');
+  const q = [WEAPON && `weapon=${WEAPON}`, CARDS && `cards=${CARDS}`, WINTER && 'winter=1', SHKODKO && 'shkodko=1', BAMBOO && 'bamboo=1', KOLYA && 'kolya=1'].filter(Boolean).join('&');
   await page.goto(q ? `${url}?${q}` : url);
   await page.waitForTimeout(800);
   await page.mouse.click(180, 320); // меню → гра
@@ -300,7 +306,7 @@ for (const [i, rep] of results.entries()) {
   console.log(`  Шаги: ${rep.steps} (на першій смерті: ${rep.stepsAtDeath ?? '-'}), вбивства: ${JSON.stringify(rep.kills ?? {})}`);
   if (rep.relics) console.log(`  relics: ${rep.relics.join(', ')}`);
   console.log(`  зима: ричань по гравцю ${rep.winter.roars}, подарунків ${rep.winter.gifts}, Санта ${rep.winter.santa}`);
-  console.log(`  boss start ${rep.bossStart ?? '-'}, boss killed ${rep.bossKilled ?? '-'}, Шкодько killed ${rep.shkodkoKilled ?? '-'}, phases: ${rep.boss.join(' ') || '-'}`);
+  console.log(`  boss start ${rep.bossStart ?? '-'}, boss killed ${rep.bossKilled ?? '-'}, Шкодько killed ${rep.shkodkoKilled ?? '-'}, Коля killed ${rep.kolyaKilled ?? '-'}, phases: ${rep.boss.join(' ') || '-'}`);
   console.log(`  picks: ${rep.picks.join(', ')}`, 'decisions', JSON.stringify(rep.decisions), 'panicBy', JSON.stringify(rep.panicBy));
   if (rep.errors.length) console.log('  ERRORS:', rep.errors);
 }

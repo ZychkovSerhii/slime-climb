@@ -4,6 +4,7 @@ import { buildCodex, CATEGORIES, queryCodex, SORTS } from '../src/systems/Codex.
 import { CARD_IDS } from '../src/systems/Progression.js';
 import { LOOT_IDS } from '../src/systems/Skills.js';
 import { SHKODKO_LOOT_IDS } from '../src/systems/ShkodkoLoot.js';
+import { KOLYA_LOOT_IDS } from '../src/systems/KolyaLoot.js';
 import { SPRITES } from '../src/art/sprites/index.js';
 
 const all = buildCodex();
@@ -17,10 +18,11 @@ test('every category from the spec has entries', () => {
 test('nothing from BALANCE is forgotten', () => {
   for (const id of Object.keys(BALANCE.weapons)) expect(ids.has(`weapon:${id}`), id).toBe(true);
   for (const id of CARD_IDS) expect(ids.has(id), id).toBe(true);
-  for (const id of [...LOOT_IDS, ...SHKODKO_LOOT_IDS]) expect(ids.has(`loot:${id}`), id).toBe(true);
+  for (const id of [...LOOT_IDS, ...SHKODKO_LOOT_IDS, ...KOLYA_LOOT_IDS]) expect(ids.has(`loot:${id}`), id).toBe(true);
   for (const id of Object.keys(BALANCE.enemies)) expect(ids.has(`enemy:${id}`), id).toBe(true);
   for (const s of BALANCE.meta.skins) expect(ids.has(`skin:${s.id}`), s.id).toBe(true);
-  expect(ids.has('boss:spider') && ids.has('boss:shkodko')).toBe(true);
+  expect(ids.has('boss:spider') && ids.has('boss:shkodko') && ids.has('boss:kolya')).toBe(true);
+  expect(ids.has('biome:bamboo')).toBe(true);
 });
 
 test('ids are unique, every entry has a name, a description and a known sprite', () => {
@@ -57,7 +59,7 @@ test('search is case-insensitive and by name', () => {
 test('category filter', () => {
   const r = queryCodex(all, { category: 'boss' });
   expect(r.every((e) => e.category === 'boss')).toBe(true);
-  expect(r.length).toBe(2);
+  expect(r.length).toBe(3);
 });
 
 test('numeric sort: strongest first, entries without the value last', () => {
@@ -69,13 +71,15 @@ test('numeric sort: strongest first, entries without the value last', () => {
   expect(r[0].id).toBe('enemy:bear');
 });
 
-test('biome sort: cave, then winter, then entries without a biome', () => {
+test('biome sort: cave, then winter, then bamboo, then entries without a biome', () => {
   const r = queryCodex(all, { sort: 'biome' });
   const order = r.map((e) => e.biome);
   const firstWinter = order.indexOf('winter');
+  const firstBamboo = order.indexOf('bamboo');
   const firstNone = order.indexOf(null);
   expect(order.lastIndexOf('cave')).toBeLessThan(firstWinter);
-  expect(order.lastIndexOf('winter')).toBeLessThan(firstNone);
+  expect(order.lastIndexOf('winter')).toBeLessThan(firstBamboo);
+  expect(order.lastIndexOf('bamboo')).toBeLessThan(firstNone);
 });
 
 test('name sort and every sort option works without throwing; input is not mutated', () => {

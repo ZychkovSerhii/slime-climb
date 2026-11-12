@@ -5,7 +5,8 @@ import { wrapAxis } from '../systems/Biome.js';
 import { loopMul, scaledHp } from '../systems/Cycle.js';
 
 // боси: свої блоки балансу, трішки сповільнюються, не «замерзають» (див. takeHit)
-const BOSS_CFG = { boss: BALANCE.boss, shkodko: BALANCE.shkodko };
+// kolyaPart — уламок Колі: HP задає сам бос при поділі
+const BOSS_CFG = { boss: BALANCE.boss, shkodko: BALANCE.shkodko, kolya: BALANCE.kolya, kolyaPart: BALANCE.kolya };
 
 const SLOW_TINT = 0x6fa8ff;
 const ICE_TINT = 0xa8ecff; // «Крижана атака»: ворог блідо-блакитний, «у кризі»

@@ -72,6 +72,18 @@ export const LOOT_TEXT = {
       desc: `скін Шкодька (скасовує павука),\nдосвід кожні ${I.xpEveryMs / 1000} с, бомба кожні ${I.bombEveryMs / 1000} с`,
     };
   },
+  // етап 9 — трофеї Колі
+  larva: () => {
+    const L = BALANCE.kolyaLoot.larva;
+    return { title: 'Личинка-помічник', desc: `сидить на тобі й плює в ворога\nраз на ${num(L.everyMs / 1000)} с (росте з «Уроном»)` };
+  },
+  iamkolya: () => {
+    const I = BALANCE.kolyaLoot.iam;
+    return {
+      title: 'Я КОЛЯ',
+      desc: `скін слимака (скасовує інші). Раз за рівень\nзамість мінус життя: ${num(I.invulnMs / 1000)} с щит і ${I.copies} мінікопії`,
+    };
+  },
 };
 
 export function cardText(id, picks, arsenal) {

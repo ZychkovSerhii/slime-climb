@@ -90,6 +90,17 @@ export const BALANCE = deepFreeze({
     santa: { hp: 5, xp: 0, points: 300, speed: 170, y: 210, wraps: 2, chancePerMin: 0.1 },
     // Вагон потяга Шкодька (етап 6b): окреме HP; паровоз невразливий
     wagon: { hp: 6, xp: 2, points: 60 },
+    // ---- Туманний бамбук (етап 9, специфікація §9.1)
+    // Ніндзя [рішення плану]: тримається за стіну на сталій висоті екрана (minYFrac…maxYFrac висоти), на стіні, де гравця немає.
+    // smokeMs — дим-попередження (у диму невразливий і не шкодить), потім кидок 1 сюрикена, через stayMs — зникає в диму.
+    // Стіна ніндзі вільна від шипів біля висоти гравця від (приліт − dodgeLeadSec) до (приліт + dodgeSec).
+    ninja: { hp: 3, xp: 4, points: 40, smokeMs: 600, stayMs: 1200, shurikenSpeed: 260, minYFrac: 0.12, maxYFrac: 0.4, dodgeLeadSec: 1, dodgeSec: 0.6 },
+    // Ліхтарик-дух: пливе на гравця, за armPx блимає blinkMs і вибухає радіусом radiusPx. Убитий раніше — вибуху немає.
+    lantern: { hp: 2, xp: 3, points: 30, speed: 70, armPx: 90, blinkMs: 800, radiusPx: 70 },
+    // Малі слимаки Колі (фаза 80%). Кусака повзе на гравця; личинка-стрілець тримається на keepPx і плює раз на spitMs,
+    // завжди вище за гравця щонайменше на minAbovePx (крута траєкторія — від неї рятує стрибок, як від квітки).
+    slugBiter: { hp: 6, xp: 3, points: 40, speed: 120 },
+    slugSpitter: { hp: 3, xp: 3, points: 40, speed: 160, keepPx: 220, minAbovePx: 160, spitMs: 2000, firstSpitMs: 900 },
   },
   // Біоми. Біом 1 (cave) — як був: його спавн — spawnBaseMs і enemies.<type>.from нижче.
   // Зима настає після смерті павучихи (у 6b — далі Шкодько і чергування). from — секунди від початку зими.
@@ -113,6 +124,16 @@ export const BALANCE = deepFreeze({
     // сніг: мало, повільно, низький контраст; вимикається в меню
     snow: { count: 26, alpha: 0.32, minSpeed: 22, maxSpeed: 55, drift: 14 },
     transitionMs: 1500, // перехід фону і стін з печери в зиму
+  },
+  // Туманний бамбук (етап 9, §9.1): після смерті Шкодька. Інтервали спавну ×0,9 від зими (на ~10% більше ворогів):
+  // ліхтарик — як ельф, ніндзя — як пінгвін, кажан — як зимовий. from — секунди від початку бамбука.
+  bamboo: {
+    from: { lantern: 3, bat: 8, ninja: 10 },
+    spawnBaseMs: { lantern: Math.round(9700 * 0.9), bat: Math.round(8750 * 0.9), ninja: Math.round(13750 * 0.9) },
+    bat: { hp: 2, speedMul: 1.15 }, // як у зимі
+    // туман: 2 шари лише на фоні (під стінами, шипами й ворогами), повільний паралакс і дрейф, низький контраст
+    fog: { layers: [{ alpha: 0.12, parallax: 0.12, driftX: 7 }, { alpha: 0.08, parallax: 0.22, driftX: -4 }] },
+    transitionMs: 1500,
   },
   boss: {
     name: 'Твоя мамаша',
@@ -191,7 +212,31 @@ export const BALANCE = deepFreeze({
     rageHpCap: 0.15, // після потяга HP = min(поточне, rageHpCap)
     debugAtSec: 6, // ?shkodko=1
   },
-  // Коло біомів (етап 6b): печера (павучиха) → зима (Шкодько) → печера… Коло n (з 0): HP ×hpMul^n, швидкість ×speedMul^n
+  // ---- Бос 3 «Слимак Коля» (етап 9, специфікація §9.2). Частки HP — від maxHp (з множником кола).
+  // HP — рішення користувача: сумарно ×1,3 від Шкодька (85 × 1,3 ≈ 110).
+  kolya: {
+    name: 'Слимак Коля',
+    scale: 1.5,
+    afterSec: 180, // через стільки секунд після початку бамбука (= смерті Шкодька)
+    hp: 110,
+    xp: 100,
+    points: 2000,
+    phases: { birth: 0.8, split: 0.4 },
+    zone: { top: 210, bottomGap: 120 }, // повзе між y=top і (y гравця − bottomGap)
+    // змійка: x — синусоїда коридором за periodXMs, y — патруль угору-вниз за periodYMs (швидкість ×speedMul)
+    snake: { periodXMs: 3400, periodYMs: 7000 },
+    lunge: { warnMs: 600, speed: 720, backSpeed: 320, gapMs: 1200 }, // ривок у точку гравця; gapMs — між ривками будь-кого
+    p1: { lungeEveryMs: 5000, spitEveryMs: 0 },
+    p2: { lungeEveryMs: 3500, spitEveryMs: 2500 },
+    spit: { speed: 280 },
+    birth: { biters: 2, spitters: 2, idleMs: 8000 }, // 8 с стоїть і дихає, вразливий
+    split: { parts: 3, trembleMs: 1000, scale: 0.6, speedMul: 1.3, lungeEveryMs: 3500, spitEveryMs: 2200 },
+    eat: { ms: 1500, healTo: 0.15 }, // останній з'їдає рештки: HP до healTo × maxHp
+    rage: { speedMul: 1.5, lungeEveryMs: 2000, spitEveryMs: 1200, fan: 3, spreadDeg: 15 },
+    debugAtSec: 6, // ?kolya=1
+  },
+
+  // Коло біомів (етап 6b, етап 9): печера (павучиха) → зима (Шкодько) → бамбук (Коля) → печера… Коло n (з 0): HP ×hpMul^n, швидкість ×speedMul^n
   // xpMul (фідбек-3): досвід за вбивство ×xpMul^коло — ворог міцніший, тож і досвіду більше
   cycle: { hpMul: 1.35, speedMul: 1.08, xpMul: 1.35 },
 
@@ -282,11 +327,28 @@ export const BALANCE = deepFreeze({
     bomb: { flightMs: 450, fuseMs: 450, radiusPx: 75, damage: 3 },
   },
 
+  // Представлення боса (етап 9, §9.3): пауза, ім'я, спрайт, мелодія ~2 с. Пропустити — дотиком через skipMs,
+  // саме закривається через autoCloseMs; після закриття graceMs без шкоди, щоб гравець зорієнтувався.
+  bossIntro: { skipMs: 1000, autoCloseMs: 2500, graceMs: 500 },
+
+  // Унікальні картки Колі (етап 9, специфікація §9.4). Вибір 1 з 2, як у Шкодька.
+  kolyaLoot: {
+    offer: 2,
+    // «Личинка-помічник»: раз на everyMs плює в найближчого ворога, шкода damage + бонус «Урону»
+    larva: { everyMs: 1200, damage: 1, speed: 700 },
+    // «Я КОЛЯ»: раз за рівень замість втрати життя — invulnMs невразливості і copies мінікопій на copyMs,
+    // кожна стріляє раз на copyEveryMs на copyDamage + бонус «Урону» [рішення плану: частоти в специфікації немає]
+    iam: { invulnMs: 2000, copies: 2, copyMs: 4000, copyEveryMs: 600, copyDamage: 1 },
+  },
+  // §0: якщо всі унікальні картки боса вже взяті — бос дає +lootStepsBonus до своїх Шагів
+  lootStepsBonus: 0.5,
+
   // Мета-прогрес (етап 5). Шаги — валюта між забігами, зберігаються в localStorage.
   // Ціль специфікації: ~120–180 Шагів за нормальний забіг (боса вбито, смерть на 3:00–3:30) — ще не перевірено плейтестом.
   meta: {
     // Шаги за вбивство. smallSpider — павучки рою павучихи: їх за бій десятки, тому 0 [рішення], інакше рій давав би більше за саму павучиху
-    stepsPerKill: { lion: 2, bat: 1, plant: 2, smallSpider: 0, boss: 60, elf: 1, penguin: 1, bear: 4, santa: 40, shkodko: 100, wagon: 0 },
+    stepsPerKill: { lion: 2, bat: 1, plant: 2, smallSpider: 0, boss: 60, elf: 1, penguin: 1, bear: 4, santa: 40, shkodko: 100, wagon: 0,
+      ninja: 2, lantern: 1, slugBiter: 1, slugSpitter: 1, kolya: 120, kolyaPart: 0 },
     // Скіни лише візуальні. sprite — ключ спрайта в src/art/sprites (однаковий розмір полотна → хітбокс той самий)
     skins: [
       { id: 'slime', name: 'Слизак', price: 0, sprite: 'slime' },
@@ -313,6 +375,11 @@ export const BALANCE = deepFreeze({
       // етап 6b
       { id: 'shkodko1', stat: 'shkodko', count: 1, reward: 150, title: 'Вбивство Шкодька', caption: 'Як ти міг...' },
       { id: 'shkodko5', stat: 'shkodko', count: 5, reward: 400, title: '5 разів вбити Шкодька', caption: 'Ти і вправду паскуда!' },
+      // етап 9 — бамбук і Коля
+      { id: 'ninja50', stat: 'ninja', count: 50, reward: 50, title: '50 ніндзя', caption: 'Тихо стало в бамбуку.' },
+      { id: 'lantern50', stat: 'lantern', count: 50, reward: 50, title: '50 ліхтариків', caption: 'Хто тепер освітить туман?' },
+      { id: 'kolya1', stat: 'kolya', count: 1, reward: 200, title: 'Вбивство Колі', caption: 'Він просто хотів повзати...' },
+      { id: 'kolya5', stat: 'kolya', count: 5, reward: 500, title: '5 разів вбити Колю', caption: 'Слимаки тебе не пробачать.' },
     ],
     toastMs: 2500,
   },

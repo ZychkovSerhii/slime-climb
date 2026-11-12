@@ -1,4 +1,4 @@
-// Коло біомів (етап 6b): печера (павучиха) → зима (Шкодько) → печера (павучиха) → …
+// Коло біомів (етап 6b, етап 9): печера (павучиха) → зима (Шкодько) → бамбук (Коля) → печера (павучиха) → …
 // Чисті функції без Phaser. Відрізок — один біом з одним босом наприкінці.
 import { BALANCE } from '../config/balance.js';
 
@@ -6,19 +6,25 @@ const B = BALANCE.boss;
 
 /**
  * Перший відрізок забігу. start: 'cave' (звичайно), 'winter' (?winter=1 — зима без боса),
- * 'shkodko' (?shkodko=1 — зима і Шкодько на shkodko.debugAtSec), 'spider' (?boss=1 — павучиха на boss.debugAtSec).
+ * 'shkodko' (?shkodko=1 — зима і Шкодько на shkodko.debugAtSec), 'spider' (?boss=1 — павучиха на boss.debugAtSec),
+ * 'bamboo' (?bamboo=1 — бамбук без боса), 'kolya' (?kolya=1 — бамбук і Коля на kolya.debugAtSec).
  */
 export function firstSegment(start = 'cave') {
   if (start === 'winter') return { biome: 'winter', boss: null, atSec: Infinity, loop: 0, startSec: 0 };
   if (start === 'shkodko') return { biome: 'winter', boss: 'shkodko', atSec: BALANCE.shkodko.debugAtSec, loop: 0, startSec: 0 };
+  if (start === 'bamboo') return { biome: 'bamboo', boss: null, atSec: Infinity, loop: 0, startSec: 0 };
+  if (start === 'kolya') return { biome: 'bamboo', boss: 'kolya', atSec: BALANCE.kolya.debugAtSec, loop: 0, startSec: 0 };
   const atSec = start === 'spider' ? B.debugAtSec : B.atSec;
   return { biome: 'cave', boss: 'spider', atSec, loop: 0, startSec: 0 };
 }
 
-/** Відрізок після смерті боса seg.boss на секунді killSec. Після Шкодька починається нове коло. */
+/** Відрізок після смерті боса seg.boss на секунді killSec. Після Колі починається нове коло. */
 export function nextSegment(seg, killSec) {
   if (seg.boss === 'spider') {
     return { biome: 'winter', boss: 'shkodko', atSec: killSec + BALANCE.shkodko.afterSec, loop: seg.loop, startSec: killSec };
+  }
+  if (seg.boss === 'shkodko') {
+    return { biome: 'bamboo', boss: 'kolya', atSec: killSec + BALANCE.kolya.afterSec, loop: seg.loop, startSec: killSec };
   }
   return { biome: 'cave', boss: 'spider', atSec: killSec + B.atSec, loop: seg.loop + 1, startSec: killSec };
 }

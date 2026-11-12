@@ -38,11 +38,23 @@ import giftBomb from './giftBomb.js';
 import { wagon, loco } from './train.js';
 import slimeShkodko from './slimeShkodko.js';
 import sack from './sack.js';
+import wallBamboo from './wallBamboo.js';
+import stake from './stake.js';
+import ninja from './ninja.js';
+import smoke from './smoke.js';
+import shuriken from './shuriken.js';
+import lantern from './lantern.js';
+import kolya from './kolya.js';
+import slug from './slug.js';
+import slimeSpit from './slimeSpit.js';
+import larva from './larva.js';
+import slimeKolya from './slimeKolya.js';
 
 export const SPRITES = [slime, wall, spike, projectile, plantBullet, heart, bat, plant, lion, spider, smallSpider, shadow, axe, shotgun, chakraVeins, webBall, hat, webShot, slimeSpider, frost, skinAssassin, skinCommander, skinRaccoon, skinMurzik,
   wallIce, icicle, elf, candy, bear, penguin, santa, gift, snowflake,
   shkodko, giftBomb, wagon, loco,
-  slimeShkodko, sack];
+  slimeShkodko, sack,
+  wallBamboo, stake, ninja, smoke, shuriken, lantern, kolya, slug, slimeSpit, larva, slimeKolya];
 
 /** Ключ анімації в Phaser: 'slime:idle'. */
 export const animKey = (spriteKey, anim) => `${spriteKey}:${anim}`;

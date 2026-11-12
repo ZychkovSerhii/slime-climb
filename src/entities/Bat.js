@@ -1,24 +1,26 @@
 import * as Phaser from 'phaser';
 import { BALANCE } from '../config/balance.js';
 import Enemy from './Enemy.js';
+import { scaledHp } from '../systems/Cycle.js';
 import { animKey } from '../art/sprites/index.js';
 
 const CFG = BALANCE.enemies.bat;
 
 /**
  * Кажан: з'являється над екраном і щокадру летить прямо до гравця. Шкода — тільки дотиком.
- * winter — зимовий кажан (етап 6a): HP і швидкість з BALANCE.winter.bat.
+ * biome — 'winter' / 'bamboo' (етапи 6a, 9): HP і швидкість з BALANCE.<біом>.bat; печера — як була.
  */
 export default class Bat extends Enemy {
-  constructor(scene, { winter = false } = {}) {
+  constructor(scene, { biome = 'cave' } = {}) {
     const { width } = scene.scale;
     const tex = scene.textures.getFrame('bat');
     const minX = BALANCE.wallWidth + tex.width / 2;
     const x = Phaser.Math.FloatBetween(minX, width - minX);
     super(scene, x, -tex.height / 2, 'bat', 'bat');
     this.scrollsWithWorld = false;
-    this.winterMul = winter ? BALANCE.winter.bat.speedMul : 1;
-    if (winter) this.hp = BALANCE.winter.bat.hp;
+    const cfg = BALANCE[biome]?.bat;
+    this.winterMul = cfg ? cfg.speedMul : 1;
+    if (cfg) this.hp = scaledHp(cfg.hp, scene.loop ?? 0);
     // різний стартовий кадр — зграя не махає крилами синхронно
     this.play({ key: animKey('bat', 'fly'), startFrame: Phaser.Math.Between(0, 1) });
   }

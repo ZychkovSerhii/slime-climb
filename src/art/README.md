@@ -13,6 +13,8 @@
 | Зброя на слизакові: `axe`, `shotgun`, вени чакри `chakraVeins` | `sprites/<key>.js`; розмах сокири малює `entities/WeaponView.js` |
 | Солом'яна шляпа `hat`, кірка льоду `frost` (поверх замороженого ворога, масштабується під його розмір) | `sprites/<key>.js` |
 | Бос 2: `shkodko` (кадри `dance1/dance2/laugh/stun`), подарунок-бомба `giftBomb`, потяг `loco` і `wagon` (`sprites/train.js`; паровоз дивиться ліворуч) | `sprites/<key>.js` |
+| Бамбук (етап 9): стіна `wallBamboo`, кілок `stake` (той самий розмір, що `wall`/`spike`), `ninja` (`idle/throw`), дим `smoke`, `shuriken`, `lantern` (`glow1/glow2/blink`) | `sprites/<key>.js` |
+| Бос 3 «Слимак Коля»: `kolya` (`crawl1/crawl2/squeeze/breathe/eat`), малі слимаки `slug` (`biter1/2`, `spitter1/2`), крапля `slimeSpit`; трофеї `larva`, скін `slimeKolya` (як `slime`) | `sprites/<key>.js` |
 | Скіни магазину: `skinAssassin`, `skinCommander`, `skinRaccoon`, `skinMurzik` (той самий розмір і кадри `idle1/idle2/jump`, що в `slime`; ціни й назви — `BALANCE.meta.skins`) | `sprites/<key>.js` |
 | Генерація текстур і анімацій у Phaser | `textures.js` (зазвичай не чіпати) |
 
@@ -34,6 +36,6 @@
 
 Якщо розмір файлу не збігається, гра попередить у консолі й візьме намальований кодом спрайт, тож гра не зламається.
 
-Фон замінюється файлом `png/bg.png` (зима — `png/bgWinter.png`) будь-якого розміру. Він тайлиться, тому краї мають стикуватися.
+Фон замінюється файлом `png/bg.png` (зима — `png/bgWinter.png`, бамбук — `png/bgBamboo.png`, туман — прозорий `png/fog.png`) будь-якого розміру. Він тайлиться, тому краї мають стикуватися.
 
 - Етап 6c: скін `slimeShkodko` («Я ШКОДЬКО», той самий розмір, що `slime`) і `sack` («Мішок Шкодька», кадри `sack`/`shake`) — `sprites/<key>.js`.

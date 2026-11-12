@@ -5,20 +5,24 @@ import { firstSegment, loopMul, nextSegment, runStage, scaledHp } from '../src/s
 const B = BALANCE.boss;
 
 describe('коло біомів', () => {
-  test('печера з павучихою → зима зі Шкодьком → печера наступного кола', () => {
+  test('печера з павучихою → зима зі Шкодьком → бамбук з Колею → печера наступного кола', () => {
     const s0 = firstSegment();
     expect(s0).toMatchObject({ biome: 'cave', boss: 'spider', atSec: B.atSec, loop: 0 });
     const s1 = nextSegment(s0, 130);
     expect(s1).toMatchObject({ biome: 'winter', boss: 'shkodko', atSec: 130 + BALANCE.shkodko.afterSec, loop: 0, startSec: 130 });
     const s2 = nextSegment(s1, 400);
-    expect(s2).toMatchObject({ biome: 'cave', boss: 'spider', atSec: 400 + B.atSec, loop: 1 });
-    expect(nextSegment(s2, 600)).toMatchObject({ boss: 'shkodko', loop: 1 });
+    expect(s2).toMatchObject({ biome: 'bamboo', boss: 'kolya', atSec: 400 + BALANCE.kolya.afterSec, loop: 0, startSec: 400 });
+    const s3 = nextSegment(s2, 700);
+    expect(s3).toMatchObject({ biome: 'cave', boss: 'spider', atSec: 700 + B.atSec, loop: 1 });
+    expect(nextSegment(s3, 900)).toMatchObject({ boss: 'shkodko', loop: 1 });
   });
 
   test('режими перевірки', () => {
     expect(firstSegment('winter')).toMatchObject({ biome: 'winter', boss: null });
     expect(firstSegment('shkodko')).toMatchObject({ biome: 'winter', boss: 'shkodko', atSec: BALANCE.shkodko.debugAtSec });
     expect(firstSegment('spider').atSec).toBe(B.debugAtSec);
+    expect(firstSegment('bamboo')).toMatchObject({ biome: 'bamboo', boss: null });
+    expect(firstSegment('kolya')).toMatchObject({ biome: 'bamboo', boss: 'kolya', atSec: BALANCE.kolya.debugAtSec });
   });
 
   test('етапи: before → prep → fight, після смерті calm → after', () => {

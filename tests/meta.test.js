@@ -177,3 +177,15 @@ describe('спрайти скінів', async () => {
     expect(Object.keys(sp.anims)).toEqual(expect.arrayContaining(['idle', 'jump']));
   });
 });
+
+test('Коля: 120 Шагів, досягнення 200 і 500; уламки Шагів не дають', async () => {
+  const { emptyMeta, recordKill, stepsForKill } = await import('../src/systems/Meta.js');
+  expect(stepsForKill('kolya')).toBe(120);
+  expect(stepsForKill('kolyaPart')).toBe(0);
+  let m = emptyMeta();
+  const r = recordKill(m, 'kolya');
+  expect(r.unlocked.map((a) => [a.id, a.reward])).toEqual([['kolya1', 200]]);
+  m = r.meta;
+  for (let i = 0; i < 3; i++) m = recordKill(m, 'kolya').meta;
+  expect(recordKill(m, 'kolya').unlocked.map((a) => [a.id, a.reward])).toEqual([['kolya5', 500]]);
+});
