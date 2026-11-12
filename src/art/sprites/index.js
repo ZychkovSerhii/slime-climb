@@ -49,12 +49,14 @@ import slug from './slug.js';
 import slimeSpit from './slimeSpit.js';
 import larva from './larva.js';
 import slimeKolya from './slimeKolya.js';
+import traitStar from './traitStar.js';
 
 export const SPRITES = [slime, wall, spike, projectile, plantBullet, heart, bat, plant, lion, spider, smallSpider, shadow, axe, shotgun, chakraVeins, webBall, hat, webShot, slimeSpider, frost, skinAssassin, skinCommander, skinRaccoon, skinMurzik,
   wallIce, icicle, elf, candy, bear, penguin, santa, gift, snowflake,
   shkodko, giftBomb, wagon, loco,
   slimeShkodko, sack,
-  wallBamboo, stake, ninja, smoke, shuriken, lantern, kolya, slug, slimeSpit, larva, slimeKolya];
+  wallBamboo, stake, ninja, smoke, shuriken, lantern, kolya, slug, slimeSpit, larva, slimeKolya,
+  traitStar];
 
 /** Ключ анімації в Phaser: 'slime:idle'. */
 export const animKey = (spriteKey, anim) => `${spriteKey}:${anim}`;

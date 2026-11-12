@@ -333,7 +333,7 @@ function bosses() {
   const B = BALANCE.boss;
   const S = BALANCE.shkodko;
   const c = BALANCE.cycle;
-  const cycleFact = `Кожне наступне коло: HP ×${num(c.hpMul)}, швидкість ×${num(c.speedMul)}`;
+  const cycleFact = `Кожне наступне коло: HP ×${num(BALANCE.scaling.bossHpMul)}, швидкість ×${num(c.speedMul)}; з 2-го кола — додаткова атака`;
   return [
     entry({
       id: 'boss:spider',

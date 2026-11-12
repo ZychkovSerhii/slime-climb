@@ -41,12 +41,30 @@ export function runStage(tSec, seg, lastKillSec = null) {
   return lastKillSec === null ? 'before' : 'after';
 }
 
-/** Множники кола loop (з 0): HP ворогів і босів ×hpMul^loop, швидкість руху ×speedMul^loop. */
-export function loopMul(loop) {
-  return { hp: BALANCE.cycle.hpMul ** loop, speed: BALANCE.cycle.speedMul ** loop };
+const BIOME_ORDER = { cave: 0, winter: 1, bamboo: 2 };
+const SC = BALANCE.scaling;
+
+/** Скільки біомів уже пройдено (етап 10, §10.1): печера кола 0 → 0, зима → 1, бамбук → 2, печера кола 1 → 3… */
+export function biomeIndex(seg) {
+  return (seg?.loop ?? 0) * 3 + (BIOME_ORDER[seg?.biome] ?? 0);
 }
 
-/** HP з урахуванням кола: округлено, не менше 1. */
-export function scaledHp(baseHp, loop) {
-  return Math.max(1, Math.round(baseHp * loopMul(loop).hp));
+/** Множник швидкості кола loop (з 0): ×speedMul^loop. HP — enemyHp / bossHp. */
+export function loopMul(loop) {
+  return { speed: BALANCE.cycle.speedMul ** loop };
+}
+
+/** HP звичайного ворога: ×biomeHpMul^biome, округлено, не менше 1. */
+export function enemyHp(baseHp, biome) {
+  return Math.max(1, Math.round(baseHp * SC.biomeHpMul ** biome));
+}
+
+/** HP боса (і ведмедя-міні-боса): ×bossHpMul^loop. */
+export function bossHp(baseHp, loop) {
+  return Math.max(1, Math.round(baseHp * SC.bossHpMul ** loop));
+}
+
+/** З якого кола вороги мають властивості, а боси — +1 атаку. */
+export function enhanced(loop) {
+  return loop >= SC.enhancedFromLoop;
 }

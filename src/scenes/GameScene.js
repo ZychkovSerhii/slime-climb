@@ -3,7 +3,7 @@ import { BALANCE } from '../config/balance.js';
 import { scrollSpeed } from '../systems/Difficulty.js';
 import { createSpawnState, dueSpawns } from '../systems/Spawner.js';
 import { afterBossSpawnMul, bannerVisible, hazardsSuppressed } from '../systems/BossPlanner.js';
-import { firstSegment, loopMul, nextSegment, runStage } from '../systems/Cycle.js';
+import { biomeIndex, firstSegment, loopMul, nextSegment, runStage } from '../systems/Cycle.js';
 import { createStatus, fireIntervalMul, isPoisoned, isRoared, playerSpeedMul, poison, roar } from '../systems/Status.js';
 import { createGiftState, createSantaState, giftDue, giftX, giftXp, penguinGroup, penguinHp, rollGift, santaDue, xpToLevelUp } from '../systems/Biome.js';
 import { meetInterval, ninjaInterval, otherSide, spikesBlock, walkerSide, walkerSpeedRange, worldOf } from '../systems/WallWalkers.js';
@@ -219,7 +219,7 @@ export default class GameScene extends Phaser.Scene {
       this.onMetaKill(type);
       if (BOSS_OF_KILL[type]) this.onBossKilled(type);
       // Санта дає рівень: рівно стільки досвіду, скільки бракує до наступного
-      const xp = type === 'santa' ? xpToLevelUp(this.progression.xp, xpToNext(this.progression.level)) : killXp(type, this.loop);
+      const xp = type === 'santa' ? xpToLevelUp(this.progression.xp, xpToNext(this.progression.level)) : killXp(type, { biome: this.biomeIdx });
       this.gainXp(xp);
     };
     const onPicked = (id) => this.onCardPicked(id);
@@ -458,6 +458,11 @@ export default class GameScene extends Phaser.Scene {
     this.player.relayout();
     this.fog?.relayout();
     this.pauseOverlay.setPosition(width / 2, height / 2);
+  }
+
+  /** Скільки біомів пройдено (етап 10): звичайні вороги міцніші ×1,15 за кожен (Enemy читає). */
+  get biomeIdx() {
+    return biomeIndex(this.seg);
   }
 
   /** Час гри в мс: не йде під час паузи, тож невразливість теж стоїть. */

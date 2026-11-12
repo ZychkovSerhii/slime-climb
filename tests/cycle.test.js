@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { BALANCE } from '../src/config/balance.js';
-import { firstSegment, loopMul, nextSegment, runStage, scaledHp } from '../src/systems/Cycle.js';
+import { biomeIndex, bossHp, enemyHp, enhanced, firstSegment, loopMul, nextSegment, runStage } from '../src/systems/Cycle.js';
 
 const B = BALANCE.boss;
 
@@ -44,12 +44,26 @@ describe('коло біомів', () => {
     expect(runStage(1e6, firstSegment('winter'))).toBe('before');
   });
 
-  test('множники кола', () => {
-    expect(loopMul(0)).toEqual({ hp: 1, speed: 1 });
-    expect(loopMul(2).hp).toBeCloseTo(1.35 ** 2);
+  test('етап 10: лічильник біомів', () => {
+    expect(biomeIndex({ loop: 0, biome: 'cave' })).toBe(0);
+    expect(biomeIndex({ loop: 0, biome: 'winter' })).toBe(1);
+    expect(biomeIndex({ loop: 0, biome: 'bamboo' })).toBe(2);
+    expect(biomeIndex({ loop: 1, biome: 'winter' })).toBe(4);
+  });
+
+  test('етап 10: HP звичайних ворогів ×1,15 за біом, босів ×1,5 за коло', () => {
+    expect(BALANCE.scaling.biomeHpMul).toBe(1.15);
+    expect(BALANCE.scaling.bossHpMul).toBe(1.5);
+    expect(enemyHp(4, 0)).toBe(4);
+    expect(enemyHp(4, 2)).toBe(5);
+    expect(enemyHp(1, 0)).toBe(1);
+    expect(bossHp(55, 0)).toBe(55);
+    expect(bossHp(55, 1)).toBe(83);
     expect(loopMul(1).speed).toBeCloseTo(1.08);
-    expect(scaledHp(2, 1)).toBe(3);
-    expect(scaledHp(85, 0)).toBe(85);
-    expect(scaledHp(1, 0)).toBe(1);
+  });
+
+  test('етап 10: властивості — з другого кола', () => {
+    expect(enhanced(0)).toBe(false);
+    expect(enhanced(1)).toBe(true);
   });
 });

@@ -92,9 +92,9 @@ describe('feedback-3: xp', () => {
     expect(xpToNext(20)).toBeLessThan(10 * 1.4 ** 19 / 10);
   });
   test('kill xp grows with the loop', () => {
-    expect(killXp('bear', 0)).toBe(BALANCE.enemies.bear.xp);
-    expect(killXp('bear', 2)).toBe(Math.round(BALANCE.enemies.bear.xp * BALANCE.cycle.xpMul ** 2));
-    expect(killXp('boss', 1)).toBeGreaterThan(killXp('boss', 0));
+    expect(killXp('lion', { biome: 0 })).toBe(BALANCE.enemies.lion.xp);
+    expect(killXp('lion', { biome: 2 })).toBe(Math.round(BALANCE.enemies.lion.xp * BALANCE.scaling.biomeHpMul ** 2));
+    expect(killXp('boss', { biome: 3 })).toBeGreaterThan(killXp('boss', { biome: 0 }));
   });
 });
 

@@ -1,7 +1,6 @@
 import * as Phaser from 'phaser';
 import { BALANCE } from '../config/balance.js';
 import Enemy from './Enemy.js';
-import { scaledHp } from '../systems/Cycle.js';
 import { animKey } from '../art/sprites/index.js';
 
 const CFG = BALANCE.enemies.bat;
@@ -20,7 +19,7 @@ export default class Bat extends Enemy {
     this.scrollsWithWorld = false;
     const cfg = BALANCE[biome]?.bat;
     this.winterMul = cfg ? cfg.speedMul : 1;
-    if (cfg) this.hp = scaledHp(cfg.hp, scene.loop ?? 0);
+    if (cfg) this.setBaseHp(cfg.hp);
     // різний стартовий кадр — зграя не махає крилами синхронно
     this.play({ key: animKey('bat', 'fly'), startFrame: Phaser.Math.Between(0, 1) });
   }

@@ -12,7 +12,7 @@ const CFG = BALANCE.enemies.penguin;
 export default class Penguin extends WallWalker {
   constructor(scene, side, y, hp) {
     super(scene, side, y, 'penguin', 'penguin', 'down');
-    this.hp = hp;
+    this.setBaseHp(hp);
     this.play({ key: animKey('penguin', 'slide'), startFrame: Phaser.Math.Between(0, 1) });
   }
 

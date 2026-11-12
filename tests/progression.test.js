@@ -252,10 +252,10 @@ describe('weapon upgrades (feedback-2)', () => {
   });
 });
 
-test('досвід за Колю — 100 (з множником кола), за уламок — 0', async () => {
+test('досвід за Колю — 100 (з множником біому), за уламок — 0', async () => {
   const { killXp } = await import('../src/systems/Progression.js');
   const { BALANCE } = await import('../src/config/balance.js');
   expect(killXp('kolya')).toBe(100);
-  expect(killXp('kolya', 1)).toBe(Math.round(100 * BALANCE.cycle.xpMul));
+  expect(killXp('kolya', { biome: 2 })).toBe(Math.round(100 * BALANCE.scaling.biomeHpMul ** 2));
   expect(killXp('kolyaPart')).toBe(0);
 });

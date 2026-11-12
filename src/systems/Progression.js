@@ -198,11 +198,11 @@ function applyWeaponCard(p, weaponId, cardId) {
 }
 
 /**
- * Досвід за вбивство ворога типу type ('boss' — павучиха, 'shkodko' — Шкодько) на колі loop (з 0).
- * Фідбек-3: ×cycle.xpMul^loop — на наступних колах вороги міцніші, тож і досвіду більше.
+ * Досвід за вбивство ворога типу type ('boss' — павучиха, 'shkodko', 'kolya', 'bear').
+ * Етап 10 (§10.1): ×biomeHpMul^biome — разом з HP ворогів, плавно по біомах (biome — Cycle.biomeIndex).
  */
-export function killXp(type, loop = 0) {
-  const BOSS_XP = { boss: BALANCE.boss.xp, shkodko: BALANCE.shkodko.xp, kolya: BALANCE.kolya.xp };
+export function killXp(type, { biome = 0 } = {}) {
+  const BOSS_XP = { boss: BALANCE.boss.xp, shkodko: BALANCE.shkodko.xp, kolya: BALANCE.kolya.xp, bear: BALANCE.bearBoss?.xp };
   const base = BOSS_XP[type] ?? BALANCE.enemies[type]?.xp ?? 0;
-  return Math.round(base * BALANCE.cycle.xpMul ** loop);
+  return Math.round(base * BALANCE.scaling.biomeHpMul ** biome);
 }

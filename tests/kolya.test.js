@@ -4,7 +4,7 @@ import {
   afterPartDeath, createLungeClock, eatHeal, endLunge, fanAngles, kolyaBounds, kolyaHpFloor, kolyaMode, kolyaPhase,
   snakePos, splitHp, spitterTarget, tryLunge,
 } from '../src/systems/KolyaPlanner.js';
-import { scaledHp } from '../src/systems/Cycle.js';
+import { bossHp } from '../src/systems/Cycle.js';
 
 const K = BALANCE.kolya;
 
@@ -36,7 +36,7 @@ describe('Коля: фази й пороги', () => {
 
   test('з\'їдання лікує до 15% від maxHp кола, але не зменшує HP', () => {
     expect(eatHeal(3, 110)).toBe(17);
-    expect(eatHeal(3, scaledHp(110, 1))).toBe(Math.round(0.15 * scaledHp(110, 1)));
+    expect(eatHeal(3, bossHp(110, 1))).toBe(Math.round(0.15 * bossHp(110, 1)));
     expect(eatHeal(30, 110)).toBe(30);
   });
 

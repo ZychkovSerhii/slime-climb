@@ -2,11 +2,14 @@ import * as Phaser from 'phaser';
 import { BALANCE } from '../config/balance.js';
 import { applyDot, stepDot } from '../systems/Skills.js';
 import { wrapAxis } from '../systems/Biome.js';
-import { loopMul, scaledHp } from '../systems/Cycle.js';
+import { bossHp, enemyHp, enhanced, loopMul } from '../systems/Cycle.js';
 
 // боси: свої блоки балансу, трішки сповільнюються, не «замерзають» (див. takeHit)
 // kolyaPart — уламок Колі: HP задає сам бос при поділі
-const BOSS_CFG = { boss: BALANCE.boss, shkodko: BALANCE.shkodko, kolya: BALANCE.kolya, kolyaPart: BALANCE.kolya };
+const BOSS_CFG = { boss: BALANCE.boss, shkodko: BALANCE.shkodko, kolya: BALANCE.kolya, kolyaPart: BALANCE.kolya, bear: BALANCE.bearBoss };
+const TRAIT_TINT = BALANCE.traits.tint;
+// посилені з кола 1 (етап 10, §10.1): ті, що мають запис у BALANCE.traits
+const TRAIT_TYPES = new Set(Object.keys(BALANCE.traits).filter((k) => k !== 'tint'));
 
 const SLOW_TINT = 0x6fa8ff;
 const ICE_TINT = 0xa8ecff; // «Крижана атака»: ворог блідо-блакитний, «у кризі»
@@ -28,10 +31,16 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
     scene.add.existing(this);
     this.type = type;
     this.isBoss = type in BOSS_CFG;
-    // коло біомів (етап 6b): HP ×1,35ⁿ і швидкість руху ×1,08ⁿ; scene.loop — номер кола з 0
+    // посилення (етап 10, §10.1): звичайні — HP ×1,15 за кожен пройдений біом (scene.biomeIdx), боси — ×1,5 за коло;
+    // швидкість руху ×1,08 за коло (scene.loop — номер кола з 0)
     const loop = scene.loop ?? 0;
-    this.hp = scaledHp((BOSS_CFG[type] ?? BALANCE.enemies[type]).hp, loop);
+    this.biomeIdx = scene.biomeIdx ?? 0;
+    this.hp = this.isBoss ? bossHp(BOSS_CFG[type].hp, loop) : enemyHp(BALANCE.enemies[type].hp, this.biomeIdx);
     this.loopSpeed = loopMul(loop).speed;
+    // властивість посиленого ворога (з кола 1): холодний відтінок і зірочка; боси — +1 атака (кожен сам читає this.enhanced)
+    this.enhanced = enhanced(loop);
+    this.trait = this.enhanced && TRAIT_TYPES.has(type) ? BALANCE.traits[type] : null;
+    this.star = null;
     this.slowUntil = 0;
     this.slowFactor = 1;
     this.scrollsWithWorld = true;
@@ -44,6 +53,16 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
     // зима: перехід за край (wrapEdges), harmless — дотик не шкодить (Санта)
     this.wrapsLeft = BALANCE.enemies[type]?.wraps ?? 0;
     this.harmless = false;
+    if (this.trait) {
+      this.baseTint = TRAIT_TINT;
+      this.setTint(TRAIT_TINT);
+      this.star = scene.add.image(x, y, 'traitStar').setDepth(this.depth + 2);
+    }
+  }
+
+  /** Перевизначити HP (пінгвін 3–4, зимова миша): з тим самим множником біому. */
+  setBaseHp(baseHp) {
+    this.hp = this.isBoss ? bossHp(baseHp, this.scene.loop ?? 0) : enemyHp(baseHp, this.biomeIdx);
   }
 
   /**
@@ -114,11 +133,14 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
 
   postUpdateFrost() {
     if (this.frost) this.frost.setPosition(this.x, this.y);
+    if (this.star) this.star.setPosition(this.x, this.y - this.displayHeight / 2 - 10).setVisible(this.visible && this.alpha > 0.3);
   }
 
   destroy(fromScene) {
     this.frost?.destroy();
     this.frost = null;
+    this.star?.destroy();
+    this.star = null;
     super.destroy(fromScene);
   }
 
