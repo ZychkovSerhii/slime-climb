@@ -83,3 +83,11 @@ export function pourFree(pours, nowMs, windowMs) {
   const end = nowMs + windowMs;
   return !pours.some((p) => p.warnFrom < end && pourBusyTo(p) > nowMs);
 }
+
+/**
+ * Звідки кидати кришку: від стіни, де гравця немає зараз (а не на момент лінії — інакше гравець, що стрибнув
+ * під час попередження, приземлився б просто під кришку). У стрибку — null: кидок чекає.
+ */
+export function lidLaunchSide(playerSide, isJumping) {
+  return isJumping ? null : otherSide(playerSide);
+}

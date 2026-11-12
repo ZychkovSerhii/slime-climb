@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { BALANCE } from '../src/config/balance.js';
-import { kazanHpFloor, kazanPhase, lidPath, otherWallFree, planPour, pourBusyTo, pourFree, wallsBusy } from '../src/systems/KazanPlanner.js';
+import { kazanHpFloor, kazanPhase, lidLaunchSide, lidPath, otherWallFree, planPour, pourBusyTo, pourFree, wallsBusy } from '../src/systems/KazanPlanner.js';
 
 const K = BALANCE.kazan;
 
@@ -115,5 +115,13 @@ describe('Казан: магма й кришка не під час вилива
     expect(pourFree([pour], 0, 1100)).toBe(false); // жевріння вже теж рахується: гравець мусить стрибати
     expect(pourFree([pour], 3400, 1000)).toBe(true);
     expect(pourFree([{ ...pour, enhanced: true }], 3400, 1000)).toBe(false); // калюжа
+  });
+});
+
+describe('Кришка не з\'являється на гравці (фінальне рев\'ю, Important #2)', () => {
+  test('кидок — від стіни, де гравця немає зараз; у стрибку — чекає', () => {
+    expect(lidLaunchSide('left', false)).toBe('right');
+    expect(lidLaunchSide('right', false)).toBe('left');
+    expect(lidLaunchSide('left', true)).toBe(null);
   });
 });

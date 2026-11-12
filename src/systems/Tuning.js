@@ -39,10 +39,24 @@ export const PRESETS = {
 
 const round = (v) => Math.round(v * 100) / 100;
 
+// Набори до етапу 11 (без kazan; «Важко» мав shkodko 1,6 і kolya 2). Збережено значення, а не назву набору,
+// тож без переходу старий «Важко» множив би нові HP босів удруге, а на екрані показувався б як «Свої».
+const OLD_PRESETS = {
+  hard: { enemyHp: 1.3, enemySpeed: 1.1, spawn: 1.2, spider: 1.3, bear: 1.3, shkodko: 1.6, kolya: 2, xp: 0.8, heal: 'even' },
+  easy: { enemyHp: 0.8, enemySpeed: 0.9, spawn: 0.8, spider: 0.8, bear: 0.8, shkodko: 0.8, kolya: 0.8, xp: 1.2, heal: 'every' },
+};
+
+function oldPreset(raw) {
+  if ('kazan' in raw) return null;
+  return Object.entries(OLD_PRESETS).find(([, v]) => Object.entries(v).every(([k, x]) => raw[k] === x))?.[0] ?? null;
+}
+
 /** Будь-що (зламаний JSON, старі ключі, числа поза межами) → коректні налаштування. */
 export function normalizeTuning(raw) {
   const t = defaultTuning();
   if (!raw || typeof raw !== 'object') return t;
+  const old = oldPreset(raw);
+  if (old) return { ...PRESETS[old].values };
   for (const f of TUNING_FIELDS) {
     const v = raw[f.key];
     if (f.options) {

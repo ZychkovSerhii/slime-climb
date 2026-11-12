@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { BALANCE } from '../src/config/balance.js';
 import {
-  beamCanFire, beamHits, dropPassWindow, dropSide, dropsAllowed, salamanderDodgeWindow, salamanderFires,
+  beamCanFire, beamDanger, beamHits, dropPassWindow, salamanderMayFire, dropSide, dropsAllowed, salamanderDodgeWindow, salamanderFires,
   salamanderTimeline, sparkSplit,
 } from '../src/systems/Lava.js';
 
@@ -70,5 +70,18 @@ describe('Лавова крапля (§11.2): безпечна стіна', () =
     expect(dropSide(rng, { left: false, right: true })).toBe('right');
     expect(dropSide(rng, { left: true, right: false })).toBe('left');
     expect(dropSide(rng, { left: true, right: true })).toBe(null);
+  });
+});
+
+describe('Струмінь саламандри: від нього рятує стрибок (фінальне рев\'ю, Critical #1)', () => {
+  test('у стрибку струмінь не б\'є — навіть на висоті гравця', () => {
+    expect(beamDanger(500, 500, true)).toBe(false);
+    expect(beamDanger(500, 500, false)).toBe(true);
+    expect(beamDanger(700, 500, false)).toBe(false);
+  });
+  test('видих (і кожен наступний) — лише коли гравець простояв на стіні landGraceMs; у стрибку чекає', () => {
+    expect(salamanderMayFire(true, Infinity)).toBe(false);
+    expect(salamanderMayFire(false, S.landGraceMs - 1)).toBe(false);
+    expect(salamanderMayFire(false, S.landGraceMs)).toBe(true);
   });
 });

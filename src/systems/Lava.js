@@ -81,3 +81,17 @@ export function dropSide(rng, blocked) {
 export function nextDropMs(rng) {
   return D.everyMs * (1 - D.jitter + 2 * D.jitter * rng());
 }
+
+/** Чи б'є струмінь зараз: у стрибку — ні (від струменя рятує стрибок), на стіні — якщо на висоті смуги. */
+export function beamDanger(playerY, beamY, isJumping) {
+  return !isJumping && beamHits(playerY, beamY);
+}
+
+/**
+ * Чи можна почати видих (і кожен наступний): гравець стоїть на стіні щонайменше landGraceMs.
+ * Тоді стрибок, почавши його з видихом, переносить гравця через увесь струмінь (breathMs < стрибка),
+ * а б'є лише приземлення під час видиху.
+ */
+export function salamanderMayFire(isJumping, sinceLandMs) {
+  return !isJumping && beamCanFire(sinceLandMs);
+}

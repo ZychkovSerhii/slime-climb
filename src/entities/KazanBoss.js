@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser';
 import { BALANCE } from '../config/balance.js';
-import { kazanHpFloor, kazanPhase, planPour, pourFree, pourBusyTo, wallsBusy } from '../systems/KazanPlanner.js';
+import { kazanHpFloor, kazanPhase, lidLaunchSide, planPour, pourFree, pourBusyTo, wallsBusy } from '../systems/KazanPlanner.js';
 import { fanAngles } from '../systems/KolyaPlanner.js';
 import { otherSide } from '../systems/WallWalkers.js';
 import { sfx } from '../systems/Audio.js';
@@ -207,13 +207,16 @@ export default class KazanBoss extends Enemy {
 
   warnLid(now) {
     const p = this.scene.player;
-    this.lidWarn = { at: now + K.lid.warnMs, y: p.baseY, from: otherSide(p.side) };
+    this.lidWarn = { at: now + K.lid.warnMs, y: p.baseY };
     sfx('whistle');
   }
 
   throwLid() {
     const scene = this.scene;
-    const lid = new KazanLid(scene, this.lidWarn.from, this.lidWarn.y);
+    // стіну обираємо в момент кидка: гравець міг перестрибнути під час лінії; у стрибку — чекаємо приземлення
+    const from = lidLaunchSide(scene.player.side, scene.player.isJumping);
+    if (!from) return;
+    const lid = new KazanLid(scene, from, this.lidWarn.y);
     scene.enemyProjectiles.add(lid);
     this.lidWarn = null;
     this.nextLidAt = scene.nowMs + (this.mode.lidEveryMs ?? Infinity);

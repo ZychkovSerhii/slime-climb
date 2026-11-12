@@ -106,3 +106,19 @@ describe('Tuning: множники в грі', () => {
     expect(backAction(['Tuning'], false)).toBe('menu');
   });
 });
+
+describe('Tuning: старі збережені набори (фінальне рев\'ю, Important #3)', () => {
+  test('старий «Важко» (shkodko 1,6, kolya 2, без kazan) → новий «Важко»', () => {
+    const old = { enemyHp: 1.3, enemySpeed: 1.1, spawn: 1.2, spider: 1.3, bear: 1.3, shkodko: 1.6, kolya: 2, xp: 0.8, heal: 'even' };
+    expect(normalizeTuning(old)).toEqual(PRESETS.hard.values);
+  });
+  test('старий «Легко» без kazan → новий «Легко»', () => {
+    const old = { enemyHp: 0.8, enemySpeed: 0.9, spawn: 0.8, spider: 0.8, bear: 0.8, shkodko: 0.8, kolya: 0.8, xp: 1.2, heal: 'every' };
+    expect(normalizeTuning(old)).toEqual(PRESETS.easy.values);
+  });
+  test('свої значення без kazan не чіпаємо, лише kazan = 1', () => {
+    const own = { ...defaultTuning(), kolya: 2 };
+    delete own.kazan;
+    expect(normalizeTuning(own)).toEqual({ ...defaultTuning(), kolya: 2 });
+  });
+});
