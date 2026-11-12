@@ -8,6 +8,7 @@ import { CARD_IDS, weaponCard } from './Progression.js';
 import { invisStats, LOOT_IDS, lootCard } from './Skills.js';
 import { SHKODKO_LOOT_IDS } from './ShkodkoLoot.js';
 import { KOLYA_LOOT_IDS } from './KolyaLoot.js';
+import { KAZAN_LOOT_IDS } from './KazanLoot.js';
 
 export const CATEGORIES = [
   { id: 'character', name: 'Персонаж' },
@@ -146,7 +147,7 @@ function skills() {
   });
 }
 
-const LOOT_SPRITES = { oksana: 'smallSpider', web: 'webShot', form: 'slimeSpider', sack: 'sack', iam: 'slimeShkodko', larva: 'larva', iamkolya: 'slimeKolya' };
+const LOOT_SPRITES = { oksana: 'smallSpider', web: 'webShot', form: 'slimeSpider', sack: 'sack', iam: 'slimeShkodko', larva: 'larva', iamkolya: 'slimeKolya', ladle: 'ladle', iamkazan: 'slimeKazan' };
 
 function loot() {
   const make = (id, from) => {
@@ -157,6 +158,8 @@ function loot() {
     if (id === 'sack' || id === 'iam') damage = BALANCE.shkodkoLoot.bomb.damage;
     if (id === 'larva') damage = BALANCE.kolyaLoot.larva.damage;
     if (id === 'iamkolya') damage = BALANCE.kolyaLoot.iam.copyDamage;
+    if (id === 'ladle') damage = BALANCE.kazanLoot.ladle.damage;
+    if (id === 'iamkazan') damage = BALANCE.kazanLoot.iam.damage;
     return entry({
       id: lootCard(id),
       category: 'loot',
@@ -171,6 +174,7 @@ function loot() {
     ...LOOT_IDS.map((id) => make(id, `Трофей з «${BALANCE.boss.name}»: ${BALANCE.bossLoot.offer} картки на вибір, кожна раз за забіг`)),
     ...SHKODKO_LOOT_IDS.map((id) => make(id, `Трофей з «${BALANCE.shkodko.name}»: 1 з ${BALANCE.shkodkoLoot.offer}, невзята лишається на наступне коло`)),
     ...KOLYA_LOOT_IDS.map((id) => make(id, `Трофей з «${BALANCE.kolya.name}»: 1 з ${BALANCE.kolyaLoot.offer}, невзята лишається на наступне коло`)),
+    ...KAZAN_LOOT_IDS.map((id) => make(id, `Трофей з «${BALANCE.kazan.name}»: 1 з ${BALANCE.kazanLoot.offer}, невзята лишається на наступне коло`)),
   ];
 }
 

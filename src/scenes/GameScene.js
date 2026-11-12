@@ -66,6 +66,7 @@ const PAUSE_MENU_LABEL = 'У меню';
 const PAUSE_MENU_CONFIRM = 'Точно вийти?';
 const PAUSE_MENU_DY = 150; // кнопка «У меню» нижче «Продовжити»
 import { canSplit, KOLYA_LOOT_IDS, lootShotDamage, lootStepsBonus, useSplit } from '../systems/KolyaLoot.js';
+import { canBoil, KAZAN_LOOT_IDS, ladleDamage, ringVictims, useBoil } from '../systems/KazanLoot.js';
 
 const POISON_TINT = 0xb0d040; // слизак і так зелений — під отрутою він темніший, болотний
 const ROAR_TINT = 0x9fb4c8; // приголомшений ричанням — сірувато-блакитний
@@ -94,7 +95,7 @@ const BOSSES = {
   kolya: { name: BALANCE.kolya.name, make: (s) => new KolyaBoss(s), loot: (relics) => rollLoot(relics, Math.random, KOLYA_LOOT_IDS, BALANCE.kolyaLoot.offer) },
   // етап 10: міні-бос без трофеїв (і без бонусу Шагів «трофеї вже твої»)
   bear: { name: BALANCE.bearBoss.name, make: (s) => new BearBoss(s), loot: null },
-  kazan: { name: BALANCE.kazan.name, make: (s) => new KazanBoss(s), loot: null }, // етап 11; трофеї — нижче (KazanLoot)
+  kazan: { name: BALANCE.kazan.name, make: (s) => new KazanBoss(s), loot: (relics) => rollLoot(relics, Math.random, KAZAN_LOOT_IDS, BALANCE.kazanLoot.offer) }, // етап 11
 };
 
 export default class GameScene extends Phaser.Scene {
@@ -127,6 +128,9 @@ export default class GameScene extends Phaser.Scene {
     this.larva = null; // «Личинка-помічник» (етап 9)
     this.kolyaSplit = null; // «Я КОЛЯ»: { usedAtLevel }
     this.kolyaCopies = []; // мінікопії після поділу
+    this.kazanBoil = null; // «Я КАЗАН»: { usedAtLevel } (етап 11)
+    this.ladle = null; // «Черпачок» (етап 11)
+    this.ladleTick = null;
     this.killScore = 0;
     // мета-прогрес (етап 5): Шаги й лічильники пишуться в сховище одразу при вбивстві — закритий посеред забігу застосунок їх не губить
     this.storage = browserStorage();
@@ -561,6 +565,12 @@ export default class GameScene extends Phaser.Scene {
     if (activeForm(this.progression.relics) === 'iamkolya' && this.nowMs >= this.health.invulnerableUntil && canSplit(this.kolyaSplit, this.progression.level)) {
       this.kolyaSplit = useSplit(this.kolyaSplit, this.progression.level);
       this.splitIntoCopies();
+      return false;
+    }
+    // «Я КАЗАН» (етап 11): раз за рівень замість втрати життя — щит і кільце лави
+    if (activeForm(this.progression.relics) === 'iamkazan' && this.nowMs >= this.health.invulnerableUntil && canBoil(this.kazanBoil, this.progression.level)) {
+      this.kazanBoil = useBoil(this.kazanBoil, this.progression.level);
+      this.lavaRing();
       return false;
     }
     const r = applyDamage(this.health, this.nowMs);
@@ -1173,6 +1183,7 @@ export default class GameScene extends Phaser.Scene {
     this.miniAxe?.step(dt);
     this.stepShkodkoLoot();
     this.stepKolyaLoot();
+    this.stepKazanLoot();
     this.stepShield();
     this.emitHud();
   }
@@ -1235,12 +1246,13 @@ export default class GameScene extends Phaser.Scene {
     }
     // трансформації: діє остання взята (павук або Шкодько), скін — її
     if (id === 'form' || id === 'iam') this.player.setSkin(formSkin(this.progression.relics));
-    if (id === 'iamkolya') this.player.setSkin(formSkin(this.progression.relics));
+    if (id === 'iamkolya' || id === 'iamkazan') this.player.setSkin(formSkin(this.progression.relics));
+    if (id === 'ladle' && !this.ladle) this.ladle = this.add.image(this.player.x, this.player.y, 'ladle').setDepth(this.player.depth + 1);
     if (id === 'sack' && !this.sack) this.sack = this.add.sprite(this.player.x, this.player.y, 'sack', 'sack').setDepth(this.player.depth - 1);
     if (id === 'larva' && !this.larva) this.larva = this.add.sprite(this.player.x, this.player.y, 'larva').setDepth(this.player.depth + 1);
     const names = {
       armor: 'Кожух з павучихи', venom: 'Ядовита морда', oksana: 'Оксанка з тобою', web: 'Дупа павучихи', form: 'Ти став павуком',
-      sack: 'Мішок Шкодька', iam: 'Я ШКОДЬКО', larva: 'Личинка-помічник', iamkolya: 'Я КОЛЯ',
+      sack: 'Мішок Шкодька', iam: 'Я ШКОДЬКО', larva: 'Личинка-помічник', iamkolya: 'Я КОЛЯ', ladle: 'Черпачок', iamkazan: 'Я КАЗАН',
     };
     this.events.emit('hud:banner', { text: names[id], ms: 1500 });
   }
@@ -1337,12 +1349,41 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
+  // ---------- Картки Казана (етап 11) ----------
+
+  /** «Черпачок» кружляє довкола слизака і раз на everyMs хлюпає краплею лави в найближчого ворога. */
+  stepKazanLoot() {
+    if (!this.ladle) return;
+    const L = BALANCE.kazanLoot.ladle;
+    const now = this.nowMs;
+    const a = (2 * Math.PI * now) / L.orbitMs;
+    this.ladle.setPosition(this.player.x + Math.cos(a) * L.orbitPx, this.player.y + Math.sin(a) * L.orbitPx * 0.6);
+    const r = stepTicker(this.ladleTick, now, L.everyMs);
+    this.ladleTick = r.state;
+    if (r.count) this.lootShot(this.ladle, ladleDamage(this.weapon.damage), L.speed, 'magma');
+  }
+
+  /** «Я КАЗАН»: замість втрати життя — щит invulnMs і кільце лави, що б'є ворогів у radiusPx. */
+  lavaRing() {
+    const I = BALANCE.kazanLoot.iam;
+    const now = this.nowMs;
+    this.health = { ...this.health, invulnerableUntil: Math.max(this.health.invulnerableUntil, now + I.invulnMs) };
+    this.showShield(I.invulnMs);
+    sfx('boom');
+    const p = this.player;
+    const ring = this.add.circle(p.x, p.y, I.radiusPx, 0xf06a1e, 0.35).setStrokeStyle(4, 0xffd25a, 0.9).setDepth(40);
+    this.tweens.add({ targets: ring, alpha: 0, scale: 1.1, duration: 400, onComplete: () => ring.destroy() });
+    for (const e of ringVictims(p, this.visibleEnemies())) e.takeHit(I.damage, null, now);
+    this.events.emit('hud:banner', { text: 'Кришка!', ms: 900 });
+  }
+
   /** Постріл помічника в найближчого видимого ворога. false — цілей немає. */
-  lootShot(from, damage, speed) {
+  lootShot(from, damage, speed, texture = 'slimeSpit') {
     const targets = this.visibleEnemies();
     if (!targets.length) return false;
     const t = pickNearest(from, targets);
-    const proj = new Projectile(this, from.x, from.y, 'slimeSpit', { damage, fx: null }).setTint(LARVA_SHOT_TINT).setScale(0.7);
+    const proj = new Projectile(this, from.x, from.y, texture, { damage, fx: null }).setScale(0.7);
+    if (texture === 'slimeSpit') proj.setTint(LARVA_SHOT_TINT); // магма черпачка — своїм кольором
     this.playerProjectiles.add(proj);
     proj.launch(t.x, t.y, speed);
     return true;

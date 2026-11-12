@@ -8,8 +8,8 @@ const K = BALANCE.shkodkoLoot;
 
 export const SHKODKO_LOOT_IDS = ['sack', 'iam'];
 
-/** Трансформації: діє остання взята ('form' — павук, 'iam' — Шкодько, 'iamkolya' — Коля, етап 9) або null. */
-export const FORM_IDS = ['form', 'iam', 'iamkolya'];
+/** Трансформації: діє остання взята ('form' — павук, 'iam' — Шкодько, 'iamkolya' — Коля, 'iamkazan' — Казан) або null. */
+export const FORM_IDS = ['form', 'iam', 'iamkolya', 'iamkazan'];
 export function activeForm(relics) {
   for (let i = relics.length - 1; i >= 0; i--) if (FORM_IDS.includes(relics[i])) return relics[i];
   return null;
@@ -18,7 +18,7 @@ export function activeForm(relics) {
 /** Скін трансформації або null (тоді — куплений скін). */
 export function formSkin(relics) {
   const f = activeForm(relics);
-  return { form: 'slimeSpider', iam: 'slimeShkodko', iamkolya: 'slimeKolya' }[f] ?? null;
+  return { form: 'slimeSpider', iam: 'slimeShkodko', iamkolya: 'slimeKolya', iamkazan: 'slimeKazan' }[f] ?? null;
 }
 
 /**
