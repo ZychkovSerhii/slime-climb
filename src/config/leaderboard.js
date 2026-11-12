@@ -1,5 +1,5 @@
 // Адреса Worker'а таблиці лідерів (етап 12), без кінцевого «/». Порожня — таблиця не підключена:
 // гра нічого не надсилає, а шар «Лідери» показує «Таблиця ще не підключена».
-export const LEADERBOARD_URL = '';
+export const LEADERBOARD_URL = 'https://slime-climb-leaderboard.zychkov-serhii.workers.dev';
 /** Мережа не має блокувати гру: довше за це запит не чекаємо. */
 export const REQUEST_TIMEOUT_MS = 5000;
