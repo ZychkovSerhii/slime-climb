@@ -18,7 +18,7 @@ const BODY_PX = 52; // хітбокс у пікселях полотна (×scal
  * act: 'enter' (згори на свою стіну) → 'crawl' (вгору-вниз по стіні crawlMs) → серія з bearJumps стрибків:
  *   'warn' (присів jump.warnMs, стрілка в точку гравця на момент присідання) → 'jump' (по прямій у цю точку) →
  *   вилетів за край → 'out' (jump.reenterMs, невидимий) → з'являється на протилежній стіні → 'warn'…
- *   Після серії — знову 'crawl' на стіні, де гравця немає.
+ *   Після серії — знову 'crawl': з шансом sameWallChance на стіні гравця (над ним), інакше на протилежній.
  * Раз на rearEveryMs під час повзання — 'rear' (rearWarnMs, коло росте) → ричання: аура з власним HP (BearAura).
  * Поки аура ціла, ведмідь невразливий, але стрибає далі. На batsAt HP — раз 2 зимові летючі миші.
  */
@@ -67,7 +67,8 @@ export default class BearBoss extends Enemy {
   }
 
   get zone() {
-    return bearZone(this.scene.player.baseY ?? this.scene.player.y);
+    const p = this.scene.player;
+    return bearZone(p.baseY ?? p.y, this.act === 'crawl' && this.side === p.side);
   }
 
   /** Невразливий, поки за екраном або поки ціла аура. */
@@ -178,7 +179,9 @@ export default class BearBoss extends Enemy {
     const { width } = this.scene.scale;
     const z = this.zone;
     const more = this.jumpsLeft > 0;
-    const side = more ? reenterSide(this.exitX, width) : otherSide(this.scene.player.side);
+    // після серії — на стіні гравця (над ним, у досяжності сокири) або на протилежній
+    const ps = this.scene.player.side;
+    const side = more ? reenterSide(this.exitX, width) : Math.random() < BB.sameWallChance ? ps : otherSide(ps);
     this.placeOnWall(side, Phaser.Math.FloatBetween(z.minY, z.maxY));
     this.setVisible(true);
     this.body.enable = true;

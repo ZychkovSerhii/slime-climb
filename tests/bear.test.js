@@ -44,6 +44,11 @@ describe('етап 10: ведмідь-міні-бос', () => {
     const z = bearZone(896);
     expect(z.maxY).toBe(896 - BB.zone.bottomGap);
     expect(bearZone(100).maxY).toBe(z.minY);
+    const same = bearZone(896, true);
+    expect(same.maxY).toBe(z.maxY);
+    expect(same.minY).toBe(z.maxY - BB.zone.sameWallSpan);
+    // не торкається гравця: половина хітбокса ведмедя (52 × 3 / 2) + половина слизака менше за відступ
+    expect((52 * BB.scale) / 2 + BALANCE.playerSize / 2).toBeLessThan(BB.zone.bottomGap);
   });
   test('миші — раз на 20% HP', () => {
     expect(bearBatsDue(0.21, false)).toBe(false);

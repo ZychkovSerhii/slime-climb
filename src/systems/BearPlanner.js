@@ -13,10 +13,14 @@ export function crawlMs(rng) {
   return BB.crawlMinMs + rng() * (BB.crawlMaxMs - BB.crawlMinMs);
 }
 
-/** Де повзає ведмідь (центр по y): від zone.top до (y гравця − zone.bottomGap), не нижче top. */
-export function bearZone(playerY) {
-  const minY = BB.zone.top;
-  return { minY, maxY: Math.max(minY, playerY - BB.zone.bottomGap) };
+/**
+ * Де повзає ведмідь (центр по y): від zone.top до (y гравця − zone.bottomGap), не нижче top.
+ * sameWall — на стіні гравця: лише нижні zone.sameWallSpan px, там його дістає сокира.
+ */
+export function bearZone(playerY, sameWall = false) {
+  const maxY = Math.max(BB.zone.top, playerY - BB.zone.bottomGap);
+  const minY = sameWall ? Math.max(BB.zone.top, maxY - BB.zone.sameWallSpan) : BB.zone.top;
+  return { minY, maxY };
 }
 
 /** Миші на допомогу — раз, коли HP упало до batsAt. */

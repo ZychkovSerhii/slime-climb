@@ -56,7 +56,7 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
     if (this.trait) {
       this.baseTint = TRAIT_TINT;
       this.setTint(TRAIT_TINT);
-      this.star = scene.add.image(x, y, 'traitStar').setDepth(this.depth + 2);
+      this.star = scene.add.image(x, y, 'traitStar').setDepth(this.depth + 2).setScale(1.5);
     }
   }
 

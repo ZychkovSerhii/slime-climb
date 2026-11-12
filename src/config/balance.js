@@ -218,12 +218,17 @@ export const BALANCE = deepFreeze({
     name: 'Білий ведмідь',
     afterSec: 90,
     shkodkoGapSec: 45,
-    hp: 40, // × scaling.bossHpMul^коло
+    // старт специфікації 40; бот на реальному забігу (рівень 14 на 4:10) убивав ведмедя за ~3,5 с — тому 120
+    hp: 120, // × scaling.bossHpMul^коло
     xp: 40,
     points: 1500,
     scale: 3, // спрайт і хітбокс ×3 від звичайного ведмедя
-    climbSpeed: 140, // ×4 від колишнього (35); повзає по своїй стіні між zone.top і (y гравця − zone.bottomGap)
-    zone: { top: 230, bottomGap: 300 },
+    climbSpeed: 140, // ×4 від колишнього (35); повзає по стіні між zone.top і (y гравця − zone.bottomGap)
+    // bottomGap [рішення плану]: на стіні гравця ведмідь спускається на 170 px над ним — там його дістає сокира
+    // (вона б'є лише поруч; з протилежної стіни ведмедя не дістати). Дотик — лише ближче ~120 px.
+    // sameWallSpan — на стіні гравця повзає лише в нижніх sameWallSpan px зони, щоб частіше бути в досяжності
+    zone: { top: 230, bottomGap: 170, sameWallSpan: 220 },
+    sameWallChance: 0.5, // після серії: шанс повзати на стіні гравця (інакше — на протилежній)
     crawlMinMs: 2000, crawlMaxMs: 3000, // повзання між серіями стрибків
     // Серія: присів (warnMs, блимає, стрілка в точку гравця на момент присідання) → стрибок у неї на speed →
     // вилетів за край → через reenterMs з'являється на протилежній стіні → знову попередження і стрибок.
@@ -231,7 +236,7 @@ export const BALANCE = deepFreeze({
     jump: { warnMs: 600, speed: 900, reenterMs: 400, jumps: 2, enhancedJumps: 1 },
     // Ричання: раз на rearEveryMs стає на задні лапи (rearWarnMs) і ричить — довкола аура з власним HP.
     // Поки аура ціла, ведмідь невразливий (кулі б'ють у неї). Зникає, коли розбита або через ms. Дотик — сповільнення (roar).
-    rearFirstMs: 4000, rearEveryMs: 9000, rearWarnMs: 800,
+    rearFirstMs: 2500, rearEveryMs: 9000, rearWarnMs: 800,
     aura: { hp: 8, ms: 6000, radiusPx: 150 },
     // Сповільнення від аури (як колишнє ричання). Інваріант (тест): durationMs < rearEveryMs.
     roar: { durationMs: 2500, speedMul: 0.6, fireMul: 0.85 },
