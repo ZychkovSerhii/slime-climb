@@ -6,7 +6,7 @@
 export function backAction(activeSceneKeys, gamePaused, codexOpen = false) {
   if (codexOpen) return 'closeCodex';
   if (activeSceneKeys.includes('Game')) return gamePaused ? 'none' : 'pause';
-  if (['GameOver', 'Shop', 'Achievements'].some((k) => activeSceneKeys.includes(k))) return 'menu';
+  if (['GameOver', 'Shop', 'Achievements', 'Tuning'].some((k) => activeSceneKeys.includes(k))) return 'menu';
   if (activeSceneKeys.includes('Menu')) return 'exit';
   return 'none';
 }

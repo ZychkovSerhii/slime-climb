@@ -13,6 +13,7 @@ import LevelUpScene from './scenes/LevelUpScene.js';
 import ShopScene from './scenes/ShopScene.js';
 import AchievementsScene from './scenes/AchievementsScene.js';
 import BossIntroScene from './scenes/BossIntroScene.js';
+import TuningScene from './scenes/TuningScene.js';
 
 export const GAME_WIDTH = 720;
 export const GAME_HEIGHT = 1280;
@@ -32,7 +33,7 @@ const config = {
     mode: Phaser.Scale.EXPAND,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-  scene: [BootScene, MenuScene, GameScene, HudScene, GameOverScene, LevelUpScene, ShopScene, AchievementsScene, BossIntroScene],
+  scene: [BootScene, MenuScene, GameScene, HudScene, GameOverScene, LevelUpScene, ShopScene, AchievementsScene, BossIntroScene, TuningScene],
 };
 
 export const game = new Phaser.Game(config);
@@ -69,7 +70,7 @@ if (Capacitor.isNativePlatform()) {
     if (action === 'closeCodex') codex().close();
     else if (action === 'pause') gameScene.pauseWithOverlay();
     else if (action === 'menu') {
-      for (const key of ['GameOver', 'Shop', 'Achievements']) game.scene.stop(key);
+      for (const key of ['GameOver', 'Shop', 'Achievements', 'Tuning']) game.scene.stop(key);
       game.scene.start('Menu');
     } else if (action === 'exit') App.exitApp();
   });

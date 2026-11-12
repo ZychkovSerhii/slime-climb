@@ -19,12 +19,19 @@ describe('етап 10: сердечко', () => {
     expect(hi).toBeCloseTo(60 + H.maxSec, 3);
   });
 
-  test('повні життя — не з\'являється, таймер чекає', () => {
+  test('повні життя — не з\'являється; після втрати життя — не раніше ніж через afterFullSec', () => {
     const s = createHeartState();
     const r = heartDue(s, { tSec: 100, livesFull: true }, half);
     expect(r.spawn).toBe(false);
-    expect(r.state).toEqual(s);
-    expect(heartDue(r.state, { tSec: 101, livesFull: false }, half).spawn).toBe(true);
+    expect(r.state.nextAt).toBe(100 + H.afterFullSec);
+    // одразу після удару (життя вже не повні) — ще рано
+    expect(heartDue(r.state, { tSec: 101, livesFull: false }, half).spawn).toBe(false);
+    expect(heartDue(r.state, { tSec: 100 + H.afterFullSec, livesFull: false }, half).spawn).toBe(true);
+  });
+
+  test('повні життя не зсувають таймер назад', () => {
+    const s = { nextAt: 500, lastFight: null };
+    expect(heartDue(s, { tSec: 100, livesFull: true }, half).state).toEqual(s);
   });
 
   test('у бою — щонайбільше одне за бій', () => {

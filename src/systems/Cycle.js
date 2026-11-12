@@ -1,6 +1,7 @@
 // Коло біомів (етап 6b, етап 9): печера (павучиха) → зима (Шкодько) → бамбук (Коля) → печера (павучиха) → …
 // Чисті функції без Phaser. Відрізок — один біом з одним босом наприкінці.
 import { BALANCE } from '../config/balance.js';
+import { bossHpTuning, tuning } from './Tuning.js';
 
 const B = BALANCE.boss;
 
@@ -61,17 +62,17 @@ export function biomeIndex(seg) {
 
 /** Множник швидкості кола loop (з 0): ×speedMul^loop. HP — enemyHp / bossHp. */
 export function loopMul(loop) {
-  return { speed: BALANCE.cycle.speedMul ** loop };
+  return { speed: BALANCE.cycle.speedMul ** loop * tuning().enemySpeed };
 }
 
-/** HP звичайного ворога: ×biomeHpMul^biome, округлено, не менше 1. */
+/** HP звичайного ворога: ×biomeHpMul^biome (і множник режиму налаштувань), округлено, не менше 1. */
 export function enemyHp(baseHp, biome) {
-  return Math.max(1, Math.round(baseHp * SC.biomeHpMul ** biome));
+  return Math.max(1, Math.round(baseHp * SC.biomeHpMul ** biome * tuning().enemyHp));
 }
 
-/** HP боса (і ведмедя-міні-боса): ×bossHpMul^loop. */
-export function bossHp(baseHp, loop) {
-  return Math.max(1, Math.round(baseHp * SC.bossHpMul ** loop));
+/** HP боса (і ведмедя-міні-боса): ×bossHpMul^loop і множник режиму налаштувань для type ('boss', 'bear'…). */
+export function bossHp(baseHp, loop, type = null) {
+  return Math.max(1, Math.round(baseHp * SC.bossHpMul ** loop * bossHpTuning(type)));
 }
 
 /** З якого кола вороги мають властивості, а боси — +1 атаку. */

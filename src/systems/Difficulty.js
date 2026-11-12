@@ -1,4 +1,5 @@
 import { BALANCE } from '../config/balance.js';
+import { tuning } from './Tuning.js';
 
 /** Швидкість прокрутки світу (px/s) на секунді гри tSec. */
 export function scrollSpeed(tSec, bossActive) {
@@ -13,5 +14,6 @@ export function scrollSpeed(tSec, bossActive) {
 export function spawnIntervalMs(type, tSec, biome = 'cave') {
   const base = biome === 'cave' ? BALANCE.spawnBaseMs[type] : BALANCE[biome].spawnBaseMs[type];
   const k = Math.min(Math.max(tSec, 0) / BALANCE.spawnRampSec, 1);
-  return base * (1 - (1 - BALANCE.spawnMinFactor) * k);
+  // режим налаштувань: «кількість ворогів» ×2 — інтервал удвічі коротший
+  return (base * (1 - (1 - BALANCE.spawnMinFactor) * k)) / tuning().spawn;
 }

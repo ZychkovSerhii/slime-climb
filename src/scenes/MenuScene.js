@@ -5,6 +5,7 @@ import { isMuted, setMuted, sfx } from '../systems/Audio.js';
 import { button, textStyle } from './ui.js';
 import { loadSettings, saveSettings } from '../systems/Settings.js';
 import { codex, codexOpen } from '../codex/index.js';
+import { isDefault, loadTuning, presetName } from '../systems/Tuning.js';
 
 /** Стартовий екран: назва, рекорд, Шаги, «Тапни, щоб почати», магазин, досягнення, довідник, звук, сніг, туман. */
 export default class MenuScene extends Phaser.Scene {
@@ -39,11 +40,14 @@ export default class MenuScene extends Phaser.Scene {
     const codexBtn = button(this, cx, height * 0.79, 'Довідник', () => codex().open());
 
     const soundLabel = () => `Звук: ${isMuted() ? 'вимк.' : 'увімк.'}`;
-    const soundBtn = button(this, cx, height * 0.85, soundLabel(), () => {
+    const soundBtn = button(this, cx - width * 0.22, height * 0.85, soundLabel(), () => {
       setMuted(!isMuted());
       soundBtn.setText(soundLabel());
       sfx('jump');
-    });
+    }, undefined, 30);
+    // режим налаштувань складності (після етапу 10): підбір балансу без перезбирання
+    const tuningName = presetName(loadTuning(storage));
+    const tuningBtn = button(this, cx + width * 0.22, height * 0.85, `Складність: ${tuningName}`, () => this.scene.start('Tuning'), isDefault(loadTuning(storage)) ? undefined : '#ffd84a', 30);
 
     // сніг у зимовому біомі (етап 6a): хтось його не любить або в нього слабкий телефон
     const settings = loadSettings(storage);
@@ -67,7 +71,7 @@ export default class MenuScene extends Phaser.Scene {
     }
 
     // тап будь-де, крім кнопок, — старт гри
-    const buttons = [shopBtn, achBtn, codexBtn, soundBtn, snowBtn, fogBtn];
+    const buttons = [shopBtn, achBtn, codexBtn, soundBtn, tuningBtn, snowBtn, fogBtn];
     let started = false;
     this.input.on('pointerdown', (pointer, over) => {
       if (started || codexOpen() || over.some((o) => buttons.includes(o))) return;

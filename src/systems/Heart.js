@@ -9,11 +9,17 @@ export function createHeartState() {
 }
 
 /**
- * Чи з'явитися сердечку на секунді tSec. livesFull — життя повні (тоді таймер чекає, стан не міняється).
+ * Чи з'явитися сердечку на секунді tSec. livesFull — життя повні: сердечка немає, а наступна поява
+ * тримається щонайменше на afterFullSec попереду. Інакше прострочений таймер спрацьовував у той самий
+ * кадр, коли гравець втрачав життя (відгук після етапу 10).
  * fight — id поточного бою з босом чи ведмедем або null: за один бій — щонайбільше одне.
  */
 export function heartDue(state, { tSec, livesFull, fight = null }, rng) {
-  if (tSec < state.nextAt || livesFull) return { state, spawn: false };
+  if (livesFull) {
+    const hold = tSec + H.afterFullSec;
+    return { state: hold > state.nextAt ? { ...state, nextAt: hold } : state, spawn: false };
+  }
+  if (tSec < state.nextAt) return { state, spawn: false };
   if (fight !== null && state.lastFight === fight) return { state, spawn: false };
   const nextAt = tSec + H.minSec + rng() * (H.maxSec - H.minSec);
   return { state: { nextAt, lastFight: fight ?? state.lastFight }, spawn: true };
