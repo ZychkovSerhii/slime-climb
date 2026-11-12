@@ -61,6 +61,7 @@ import {
 import { background } from '../art/textures.js';
 import { bossIntroInfo } from '../systems/BossIntro.js';
 import { loadTuning, setTuning, tuning } from '../systems/Tuning.js';
+import { isEligibleRun } from '../systems/LeaderboardRules.js';
 
 const PAUSE_MENU_LABEL = 'У меню';
 const PAUSE_MENU_CONFIRM = 'Точно вийти?';
@@ -582,7 +583,11 @@ export default class GameScene extends Phaser.Scene {
       sfx('gameOver');
       this.emitHud();
       this.scene.stop('Hud');
-      this.scene.start('GameOver', { score: this.score, timeSec: this.elapsedSec, steps: this.runSteps, totalSteps: this.meta.steps });
+      // таблиця лідерів (етап 12): лише висота і лише «Норма» без параметрів URL
+      this.scene.start('GameOver', {
+        score: this.score, timeSec: this.elapsedSec, steps: this.runSteps, totalSteps: this.meta.steps,
+        height: heightPoints(this.distancePx), eligible: isEligibleRun({ tuning: tuning(), search: window.location.search }),
+      });
       return true;
     }
     sfx('hurt');
