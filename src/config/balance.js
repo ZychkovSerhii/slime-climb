@@ -297,7 +297,8 @@ export const BALANCE = deepFreeze({
   // Сердечко (етап 10, §10.5): +1 життя на одній зі стін, їде разом зі світом. З firstSec секунди гри,
   // далі раз на випадкові minSec…maxSec. Не з'являється при повних життях; у бою — щонайбільше одне за бій;
   // не ближче spikeGapPx до шипа на тій самій стіні (і нових шипів там не буде — резерв SpikePlanner).
-  heart: { firstSec: 60, minSec: 20, maxSec: 70, spikeGapPx: 120, scale: 1.4 },
+  // afterFullSec — після втрати життя з повних сердечко не раніше ніж через стільки секунд
+  heart: { firstSec: 60, minSec: 20, maxSec: 70, afterFullSec: 20, spikeGapPx: 120, scale: 1.4 },
 
   // Спавн
   spawnBaseMs: { lion: 6300, bat: 4200, plant: 9450 }, // фідбек-2: −5% частоти (було 6000/4000/9000); перші появи — як були

@@ -22,7 +22,7 @@ import Familiar from '../entities/Familiar.js';
 import { createSpikeState, planSpikes, prefillStartWorld, reserveFree, skipSpikes } from '../systems/SpikePlanner.js';
 import { heightPoints, killPoints } from '../systems/Score.js';
 import { loadMeta, recordKill, saveMeta, skinSprite, stepsForKill } from '../systems/Meta.js';
-import { browserStorage } from '../systems/HighScore.js';
+import { browserStorage, recordResult } from '../systems/HighScore.js';
 import { interceptPoint, pickNearest } from '../systems/Targeting.js';
 import { playMusic, resumeAudio, sfx, stopMusic, suspendAudio } from '../systems/Audio.js';
 import { animKey } from '../art/sprites/index.js';
@@ -53,6 +53,11 @@ import {
 } from '../systems/ShkodkoLoot.js';
 import { background } from '../art/textures.js';
 import { bossIntroInfo } from '../systems/BossIntro.js';
+import { loadTuning, setTuning, tuning } from '../systems/Tuning.js';
+
+const PAUSE_MENU_LABEL = 'У меню';
+const PAUSE_MENU_CONFIRM = 'Точно вийти?';
+const PAUSE_MENU_DY = 150; // кнопка «У меню» нижче «Продовжити»
 import { canSplit, KOLYA_LOOT_IDS, lootShotDamage, lootStepsBonus, useSplit } from '../systems/KolyaLoot.js';
 
 const POISON_TINT = 0xb0d040; // слизак і так зелений — під отрутою він темніший, болотний
@@ -116,6 +121,8 @@ export default class GameScene extends Phaser.Scene {
     this.killScore = 0;
     // мета-прогрес (етап 5): Шаги й лічильники пишуться в сховище одразу при вбивстві — закритий посеред забігу застосунок їх не губить
     this.storage = browserStorage();
+    // режим налаштувань: множники читаються один раз на забіг (до створення будь-якого ворога)
+    setTuning(loadTuning(this.storage));
     this.meta = loadMeta(this.storage);
     this.runSteps = 0;
     this.progression = createProgression();
@@ -284,6 +291,27 @@ export default class GameScene extends Phaser.Scene {
 
   createPauseOverlay() {
     const { width, height } = this.scale;
+    // «У меню» (відгук після етапу 10): закінчити забіг з паузи. Перший тап перепитує — щоб випадковий не губив забіг.
+    this.pauseMenuBtn = this.add
+      .text(width / 2, height / 2 + PAUSE_MENU_DY, PAUSE_MENU_LABEL, {
+        fontFamily: 'sans-serif',
+        fontSize: '44px',
+        color: '#cfe8cf',
+        backgroundColor: '#000000aa',
+        padding: { x: 32, y: 18 },
+      })
+      .setOrigin(0.5)
+      .setDepth(1000)
+      .setVisible(false)
+      .setInteractive({ useHandCursor: true });
+    this.pauseMenuBtn.on('pointerdown', (pointer, x, y, event) => {
+      event?.stopPropagation?.();
+      if (this.pauseMenuBtn.text === PAUSE_MENU_LABEL) {
+        this.pauseMenuBtn.setText(PAUSE_MENU_CONFIRM).setColor('#ffd84a');
+        return;
+      }
+      this.quitToMenu();
+    });
     this.pauseOverlay = this.add
       .text(width / 2, height / 2, 'Продовжити', {
         fontFamily: 'sans-serif',
@@ -299,6 +327,7 @@ export default class GameScene extends Phaser.Scene {
     this.pauseOverlay.on('pointerdown', (pointer, x, y, event) => {
       event?.stopPropagation?.();
       this.pauseOverlay.setVisible(false);
+      this.pauseMenuBtn.setVisible(false);
       resumeAudio();
       this.inputBlockedUntil = this.game.loop.time + BALANCE.tapGuardMs;
       // під час вибору картки чи представлення боса гра лишається на паузі, доки вони відкриті
@@ -309,7 +338,7 @@ export default class GameScene extends Phaser.Scene {
   /** Досвід (вбивства, подарунки): нові рівні лікують і відкривають вікно карток. */
   gainXp(amount) {
     const before = this.progression.level;
-    const r = addXp(this.progression, amount);
+    const r = addXp(this.progression, Math.max(1, Math.round(amount * tuning().xp))); // множник режиму налаштувань
     this.progression = r.progression;
     this.levelUpQueue += r.levelsGained;
     const healed = healForLevels(before, this.progression.level); // з 8-го рівня лікує кожен другий (етап 10)
@@ -433,6 +462,18 @@ export default class GameScene extends Phaser.Scene {
     this.setPaused(true);
     suspendAudio();
     this.pauseOverlay.setVisible(true);
+    this.pauseMenuBtn.setVisible(true).setText(PAUSE_MENU_LABEL).setColor('#cfe8cf');
+  }
+
+  /** Закінчити забіг з паузи: рекорд зберігається (Шаги й лічильники вже записані при вбивствах), далі — меню. */
+  quitToMenu() {
+    if (this.dead) return;
+    this.dead = true;
+    recordResult(this.storage, this.score);
+    stopMusic();
+    resumeAudio();
+    for (const key of ['Hud', 'LevelUp', 'BossIntro']) this.scene.stop(key);
+    this.scene.start('Menu');
   }
 
   /** Ставить/знімає паузу фізики, таймерів, твінів і логіки update. */
@@ -469,6 +510,7 @@ export default class GameScene extends Phaser.Scene {
     this.player.relayout();
     this.fog?.relayout();
     this.pauseOverlay.setPosition(width / 2, height / 2);
+    this.pauseMenuBtn.setPosition(width / 2, height / 2 + PAUSE_MENU_DY);
   }
 
   /** Скільки біомів пройдено (етап 10): звичайні вороги міцніші ×1,15 за кожен (Enemy читає). */

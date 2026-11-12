@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 import { BALANCE } from '../config/balance.js';
 import { formatTime } from '../systems/Format.js';
+import { isDefault, presetName, tuning } from '../systems/Tuning.js';
 import { invisButton, parseCssPx, safeTopGamePx } from '../systems/Layout.js';
 
 // Розкладка HUD (px базової роздільності) — це верстка, не баланс
@@ -68,6 +69,9 @@ export default class HudScene extends Phaser.Scene {
     this.timeText = this.add.text(width - PAD, top, '00:00', TEXT_STYLE).setOrigin(1, 0);
     this.scoreText = this.add.text(width - PAD, top + 44, 'SCORE 0', TEXT_STYLE).setOrigin(1, 0);
     this.stepsText = this.add.text(width - PAD, top + 88, '', STEPS_STYLE).setOrigin(1, 0);
+    // режим налаштувань: набір видно, щоб відгук був прив'язаний до чисел («Норма» — без напису)
+    const tName = presetName(tuning());
+    this.tuningText = this.add.text(width - PAD, top + 128, isDefault(tuning()) ? '' : `Складність: ${tName}`, SMALL_STYLE).setOrigin(1, 0).setAlpha(0.75);
 
     // серця до максимуму картки «Додаткове життя»; зайві сховані. Останнє місце — чорне серце броні
     this.hearts = [];
@@ -94,6 +98,7 @@ export default class HudScene extends Phaser.Scene {
       this.timeText.setX(w - PAD);
       this.scoreText.setX(w - PAD);
       this.stepsText.setX(w - PAD);
+      this.tuningText.setX(w - PAD);
       this.toast.setX(w / 2);
       this.bossLabel.setX(w / 2);
       this.banner.setPosition(w / 2, this.scale.height * 0.38);
