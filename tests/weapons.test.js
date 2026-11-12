@@ -109,7 +109,7 @@ describe('weapon upgrades (feedback-2)', () => {
     expect(W.attackDamage(null, 2, 3)).toBe(2); // стартовий постріл не прокачується
   });
   test('axe: bigger radius, faster swings, mini axe at 5', () => {
-    expect(W.axeRadius(720, 1)).toBeCloseTo(720 / 3 * 1.06);
+    expect(W.axeRadius(720, 1)).toBeCloseTo(720 / 3 * 1.05);
     expect(W.upgradeIntervalMul('axe', 2)).toBeCloseTo(0.92 ** 2);
     expect(W.hasMiniAxe('axe', 4)).toBe(false);
     expect(W.hasMiniAxe('axe', 5)).toBe(true);
@@ -133,5 +133,34 @@ describe('weapon upgrades (feedback-2)', () => {
     }
     expect(shots).toBe(12);
     expect(st.cooldownMs).toBeCloseTo(2000 / 1.1 ** 3);
+  });
+});
+
+describe('етап 10: прокачка без межі, стелі', () => {
+  test('радіус сокири ×1,05 за прокачку, не більше половини ширини', () => {
+    expect(axeRadius(720, 1)).toBeCloseTo(720 / 3 * 1.05);
+    expect(axeRadius(720, 100)).toBe(360);
+  });
+  test('інтервал атаки від прокачок не падає нижче minFireIntervalMs', () => {
+    for (const main of ['axe', 'shotgun', 'chakra']) {
+      const r = stepFire(createFireState(), 0, { main: main === 'chakra' ? 'shotgun' : main, fireIntervalMs: 1000, hasTarget: true, upgrades: 200 });
+      expect(r.state.cooldownMs).toBeGreaterThanOrEqual(BALANCE.minFireIntervalMs);
+    }
+    // черга чакри: перезарядка теж зі стелею
+    let st = createFireState();
+    let last = 0;
+    for (let i = 0; i < 20; i++) {
+      const r = stepFire({ ...st, cooldownMs: 0 }, 0, { main: 'chakra', fireIntervalMs: 1000, hasTarget: true, upgrades: 200 });
+      st = r.state;
+      last = Math.max(last, st.cooldownMs);
+    }
+    expect(last).toBeGreaterThanOrEqual(BALANCE.minFireIntervalMs);
+  });
+  test('на малих прокачках інтервал — як був', () => {
+    const r = stepFire(createFireState(), 0, { main: 'shotgun', fireIntervalMs: 1000, hasTarget: true, upgrades: 2 });
+    expect(r.state.cooldownMs).toBeCloseTo(1000 / 1.08 ** 2);
+  });
+  test('вигляди сокири: 0/3/6/9/12+', () => {
+    expect([0, 2, 3, 5, 6, 9, 11, 12, 40].map(W.axeTier)).toEqual([0, 0, 1, 1, 2, 3, 3, 4, 4]);
   });
 });

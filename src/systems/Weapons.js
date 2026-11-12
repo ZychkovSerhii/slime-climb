@@ -20,7 +20,21 @@ export function weaponJumpMul(main) {
 
 /** Радіус розмаху сокири для ширини екрана width. */
 export function axeRadius(width, upgrades = 0) {
-  return width * BALANCE.weapons.axe.radiusFrac * U.axe.radiusStep ** upgrades;
+  return Math.min(width * BALANCE.weapons.axe.radiusFrac * U.axe.radiusStep ** upgrades, width * U.axe.radiusMaxFrac);
+}
+
+/** Вигляд сокири (етап 10): індекс кадру 0…4 за прокачками (U.axe.tiers). */
+export function axeTier(upgrades = 0) {
+  let t = 0;
+  U.axe.tiers.forEach((from, i) => {
+    if (upgrades >= from) t = i;
+  });
+  return t;
+}
+
+/** Інтервал після прокачок: прокачки не опускають його нижче minFireIntervalMs (етап 10); якщо без них уже нижче — як є. */
+function capped(ms, upMul) {
+  return Math.max(ms * upMul, Math.min(ms, BALANCE.minFireIntervalMs));
 }
 
 /** Чи з'явилась міні-сокира-помічниця (прокачка сокири до miniAxeAt). */
@@ -80,9 +94,9 @@ export function stepFire(state, dt, { main, fireIntervalMs, hasTarget, upgrades 
   if (main === 'chakra') {
     const c = BALANCE.weapons.chakra;
     const burstLeft = (state.burstLeft > 0 ? state.burstLeft : chakraBurst(upgrades)) - 1;
-    const next = burstLeft > 0 ? c.burstGapMs : fireIntervalMs * c.reloadMul * up;
+    const next = burstLeft > 0 ? c.burstGapMs : capped(fireIntervalMs * c.reloadMul, up);
     return { state: { cooldownMs: next, burstLeft }, fire: true };
   }
   const mul = main === 'axe' ? BALANCE.weapons.axe.intervalMul : 1;
-  return { state: { cooldownMs: fireIntervalMs * mul * up, burstLeft: 0 }, fire: true };
+  return { state: { cooldownMs: capped(fireIntervalMs * mul, up), burstLeft: 0 }, fire: true };
 }

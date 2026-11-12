@@ -169,7 +169,7 @@ export function applyCard(p, id) {
   if (weaponId) return applyWeaponCard(p, weaponId, id);
   const upId = cardUpgrade(id);
   if (upId) {
-    const upgrades = { ...p.arsenal.upgrades, [upId]: Math.min(weaponUpgrades(p, upId) + 1, BALANCE.weaponUpgrades.max) };
+    const upgrades = { ...p.arsenal.upgrades, [upId]: Math.min(weaponUpgrades(p, upId) + 1, BALANCE.weaponUpgrades.max) }; // max — Infinity (етап 10)
     return { ...p, arsenal: { ...p.arsenal, upgrades }, picks: { ...p.picks, [id]: (p.picks[id] ?? 0) + 1 } };
   }
   const loot = cardLoot(id);

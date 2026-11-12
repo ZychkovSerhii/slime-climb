@@ -28,7 +28,7 @@ const num = (x) => String(Math.round(x * 100) / 100).replace('.', ',');
 const UPGRADE_DESC = {
   axe: (n, U) => {
     const a = U.axe;
-    const extra = n === a.miniAxeAt ? '\n+ міні-сокира-помічниця!' : '';
+    const extra = n === a.miniAxeAt ? '\n+ міні-сокира-помічниця!' : a.tiers.includes(n) ? '\n+ новий вигляд сокири!' : '';
     return `+${num(U.damageAdd)} шкоди, радіус +${pct(a.radiusStep - 1)}%,\nрозмах частіше на ${pct(1 - a.intervalStep)}%${extra}`;
   },
   shotgun: (n, U) => {
@@ -46,7 +46,7 @@ const UPGRADE_DESC = {
 function upgradeText(weaponId, arsenal) {
   const U = BALANCE.weaponUpgrades;
   const n = (arsenal?.upgrades?.[weaponId] ?? 0) + 1;
-  return { title: `${BALANCE.weapons[weaponId].name} +${n}/${U.max}`, desc: UPGRADE_DESC[weaponId](n, U) };
+  return { title: `${BALANCE.weapons[weaponId].name} +${n}`, desc: UPGRADE_DESC[weaponId](n, U) };
 }
 
 export const LOOT_TEXT = {

@@ -28,12 +28,20 @@ export default class WeaponView {
     this.held.setVisible(Boolean(tex));
     if (tex) this.held.setTexture(tex).setScale(HOLD_SCALE[tex]);
     this.veins.setVisible(main === 'chakra');
+    this.tier = 0;
     this.scene.tweens.killTweensOf(this.veins);
     if (main === 'chakra') {
       this.veins.setAlpha(1);
       this.scene.tweens.add({ targets: this.veins, alpha: 0.45, duration: VEIN_PULSE_MS, yoyo: true, repeat: -1 });
     }
     this.update();
+  }
+
+  /** Вигляд сокири (етап 10, §10.6): кадр 0…4 текстури axe (Weapons.axeTier). */
+  setTier(tier) {
+    if (this.main !== 'axe' || tier === this.tier) return;
+    this.tier = tier;
+    this.held.setFrame(tier);
   }
 
   /** Напрямок у бік екрана: з лівої стіни — вправо. */

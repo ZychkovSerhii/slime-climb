@@ -294,7 +294,8 @@ export const BALANCE = deepFreeze({
     // intervalMul — [рішення] у специфікації частоти немає: розмах у 1,5 раза рідше за постріл
     // triggerFrac — [рішення] розмах, коли ціль ближче за цю частку радіуса: б'є по всьому радіусу,
     // тож зграя рою потрапляє під удар майже вся, а не лише передній павучок
-    axe: { name: 'Сокира Рагнара', steps: 2, damageMul: 4, radiusFrac: 1 / 3, triggerFrac: 0.55, intervalMul: 1.5, swingMs: 240 },
+    // етап 10: сокира відкривається за 1 прокачку (було 2)
+    axe: { name: 'Сокира Рагнара', steps: 1, damageMul: 4, radiusFrac: 1 / 3, triggerFrac: 0.55, intervalMul: 1.5, swingMs: 240 },
     // черга з burst пострілів через burstGapMs, потім перезарядка ×reloadMul; стрибки швидші
     chakra: { name: 'Ворота чакри', steps: 3, burst: 8, burstGapMs: 70, reloadMul: 2, jumpSpeedMul: 1.5 },
     // 3 кулі: у ціль і дві під ±spreadDeg від неї
@@ -304,12 +305,14 @@ export const BALANCE = deepFreeze({
   // Прокачка основної зброї (фідбек-2). Коли зброя стала основною, інші зброї більше не пропонуються,
   // 3-тя картка вікна рівня — прокачка основної, до max разів. Кожна прокачка: +damageAdd шкоди за удар/кулю.
   // [рішення] max 5 для всіх (у фідбеку рубіж 5 названо лише для сокири); швидкість — множник інтервалу атаки.
+  // Етап 10 (§10.6, рішення користувача): прокачка без межі для всієї зброї; стелі — радіус сокири radiusMaxFrac ширини
+  // екрана й інтервал атаки minFireIntervalMs, далі росте лише шкода. tiers — з яких прокачок новий вигляд сокири.
   weaponUpgrades: {
-    max: 5,
+    max: Infinity,
     damageAdd: 0.35,
     // сокира: радіус ×radiusStep і інтервал ×intervalStep за прокачку; на miniAxeAt — міні-сокира-помічниця,
     // слабша за шляпу (1 шкоди раз на restMs)
-    axe: { radiusStep: 1.06, intervalStep: 0.92, miniAxeAt: 5, miniAxe: { damage: 1, restMs: 1600, speed: 800 } },
+    axe: { radiusStep: 1.05, radiusMaxFrac: 0.5, tiers: [0, 3, 6, 9, 12], intervalStep: 0.92, miniAxeAt: 5, miniAxe: { damage: 1, restMs: 1600, speed: 800 } },
     // дробовик: +8% швидкості атаки; на extraAt — ще 2 кулі під ±extraDeg («нижче» від бічних)
     shotgun: { speedStep: 1.08, extraAt: 3, extraDeg: 50 },
     // ворота чакри: +10% швидкості атаки; на extraAt — черга довша на extraBurst

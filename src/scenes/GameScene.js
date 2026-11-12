@@ -10,7 +10,7 @@ import { meetInterval, ninjaInterval, otherSide, spikesBlock, walkerSide, walker
 import { ninjaDodgeWindow, ninjaY } from '../systems/Bamboo.js';
 import { loadSettings } from '../systems/Settings.js';
 import { addXp, applyCard, cardUpgrade, createProgression, killXp, rollLevelUp, weaponCard, weaponUpgrades, xpToNext } from '../systems/Progression.js';
-import { attackDamage, axeRadius, createFireState, hasMiniAxe, inRadius, shotgunAngles, stepFire, weaponJumpMul } from '../systems/Weapons.js';
+import { attackDamage, axeRadius, axeTier, createFireState, hasMiniAxe, inRadius, shotgunAngles, stepFire, weaponJumpMul } from '../systems/Weapons.js';
 import { clampDelta } from '../systems/Time.js';
 import { applyDamage, createHealth, heal, healForLevels } from '../systems/Health.js';
 import {
@@ -372,6 +372,7 @@ export default class GameScene extends Phaser.Scene {
     const n = weaponUpgrades(this.progression, weaponId);
     sfx('weaponReady');
     this.events.emit('hud:banner', { text: `${BALANCE.weapons[weaponId].name}\n+${n}`, ms: 1200 });
+    if (weaponId === 'axe') this.weaponView.setTier(axeTier(n));
     if (hasMiniAxe(weaponId, n) && !this.miniAxe) {
       const M = BALANCE.weaponUpgrades.axe.miniAxe;
       this.miniAxe = new Familiar(this, {

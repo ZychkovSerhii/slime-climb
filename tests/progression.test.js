@@ -156,15 +156,15 @@ describe('weapon cards (stage 4a)', () => {
   test('progress is kept, full progress makes the weapon main; replaced by the next full one', () => {
     const steps = (id) => BALANCE.weapons[id].steps;
     let p = createProgression();
-    p = applyCard(p, weaponCard('axe'));
+    p = applyCard(p, weaponCard('chakra'));
     p = applyCard(p, weaponCard('shotgun'));
-    expect(weaponProgress(p, 'axe')).toBe(1);
+    expect(weaponProgress(p, 'chakra')).toBe(1);
     expect(p.arsenal.main).toBeNull();
-    for (let i = 1; i < steps('axe'); i++) p = applyCard(p, weaponCard('axe'));
-    expect(p.arsenal.main).toBe('axe');
+    for (let i = 1; i < steps('chakra'); i++) p = applyCard(p, weaponCard('chakra'));
+    expect(p.arsenal.main).toBe('chakra');
     for (let i = 1; i < steps('shotgun'); i++) p = applyCard(p, weaponCard('shotgun'));
     expect(p.arsenal.main).toBe('shotgun');
-    expect(weaponProgress(p, 'axe')).toBe(steps('axe'));
+    expect(weaponProgress(p, 'chakra')).toBe(steps('chakra'));
   });
 
   test('a taken, not finished weapon is offered again in the next window', () => {
@@ -184,12 +184,12 @@ describe('weapon cards (stage 4a)', () => {
   });
 
   test('declined weapon: the next window offers a different one', () => {
-    let p = applyCard(createProgression(), weaponCard('axe'));
+    let p = applyCard(createProgression(), weaponCard('chakra'));
     let r = rollLevelUp(p, Math.random);
-    expect(cardWeapon(r.cards[2])).toBe('axe');
+    expect(cardWeapon(r.cards[2])).toBe('chakra');
     p = applyCard(r.progression, r.cards[0]); // узяв звичайну картку
     r = rollLevelUp(p, Math.random);
-    expect(cardWeapon(r.cards[2])).not.toBe('axe');
+    expect(cardWeapon(r.cards[2])).not.toBe('chakra');
   });
 
   test('every weapon can be finished before the boss: at most 3 windows', () => {
@@ -240,12 +240,17 @@ describe('weapon upgrades (feedback-2)', () => {
     }
   });
 
-  test('upgrades stop at max → 3 regular cards', () => {
+  test('етап 10: прокачка без межі — після 30 прокачок 3-тя картка все ще прокачка', () => {
     let p = maxed('shotgun');
-    for (let i = 0; i < BALANCE.weaponUpgrades.max + 2; i++) p = applyCard(p, upgradeCard('shotgun'));
-    expect(weaponUpgrades(p, 'shotgun')).toBe(BALANCE.weaponUpgrades.max);
+    for (let i = 0; i < 30; i++) p = applyCard(p, upgradeCard('shotgun'));
+    expect(weaponUpgrades(p, 'shotgun')).toBe(30);
     const { cards } = rollLevelUp(p, seq(0, 0, 0));
-    expect(cards.every((c) => CARD_IDS.includes(c))).toBe(true);
+    expect(cards[2]).toBe(upgradeCard('shotgun'));
+  });
+
+  test('етап 10: сокира відкривається за 1 прокачку', () => {
+    const p = applyCard(createProgression(), weaponCard('axe'));
+    expect(p.arsenal.main).toBe('axe');
   });
 
   test('a partly upgraded other weapon is not offered once a main exists', () => {
