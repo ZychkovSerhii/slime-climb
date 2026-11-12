@@ -6,6 +6,9 @@ import { button, textStyle } from './ui.js';
 import { loadSettings, saveSettings } from '../systems/Settings.js';
 import { codex, codexOpen } from '../codex/index.js';
 import { isDefault, loadTuning, presetName } from '../systems/Tuning.js';
+import { leaderboard, leaderboardOpen } from '../leaderboard/index.js';
+import { flush } from '../systems/Leaderboard.js';
+import { LEADERBOARD_URL, REQUEST_TIMEOUT_MS } from '../config/leaderboard.js';
 
 /** Стартовий екран: назва, рекорд, Шаги, «Тапни, щоб почати», магазин, досягнення, довідник, звук, сніг, туман. */
 export default class MenuScene extends Phaser.Scene {
@@ -36,8 +39,11 @@ export default class MenuScene extends Phaser.Scene {
     const waiting = unclaimedCount(meta);
     const achBtn = button(this, cx, height * 0.73, waiting > 0 ? `Досягнення (${waiting}!)` : 'Досягнення', () => this.scene.start('Achievements'), waiting > 0 ? '#ffd84a' : undefined);
 
-    // довідник (етап 7) — HTML-шар поверх гри; поки він відкритий, тап по меню не стартує гру
-    const codexBtn = button(this, cx, height * 0.79, 'Довідник', () => codex().open());
+    // довідник (етап 7) і «Лідери» (етап 12) — HTML-шари поверх гри; поки вони відкриті, тап по меню не стартує гру
+    const codexBtn = button(this, cx - width * 0.2, height * 0.79, 'Довідник', () => codex().open());
+    const lbBtn = button(this, cx + width * 0.2, height * 0.79, 'Лідери', () => leaderboard().open());
+    // результат, що не пішов офлайн, — спробувати ще раз (без очікування)
+    flush(storage, { url: LEADERBOARD_URL, timeoutMs: REQUEST_TIMEOUT_MS });
 
     const soundLabel = () => `Звук: ${isMuted() ? 'вимк.' : 'увімк.'}`;
     const soundBtn = button(this, cx - width * 0.22, height * 0.85, soundLabel(), () => {
@@ -73,10 +79,10 @@ export default class MenuScene extends Phaser.Scene {
     }
 
     // тап будь-де, крім кнопок, — старт гри
-    const buttons = [shopBtn, achBtn, codexBtn, soundBtn, tuningBtn, snowBtn, fogBtn, embersBtn];
+    const buttons = [shopBtn, achBtn, codexBtn, lbBtn, soundBtn, tuningBtn, snowBtn, fogBtn, embersBtn];
     let started = false;
     this.input.on('pointerdown', (pointer, over) => {
-      if (started || codexOpen() || over.some((o) => buttons.includes(o))) return;
+      if (started || codexOpen() || leaderboardOpen() || over.some((o) => buttons.includes(o))) return;
       started = true;
       this.scene.start('Game');
     });

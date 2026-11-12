@@ -18,3 +18,10 @@ test('back in the shop or achievements goes to the menu', () => {
 test('back with the codex open closes it instead of quitting', () => {
   expect(backAction(['Menu'], false, true)).toBe('closeCodex');
 });
+
+test('«Назад» закриває шар «Лідери» (етап 12), довідник — першим', () => {
+  expect(backAction(['Menu'], false, false, true)).toBe('closeLeaderboard');
+  expect(backAction(['GameOver'], false, false, true)).toBe('closeLeaderboard');
+  expect(backAction(['Menu'], false, true, true)).toBe('closeCodex');
+  expect(backAction(['Menu'], false, false, false)).toBe('exit');
+});

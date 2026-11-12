@@ -30,13 +30,16 @@ async function readBody(request) {
   }
 }
 
-/** Перевірка тіла: id і нік. Повертає {nick} або Response з помилкою. */
-async function checkCommon(request, env, body, now) {
+/**
+ * Перевірка тіла: id і нік; ліміт частоти окремо для результатів (last_submit_at) і ніків (nick_at),
+ * щоб щойно збережений нік не блокував результат забігу. Повертає {nick} або {error: Response}.
+ */
+async function checkCommon(request, env, body, now, column) {
   if (!body || !ID_RE.test(body.id ?? '')) return { error: json(request, 400, { error: 'bad_request' }) };
   const v = validateNick(body.nick);
   if (!v.ok) return { error: json(request, 422, { error: v.error }) };
-  const row = await env.DB.prepare('SELECT last_submit_at FROM scores WHERE id = ?').bind(body.id).first();
-  if (row && now - row.last_submit_at < MIN_GAP_MS) return { error: json(request, 429, { error: 'too_often' }) };
+  const row = await env.DB.prepare(`SELECT ${column} AS at FROM scores WHERE id = ?`).bind(body.id).first();
+  if (row && now - row.at < MIN_GAP_MS) return { error: json(request, 429, { error: 'too_often' }) };
   return { nick: v.nick };
 }
 
@@ -52,7 +55,7 @@ async function rankOf(env, id) {
 
 async function postScore(request, env, now) {
   const body = await readBody(request);
-  const c = await checkCommon(request, env, body, now);
+  const c = await checkCommon(request, env, body, now, 'last_submit_at');
   if (c.error) return c.error;
   const run = { height: body.height, timeSec: body.timeSec };
   if (!isPlausible(run)) return json(request, 422, { error: 'implausible' });
@@ -74,12 +77,12 @@ async function postScore(request, env, now) {
 
 async function postNick(request, env, now) {
   const body = await readBody(request);
-  const c = await checkCommon(request, env, body, now);
+  const c = await checkCommon(request, env, body, now, 'nick_at');
   if (c.error) return c.error;
   await env.DB
     .prepare(
-      `INSERT INTO scores (id, nick, height, time_sec, updated_at, last_submit_at) VALUES (?1, ?2, 0, 0, ?3, ?3)
-       ON CONFLICT(id) DO UPDATE SET nick = excluded.nick, last_submit_at = excluded.last_submit_at`,
+      `INSERT INTO scores (id, nick, height, time_sec, updated_at, last_submit_at, nick_at) VALUES (?1, ?2, 0, 0, ?3, 0, ?3)
+       ON CONFLICT(id) DO UPDATE SET nick = excluded.nick, nick_at = excluded.nick_at`,
     )
     .bind(body.id, c.nick, now)
     .run();

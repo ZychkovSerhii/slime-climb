@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS scores (
   height INTEGER NOT NULL DEFAULT 0,
   time_sec INTEGER NOT NULL DEFAULT 0,
   updated_at INTEGER NOT NULL,
-  last_submit_at INTEGER NOT NULL
+  last_submit_at INTEGER NOT NULL,
+  nick_at INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS scores_height ON scores (height DESC, updated_at ASC);

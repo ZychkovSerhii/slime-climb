@@ -134,7 +134,7 @@ export function statusLine({ eligible, result }) {
   if (!eligible) return 'Не Норма — у таблицю не йде';
   if (!result) return 'Надсилається…';
   switch (result.status) {
-    case 'nonick': return 'Введи нік у «Лідери», щоб потрапити в таблицю';
+    case 'nonick': return 'Введи нік — тапни тут';
     case 'sent': return `Твоє місце: ${result.rank}`;
     case 'rejected': return 'Результат не прийнято';
     case 'offline': return 'Офлайн — надішлемо пізніше';

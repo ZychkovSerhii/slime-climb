@@ -76,6 +76,16 @@ describe('POST /nick', () => {
     expect((await call('POST', '/nick', { id: ID(1), nick: 'Норм' })).status).toBe(200);
     expect((await call('POST', '/nick', { id: ID(1), nick: 'Норм2' })).status).toBe(429);
   });
+  test('щойно збережений нік не блокує результат і навпаки', async () => {
+    expect((await call('POST', '/nick', { id: ID(1), nick: 'Сашко' })).status).toBe(200);
+    now += 1_000;
+    expect((await score(1, 100, 'Сашко')).status).toBe(200);
+    now += 1_000;
+    expect((await call('POST', '/nick', { id: ID(1), nick: 'Сашко2' })).status).toBe(429);
+    now += 19_000;
+    expect((await call('POST', '/nick', { id: ID(1), nick: 'Сашко2' })).status).toBe(200);
+    expect((await top(1)).body.top[0].nick).toBe('Сашко2');
+  });
 });
 
 describe('GET /top', () => {

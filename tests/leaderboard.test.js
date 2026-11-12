@@ -139,7 +139,7 @@ describe('statusLine', () => {
     [{ eligible: true }, 'Надсилається…'],
     [{ eligible: true, result: { status: 'disabled' } }, ''],
     [{ eligible: true, result: { status: 'empty' } }, ''],
-    [{ eligible: true, result: { status: 'nonick' } }, 'Введи нік у «Лідери», щоб потрапити в таблицю'],
+    [{ eligible: true, result: { status: 'nonick' } }, 'Введи нік — тапни тут'],
     [{ eligible: true, result: { status: 'sent', rank: 7 } }, 'Твоє місце: 7'],
     [{ eligible: true, result: { status: 'rejected' } }, 'Результат не прийнято'],
     [{ eligible: true, result: { status: 'offline' } }, 'Офлайн — надішлемо пізніше'],
