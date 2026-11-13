@@ -73,12 +73,12 @@ describe('spider loot', () => {
     expect(jumpMul(1.5, true)).toBe(BALANCE.bossLoot.maxJumpMul);
     expect(jumpMul(1.5, false)).toBe(1.5);
   });
-  test('armor: absorbs a hit, comes back after 22 s', () => {
+  test('armor: absorbs a hit, comes back after 30 s', () => {
     let a = createArmor();
     a = breakArmor(a, 1000);
     expect(a.on).toBe(false);
-    expect(stepArmor(a, 22999).on).toBe(false);
-    expect(stepArmor(a, 23000).on).toBe(true);
+    expect(stepArmor(a, 30999).on).toBe(false);
+    expect(stepArmor(a, 31000).on).toBe(true);
   });
   test('hit effects: venom gives the stronger slow and a dot; web roots', () => {
     const card = { factor: 0.6, durationMs: 2000 };

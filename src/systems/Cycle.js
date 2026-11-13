@@ -82,6 +82,11 @@ export function enemyHp(baseHp, biome) {
   return Math.max(1, Math.round(baseHp * SC.biomeHpMul ** biome * tuning().enemyHp));
 }
 
+/** Шкода помічника (Оксанка): база + бонус «Урону», ×biomeHpMul^biome — щоб не відставала від HP ворогів. */
+export function familiarDamage(base, weaponDamage, biome) {
+  return (base + (weaponDamage - BALANCE.projectileDamage)) * SC.biomeHpMul ** biome;
+}
+
 /** HP боса (і ведмедя-міні-боса): ×bossHpMul^loop і множник режиму налаштувань для type ('boss', 'bear'…). */
 export function bossHp(baseHp, loop, type = null) {
   return Math.max(1, Math.round(baseHp * SC.bossHpMul ** loop * bossHpTuning(type)));

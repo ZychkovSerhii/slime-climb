@@ -2,10 +2,11 @@ import * as Phaser from 'phaser';
 import { BALANCE } from '../config/balance.js';
 import { formatTime } from '../systems/Format.js';
 import { isDefault, presetName, tuning } from '../systems/Tuning.js';
-import { invisButton, parseCssPx, safeTopGamePx } from '../systems/Layout.js';
+import { PAUSE_BUTTON_SIZE, invisButton, parseCssPx, pauseButton, safeTopGamePx } from '../systems/Layout.js';
 
 // Розкладка HUD (px базової роздільності) — це верстка, не баланс
 const PAD = 24;
+const RIGHT_PAD = PAD + PAUSE_BUTTON_SIZE + 16; // тексти справа — лівіше кнопки паузи
 const HEART_STEP = 40;
 const XP_BAR = { y: 76, w: 220, h: 14 };
 const BOSS_BAR = { y: 128, h: 18 };
@@ -66,8 +67,8 @@ export default class HudScene extends Phaser.Scene {
     // усе в HUD зсувається нижче вирізу камери
     const top = PAD + safeTopGamePx(readSafeTopCss(), cssHeight, height);
     this.top = top;
-    this.timeText = this.add.text(width - PAD, top, '00:00', TEXT_STYLE).setOrigin(1, 0);
-    this.scoreText = this.add.text(width - PAD, top + 44, 'SCORE 0', TEXT_STYLE).setOrigin(1, 0);
+    this.timeText = this.add.text(width - RIGHT_PAD, top, '00:00', TEXT_STYLE).setOrigin(1, 0);
+    this.scoreText = this.add.text(width - RIGHT_PAD, top + 44, 'SCORE 0', TEXT_STYLE).setOrigin(1, 0);
     this.stepsText = this.add.text(width - PAD, top + 88, '', STEPS_STYLE).setOrigin(1, 0);
     // режим налаштувань: набір видно, щоб відгук був прив'язаний до чисел («Норма» — без напису)
     const tName = presetName(tuning());
@@ -78,8 +79,10 @@ export default class HudScene extends Phaser.Scene {
     for (let i = 0; i < BALANCE.skills.extraLife.maxLives; i++) {
       this.hearts.push(this.add.image(PAD + 16 + i * HEART_STEP, top + 14, 'heart'));
     }
-    this.armorHeart = this.add.image(0, top + 14, 'heart').setTint(0x222230).setVisible(false);
+    this.armorHeart = this.add.image(0, top + 14, 'heartArmor').setVisible(false); // помаранчево-коричневе (фідбек-6; було чорне)
     this.createInvisButton();
+    this.pauseGfx = this.add.graphics().setDepth(5);
+    this.drawPause();
     this.xpBar = this.add.graphics();
     this.levelText = this.add.text(PAD + XP_BAR.w + 12, this.xpBarY() - 6, 'LV 1', SMALL_STYLE);
 
@@ -95,8 +98,9 @@ export default class HudScene extends Phaser.Scene {
 
     const onResize = () => {
       const w = this.scale.width;
-      this.timeText.setX(w - PAD);
-      this.scoreText.setX(w - PAD);
+      this.timeText.setX(w - RIGHT_PAD);
+      this.scoreText.setX(w - RIGHT_PAD);
+      this.drawPause();
       this.stepsText.setX(w - PAD);
       this.tuningText.setX(w - PAD);
       this.toast.setX(w / 2);
@@ -173,6 +177,15 @@ export default class HudScene extends Phaser.Scene {
     const k = Math.max(b.hp, 0) / b.maxHp;
     this.bossBar.fillStyle(0x000000, 0.6).fillRect(x, this.bossBarY(), w, BOSS_BAR.h);
     this.bossBar.fillStyle(b.invulnerable ? BOSS_IMMUNE_COLOR : BOSS_COLOR, 1).fillRect(x, this.bossBarY(), w * k, BOSS_BAR.h);
+  }
+
+  /** Кнопка паузи: лише малюнок. Тап ловить GameScene (inPauseButton) — так він точно не стане стрибком. */
+  drawPause() {
+    const b = pauseButton(this.scale.width, this.top);
+    const h = b.size / 2;
+    this.pauseGfx.clear();
+    this.pauseGfx.fillStyle(0x000000, 0.45).fillRoundedRect(b.x - h, b.y - h, b.size, b.size, 12);
+    this.pauseGfx.fillStyle(0xffffff, 0.9).fillRect(b.x - 14, b.y - 16, 10, 32).fillRect(b.x + 4, b.y - 16, 10, 32);
   }
 
   /** Кнопка «Невидимість»: з'являється, коли скіл узято; кільце показує перезарядку. */

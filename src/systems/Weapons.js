@@ -4,12 +4,17 @@ import { BALANCE } from '../config/balance.js';
 
 const U = BALANCE.weaponUpgrades;
 
+/** Приріст шкоди за одну прокачку: спільний damageAdd або свій у зброї (дробовик — менший, бо куль кілька). */
+export function weaponDamageAdd(main) {
+  return U[main]?.damageAdd ?? U.damageAdd;
+}
+
 /**
  * Шкода одного удару: поточна шкода пострілу (база + «Урон») × множник зброї
  * + damageAdd за кожну прокачку основної зброї (фідбек-2).
  */
 export function attackDamage(main, baseDamage, upgrades = 0) {
-  const add = main ? U.damageAdd * upgrades : 0;
+  const add = main ? weaponDamageAdd(main) * upgrades : 0;
   return baseDamage * (BALANCE.weapons[main]?.damageMul ?? 1) + add;
 }
 

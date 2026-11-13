@@ -1,4 +1,6 @@
 import * as Phaser from 'phaser';
+import { installCrashGuard } from './systems/CrashGuard.js';
+import { browserStorage } from './systems/HighScore.js';
 import { BALANCE } from './config/balance.js';
 import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
@@ -38,6 +40,9 @@ const config = {
 };
 
 export const game = new Phaser.Game(config);
+
+// Аварійний екран: виняток у кадрі зупиняє Phaser назавжди (фідбек-6, глухий GAME OVER) — показуємо помилку і «Перезапустити»
+installCrashGuard({ frame: () => game.loop.frame, storage: browserStorage() });
 
 // Debug-режим: лічильник fps у кутку. У браузері — параметр ?debug=1,
 // на телефоні (APK) — тимчасово постав DEBUG = true і перезбери.

@@ -6,6 +6,7 @@ import spike from './spike.js';
 import projectile from './projectile.js';
 import plantBullet from './plantBullet.js';
 import heart from './heart.js';
+import heartArmor from './heartArmor.js';
 import bat from './bat.js';
 import plant from './plant.js';
 import lion from './lion.js';
@@ -66,7 +67,7 @@ import ladle from './ladle.js';
 import slimeKazan from './slimeKazan.js';
 import ember from './ember.js';
 
-export const SPRITES = [slime, wall, spike, projectile, plantBullet, heart, bat, plant, lion, spider, smallSpider, shadow, axe, shotgun, chakraVeins, webBall, hat, webShot, slimeSpider, frost, skinAssassin, skinCommander, skinRaccoon, skinMurzik,
+export const SPRITES = [slime, wall, spike, projectile, plantBullet, heart, heartArmor, bat, plant, lion, spider, smallSpider, shadow, axe, shotgun, chakraVeins, webBall, hat, webShot, slimeSpider, frost, skinAssassin, skinCommander, skinRaccoon, skinMurzik,
   wallIce, icicle, elf, candy, bear, penguin, santa, gift, snowflake,
   shkodko, giftBomb, wagon, loco,
   slimeShkodko, sack,

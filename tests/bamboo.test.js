@@ -36,8 +36,8 @@ describe('ніндзя', () => {
 
 describe('ліхтарик', () => {
   test('займається ближче за armPx', () => {
-    expect(lanternShouldArm(89)).toBe(true);
-    expect(lanternShouldArm(91)).toBe(false);
+    expect(lanternShouldArm(129)).toBe(true);
+    expect(lanternShouldArm(131)).toBe(false);
   });
   test('радіус вибуху менший за ширину коридору: від нього рятує стрибок', () => {
     expect(BALANCE.enemies.lantern.radiusPx * 2).toBeLessThan(720 - 2 * BALANCE.wallWidth - BALANCE.playerSize);

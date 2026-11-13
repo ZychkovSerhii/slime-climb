@@ -34,7 +34,7 @@ const UPGRADE_DESC = {
   shotgun: (n, U) => {
     const a = U.shotgun;
     const extra = n === a.extraAt ? '\n+ ще 2 кулі ширшим віялом!' : '';
-    return `+${num(U.damageAdd)} шкоди кожній кулі,\nшвидкість атаки +${pct(a.speedStep - 1)}%${extra}`;
+    return `+${num(a.damageAdd ?? U.damageAdd)} шкоди кожній кулі,\nшвидкість атаки +${pct(a.speedStep - 1)}%${extra}`;
   },
   chakra: (n, U) => {
     const a = U.chakra;
@@ -50,12 +50,12 @@ function upgradeText(weaponId, arsenal) {
 }
 
 export const LOOT_TEXT = {
-  armor: () => ({ title: 'Зробити кожух з павучихи', desc: `чорне життя-броня знімається першим,\nвідновлюється через ${BALANCE.bossLoot.armor.regenMs / 1000} с` }),
+  armor: () => ({ title: 'Зробити кожух з павучихи', desc: `життя-броня знімається першим,\nвідновлюється через ${BALANCE.bossLoot.armor.regenMs / 1000} с` }),
   venom: () => {
     const v = BALANCE.bossLoot.venom;
     return { title: 'Ядовита морда', desc: `влучання: −${Math.round((1 - v.slowFactor) * 100)}% швидкості ворога\nі ${v.dps} шкоди/с протягом ${v.durationMs / 1000} с` };
   },
-  oksana: () => ({ title: 'Дитинча павучихи Оксанка', desc: `невмируща помічниця: кидається на ворога\nраз на ${BALANCE.bossLoot.oksana.intervalMs / 1000} с, росте з «Уроном»` }),
+  oksana: () => ({ title: 'Дитинча павучихи Оксанка', desc: `невмируща помічниця: кидається на ворога\nраз на ${BALANCE.bossLoot.oksana.intervalMs / 1000} с, шкода ${BALANCE.bossLoot.oksana.damage},\nросте з «Уроном» і з кожним біомом` }),
   web: () => {
     const w = BALANCE.bossLoot.web;
     return { title: 'Дупа павучихи', desc: `кулі павутини приклеюють ворога на ${w.rootMs / 1000} с\n(боса — на ${w.bossRootMs / 1000} с)` };

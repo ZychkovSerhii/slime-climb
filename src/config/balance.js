@@ -90,7 +90,8 @@ export const BALANCE = deepFreeze({
     // Стіна ніндзі вільна від шипів біля висоти гравця від (приліт − dodgeLeadSec) до (приліт + dodgeSec).
     ninja: { hp: 3, xp: 4, points: 40, smokeMs: 600, stayMs: 1200, shurikenSpeed: 260, minYFrac: 0.12, maxYFrac: 0.4, dodgeLeadSec: 1, dodgeSec: 0.6 },
     // Ліхтарик-дух: пливе на гравця, за armPx блимає blinkMs і вибухає радіусом radiusPx. Убитий раніше — вибуху немає.
-    lantern: { hp: 2, xp: 3, points: 30, speed: 70, armPx: 90, blinkMs: 800, radiusPx: 70 },
+    // фідбек-6: «літають по приколу» — були 70 px/с і 2 HP: гинули, не долетівши. Тепер швидші, міцніші, вибух ширший і раніше
+    lantern: { hp: 3, xp: 3, points: 30, speed: 150, armPx: 130, blinkMs: 600, radiusPx: 100 },
     // Малі слимаки Колі (фаза 80%). Кусака повзе на гравця; личинка-стрілець тримається на keepPx і плює раз на spitMs,
     // завжди вище за гравця щонайменше на minAbovePx (крута траєкторія — від неї рятує стрибок, як від квітки).
     slugBiter: { hp: 6, xp: 3, points: 40, speed: 120 },
@@ -122,7 +123,7 @@ export const BALANCE = deepFreeze({
     gift: {
       everyMs: 9000, jitter: 0.35, xp: 4, firstMs: 4000,
       weights: { xp: 45, steps: 30, shield: 20, life: 5 },
-      xpShare: 0.35, steps: 4, shieldMs: 2500,
+      xpShare: 0.35, steps: 4, shieldMs: 5000, // фідбек-6: щит удвічі довший (було 2,5 с)
     },
     // сніг: мало, повільно, низький контраст; вимикається в меню
     snow: { count: 26, alpha: 0.32, minSpeed: 22, maxSpeed: 55, drift: 14 },
@@ -257,7 +258,7 @@ export const BALANCE = deepFreeze({
     // Ричання: раз на rearEveryMs стає на задні лапи (rearWarnMs) і ричить — довкола аура з власним HP.
     // Поки аура ціла, ведмідь невразливий (кулі б'ють у неї). Зникає, коли розбита або через ms. Дотик — сповільнення (roar).
     rearFirstMs: 2500, rearEveryMs: 9000, rearWarnMs: 800,
-    aura: { hp: 8, ms: 6000, radiusPx: 150 },
+    aura: { hp: 32, ms: 6000, radiusPx: 150 }, // фідбек-6: +300% (було 8)
     // Сповільнення від аури (як колишнє ричання). Інваріант (тест): durationMs < rearEveryMs.
     roar: { durationMs: 2500, speedMul: 0.6, fireMul: 0.85 },
     batsAt: 0.2, bats: 2, // на 20% HP раз прилітають 2 зимові летючі миші
@@ -380,7 +381,8 @@ export const BALANCE = deepFreeze({
     // черга з burst пострілів через burstGapMs, потім перезарядка ×reloadMul; стрибки швидші
     chakra: { name: 'Ворота чакри', steps: 3, burst: 8, burstGapMs: 70, reloadMul: 2, jumpSpeedMul: 1.5 },
     // 3 кулі: у ціль і дві під ±spreadDeg від неї
-    shotgun: { name: 'Дробовик Хулігана', steps: 2, damageMul: 1.25, spreadDeg: 25 },
+    // фідбек-6: «занадто імбовий» — кожна куля ×1 (було ×1,25)
+    shotgun: { name: 'Дробовик Хулігана', steps: 2, damageMul: 1, spreadDeg: 25 },
   },
 
   // Прокачка основної зброї (фідбек-2). Коли зброя стала основною, інші зброї більше не пропонуються,
@@ -394,8 +396,10 @@ export const BALANCE = deepFreeze({
     // сокира: радіус ×radiusStep і інтервал ×intervalStep за прокачку; на miniAxeAt — міні-сокира-помічниця,
     // слабша за шляпу (1 шкоди раз на restMs)
     axe: { radiusStep: 1.05, radiusMaxFrac: 0.5, tiers: [0, 3, 6, 9, 12], intervalStep: 0.92, miniAxeAt: 5, miniAxe: { damage: 1, restMs: 1600, speed: 800 } },
-    // дробовик: +8% швидкості атаки; на extraAt — ще 2 кулі під ±extraDeg («нижче» від бічних)
-    shotgun: { speedStep: 1.08, extraAt: 3, extraDeg: 50 },
+    // дробовик: +5% швидкості атаки; на extraAt — ще 2 кулі під ±extraDeg («нижче» від бічних).
+    // фідбек-6 (нерф): своя damageAdd на кулю (куль 3–5, тож спільні +0,35 давали до +1,75 за прокачку),
+    // швидкість +5% (було +8%), додаткові кулі з 6-ї прокачки (було з 3-ї)
+    shotgun: { speedStep: 1.05, extraAt: 6, extraDeg: 50, damageAdd: 0.15 },
     // ворота чакри: +10% швидкості атаки; на extraAt — черга довша на extraBurst
     chakra: { speedStep: 1.1, extraAt: 3, extraBurst: 4 },
   },
@@ -413,9 +417,10 @@ export const BALANCE = deepFreeze({
   // Унікальні картки павучихи (специфікація §3.6): після смерті боса 2 випадкові з 5, кожна раз за забіг
   bossLoot: {
     offer: 2,
-    armor: { regenMs: 22000 }, // «Кожух з павучихи»: чорне життя-броня
+    armor: { regenMs: 30000 }, // «Кожух з павучихи»: життя-броня; фідбек-6: було 22 с — «найімбовіший скіл»
     venom: { slowFactor: 0.9, slowMs: 3000, dps: 1, durationMs: 3000 }, // «Ядовита морда»
-    oksana: { intervalMs: 1200, speed: 1100, damage: 1 }, // «Дитинча павучихи Оксанка»; росте з картками «Урон»
+    oksana: { intervalMs: 1200, speed: 1100, damage: 3 }, // фідбек-6: було 1 — у зимі вже нічого не важила; далі росте ще й з біомом (як HP ворогів)
+    // «Дитинча павучихи Оксанка»; росте з картками «Урон»
     web: { rootMs: 900, bossRootMs: 150 }, // «Дупа павучихи»: павутина приклеює ворога
     form: { jumpSpeedMul: 1.8 }, // «Ти став павуком»
     maxJumpMul: 2.2, // [рішення] стеля множника стрибка (чакра ×1,5 × павук ×1,8 = ×2,7 — керувати вже неможливо)
