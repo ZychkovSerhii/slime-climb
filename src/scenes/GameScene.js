@@ -22,9 +22,9 @@ import Familiar from '../entities/Familiar.js';
 import { createSpikeState, planSpikes, prefillStartWorld, reserveFree, skipSpikes } from '../systems/SpikePlanner.js';
 import { heightPoints, killPoints } from '../systems/Score.js';
 import { loadMeta, recordKill, saveMeta, skinSprite, stepsForKill } from '../systems/Meta.js';
-import { browserStorage, recordResult } from '../systems/HighScore.js';
+import { browserStorage } from '../systems/HighScore.js';
 import { interceptPoint, pickNearest } from '../systems/Targeting.js';
-import { playMusic, resumeAudio, sfx, stopMusic, suspendAudio } from '../systems/Audio.js';
+import { playMusic, sfx, stopMusic } from '../systems/Audio.js';
 import { animKey } from '../art/sprites/index.js';
 import Player from '../entities/Player.js';
 import Spike from '../entities/Spike.js';
@@ -36,16 +36,15 @@ import SpiderBoss from '../entities/SpiderBoss.js';
 import ShkodkoBoss from '../entities/ShkodkoBoss.js';
 import KolyaBoss from '../entities/KolyaBoss.js';
 import BearBoss from '../entities/BearBoss.js';
+import BiomeDirector from '../game/BiomeDirector.js';
+import PauseController from '../game/PauseController.js';
 import WeaponView from '../entities/WeaponView.js';
 import Elf from '../entities/Elf.js';
 import Penguin from '../entities/Penguin.js';
 import Santa from '../entities/Santa.js';
 import Gift from '../entities/Gift.js';
-import Snow from '../entities/Snow.js';
-import Fog from '../entities/Fog.js';
 import Ninja from '../entities/Ninja.js';
 import Lantern from '../entities/Lantern.js';
-import Embers from '../entities/Embers.js';
 import KazanBoss from '../entities/KazanBoss.js';
 import Salamander from '../entities/Salamander.js';
 import Spark from '../entities/Spark.js';
@@ -58,29 +57,16 @@ import { createHeartState, heartDue, heartSide } from '../systems/Heart.js';
 import {
   activeForm, bombTargets, formSkin, friendlyBombDamage, rollSack, sackSkillCard, SHKODKO_LOOT_IDS, stepTicker,
 } from '../systems/ShkodkoLoot.js';
-import { background } from '../art/textures.js';
 import { bossIntroInfo } from '../systems/BossIntro.js';
 import { loadTuning, setTuning, tuning } from '../systems/Tuning.js';
 import { isEligibleRun } from '../systems/LeaderboardRules.js';
 
-const PAUSE_MENU_LABEL = 'У меню';
-const PAUSE_MENU_CONFIRM = 'Точно вийти?';
-const PAUSE_MENU_DY = 150; // кнопка «У меню» нижче «Продовжити»
 import { canSplit, KOLYA_LOOT_IDS, lootShotDamage, lootStepsBonus, useSplit } from '../systems/KolyaLoot.js';
 import { canBoil, KAZAN_LOOT_IDS, ladleDamage, ringVictims, useBoil } from '../systems/KazanLoot.js';
 
 const POISON_TINT = 0xb0d040; // слизак і так зелений — під отрутою він темніший, болотний
 const ROAR_TINT = 0x9fb4c8; // приголомшений ричанням — сірувато-блакитний
 // глибини фону: фон −3, сніг −2 (Snow.js), стіни −1, усе інше 0
-const BG_DEPTH = -3;
-const WALL_DEPTH = -1;
-const TEX = {
-  cave: { bg: 'bg', wall: 'wall', spike: 'spike' },
-  winter: { bg: 'bgWinter', wall: 'wallIce', spike: 'icicle' },
-  bamboo: { bg: 'bgBamboo', wall: 'wallBamboo', spike: 'stake' },
-  lava: { bg: 'bgLava', wall: 'wallLava', spike: 'basalt' },
-};
-const BIOME_BANNER = { winter: 'Зима', bamboo: 'Туманний бамбук', lava: 'Лавові надра' };
 const FADE_MS = 600; // шипи й вороги плавно зникають перед босом
 const VENOM_SHOT_TINT = 0x9cff3a; // постріли з «Ядовитою мордою» — кислотні
 // шляпа на голові слизака: центр шляпи відносно центру слизака і зсув другої шляпи
@@ -168,9 +154,6 @@ export default class GameScene extends Phaser.Scene {
     this.status = createStatus();
     this.biome = 'cave';
     this.settings = loadSettings(browserStorage());
-    this.snow = null;
-    this.fog = null; // туман бамбука (етап 9)
-    this.embers = null; // іскри лави (етап 11)
     this.dropAt = Infinity; // наступна лавова крапля (мс гри)
     this.salamanderWaiting = false; // саламандра чекає, поки звільниться стіна (фідбек-6)
     this.landedAt = -Infinity; // коли слизак востаннє приземлився (пільга від струменя саламандри)
@@ -185,19 +168,8 @@ export default class GameScene extends Phaser.Scene {
     // рослини сідають на місце чергового запланованого шипа — так на них теж діють правила проміжків
     this.pendingPlants = 0;
 
-    // Фон біому між стінами: тайловий, їде повільніше за стіни (паралакс)
-    const w = BALANCE.wallWidth;
-    this.bgInfo = background('bg');
-    this.bg = this.add.tileSprite(width / 2, height / 2, width - 2 * w, height, 'bg').setDepth(BG_DEPTH);
-
-    // Стіни — тайлові спрайти, «рух» імітується зсувом текстури.
-    // walls — усе, що прокручується (на час переходу біому там і старі стіни), wallTiles — поточні [ліва, права].
-    this.walls = this.add.group();
-    const left = this.add.tileSprite(w / 2, height / 2, w, height, 'wall').setDepth(WALL_DEPTH);
-    const right = this.add.tileSprite(width - w / 2, height / 2, w, height, 'wall').setFlipX(true).setDepth(WALL_DEPTH);
-    this.wallTiles = [left, right];
-    this.walls.addMultiple([left, right]);
-    this.bgTiles = this.add.group([this.bg]);
+    // Фон, стіни й погода біому
+    this.biomes = new BiomeDirector(this);
 
     // Групи об'єктів, що їдуть разом зі світом
     this.hazards = this.physics.add.group();
@@ -301,66 +273,14 @@ export default class GameScene extends Phaser.Scene {
     if (this.seg.biome !== 'cave') this.enterBiome(this.seg.biome); // до перших шипів — щоб одразу були бурульки
     this.spawnSpikes(); // шипи видно з першого кадру
 
-    this.createPauseOverlay();
+    this.pause = new PauseController(this);
     // ?intro=1 — представлення павучихи одразу після старту (перевірка §9.3)
     if (q.get('intro') === '1') this.showIntro('spider', { music: false });
-    this.onVisibility = () => {
-      if (document.hidden) this.pauseWithOverlay();
-    };
-    document.addEventListener('visibilitychange', this.onVisibility);
+    this.pause.watchVisibility();
     this.layoutWidth = this.scale.width;
     const onResize = () => this.relayout();
     this.scale.on(Phaser.Scale.Events.RESIZE, onResize);
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-      document.removeEventListener('visibilitychange', this.onVisibility);
-      this.scale.off(Phaser.Scale.Events.RESIZE, onResize);
-    });
-  }
-
-  createPauseOverlay() {
-    const { width, height } = this.scale;
-    // «У меню» (відгук після етапу 10): закінчити забіг з паузи. Перший тап перепитує — щоб випадковий не губив забіг.
-    this.pauseMenuBtn = this.add
-      .text(width / 2, height / 2 + PAUSE_MENU_DY, PAUSE_MENU_LABEL, {
-        fontFamily: 'sans-serif',
-        fontSize: '44px',
-        color: '#cfe8cf',
-        backgroundColor: '#000000aa',
-        padding: { x: 32, y: 18 },
-      })
-      .setOrigin(0.5)
-      .setDepth(1000)
-      .setVisible(false)
-      .setInteractive({ useHandCursor: true });
-    this.pauseMenuBtn.on('pointerdown', (pointer, x, y, event) => {
-      event?.stopPropagation?.();
-      if (this.pauseMenuBtn.text === PAUSE_MENU_LABEL) {
-        this.pauseMenuBtn.setText(PAUSE_MENU_CONFIRM).setColor('#ffd84a');
-        return;
-      }
-      this.quitToMenu();
-    });
-    this.pauseOverlay = this.add
-      .text(width / 2, height / 2, 'Продовжити', {
-        fontFamily: 'sans-serif',
-        fontSize: '64px',
-        color: '#ffffff',
-        backgroundColor: '#000000aa',
-        padding: { x: 40, y: 24 },
-      })
-      .setOrigin(0.5)
-      .setDepth(1000)
-      .setVisible(false)
-      .setInteractive({ useHandCursor: true });
-    this.pauseOverlay.on('pointerdown', (pointer, x, y, event) => {
-      event?.stopPropagation?.();
-      this.pauseOverlay.setVisible(false);
-      this.pauseMenuBtn.setVisible(false);
-      resumeAudio();
-      this.inputBlockedUntil = this.game.loop.time + BALANCE.tapGuardMs;
-      // під час вибору картки чи представлення боса гра лишається на паузі, доки вони відкриті
-      if (!this.levelUpOpen && !this.introOpen) this.setPaused(false);
-    });
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.off(Phaser.Scale.Events.RESIZE, onResize));
   }
 
   /** Досвід (вбивства, подарунки): нові рівні лікують і відкривають вікно карток. */
@@ -398,7 +318,7 @@ export default class GameScene extends Phaser.Scene {
       this.openLevelUp();
       return;
     }
-    if (!this.pauseOverlay.visible) this.setPaused(false);
+    if (!this.pause.overlayOpen) this.setPaused(false);
   }
 
   /** Пауза гри і вікно вибору картки (по одному на кожен набраний рівень). */
@@ -482,41 +402,20 @@ export default class GameScene extends Phaser.Scene {
     this.levelUpOpen = false;
     this.inputBlockedUntil = this.game.loop.time + BALANCE.tapGuardMs;
     // якщо застосунок згортали під час вибору — лишаємось на паузі з «Продовжити»
-    if (!this.pauseOverlay.visible) this.setPaused(false);
+    if (!this.pause.overlayOpen) this.setPaused(false);
   }
 
-  /** Пауза з кнопкою «Продовжити» (згортання застосунку / вкладки). */
+  // Пауза живе в game/PauseController; ці три методи — зовнішній договір (main.js, HUD, сутності, бот).
   pauseWithOverlay() {
-    this.setPaused(true);
-    suspendAudio();
-    this.pauseOverlay.setVisible(true);
-    this.pauseMenuBtn.setVisible(true).setText(PAUSE_MENU_LABEL).setColor('#cfe8cf');
+    this.pause.openOverlay();
   }
 
-  /** Закінчити забіг з паузи: рекорд зберігається (Шаги й лічильники вже записані при вбивствах), далі — меню. */
   quitToMenu() {
-    // уже мертвий (GAME OVER не відкрився) — усе одно виходимо: «У меню» не має бути глухим кутом (фідбек-6)
-    if (!this.dead) recordResult(this.storage, this.score);
-    this.dead = true;
-    stopMusic();
-    resumeAudio();
-    for (const key of ['Hud', 'LevelUp', 'BossIntro']) this.scene.stop(key);
-    this.scene.start('Menu');
+    this.pause.quitToMenu();
   }
 
-  /** Ставить/знімає паузу фізики, таймерів, твінів і логіки update. */
   setPaused(paused) {
-    this.paused = paused;
-    if (paused) {
-      this.physics.pause();
-      this.tweens.pauseAll();
-      this.anims.pauseAll();
-    } else {
-      this.physics.resume();
-      this.tweens.resumeAll();
-      this.anims.resumeAll();
-    }
-    this.time.paused = paused;
+    this.pause.set(paused);
   }
 
   /** Зміна розміру екрана: стіни на всю висоту, слизак на своїй висоті й стіні. */
@@ -530,15 +429,9 @@ export default class GameScene extends Phaser.Scene {
         if (obj.side === 'right' && !obj.lunging) obj.x += dx;
       }
     }
-    const w = BALANCE.wallWidth;
-    const [left, right] = this.wallTiles;
-    this.bg.setSize(width - 2 * w, height).setPosition(width / 2, height / 2);
-    left.setSize(w, height).setPosition(w / 2, height / 2);
-    right.setSize(w, height).setPosition(width - w / 2, height / 2);
+    this.biomes.relayout();
     this.player.relayout();
-    this.fog?.relayout();
-    this.pauseOverlay.setPosition(width / 2, height / 2);
-    this.pauseMenuBtn.setPosition(width / 2, height / 2 + PAUSE_MENU_DY);
+    this.pause.relayout();
   }
 
   /** Скільки біомів пройдено (етап 10): звичайні вороги міцніші ×1,15 за кожен (Enemy читає). */
@@ -663,7 +556,7 @@ export default class GameScene extends Phaser.Scene {
         this.pendingPlants -= 1;
         this.spawnEnemy(new Plant(this, side, y));
       } else {
-        this.hazards.add(new Spike(this, side, y, TEX[this.biome].spike));
+        this.hazards.add(new Spike(this, side, y, this.biomes.spikeTexture(this.biome)));
       }
     }
   }
@@ -1084,54 +977,10 @@ export default class GameScene extends Phaser.Scene {
     if (biome === 'winter') {
       this.santaState = createSantaState(startSec);
       this.giftState = createGiftState(startSec * 1000);
-      if (this.settings.snow && !this.snow) this.snow = new Snow(this);
-    } else if (this.snow) {
-      this.snow.destroy();
-      this.snow = null;
-    }
-    // туман — лише в бамбуку (етап 9), вимикається в меню
-    if (biome === 'bamboo' && this.settings.fog && !this.fog) {
-      this.fog = new Fog(this);
-      if (!instant) this.fog.fadeIn(BALANCE.bamboo.transitionMs);
-    } else if (biome !== 'bamboo' && this.fog) {
-      this.fog.destroy();
-      this.fog = null;
-    }
-    // іскри — лише в лаві (етап 11), вимикаються в меню
-    if (biome === 'lava' && this.settings.embers && !this.embers) this.embers = new Embers(this);
-    else if (biome !== 'lava' && this.embers) {
-      this.embers.destroy();
-      this.embers = null;
     }
     this.salamanderWaiting = false;
     this.dropAt = biome === 'lava' ? this.nowMs + BALANCE.lava.drop.firstMs + BALANCE.boss.calmSec * 1000 : Infinity;
-    this.swapTiles(TEX[biome], instant ? 0 : BALANCE.winter.transitionMs);
-    if (!instant) this.events.emit('hud:banner', { text: BIOME_BANNER[biome] ?? `Коло ${this.loop + 1}`, ms: 1800 });
-  }
-
-  /** Нові фон і стіни проявляються поверх старих за ms, старі потім знищуються. */
-  swapTiles(tex, ms) {
-    const make = (old, key) => {
-      const t = this.add.tileSprite(old.x, old.y, old.width, old.height, key).setFlipX(old.flipX).setDepth(old.depth);
-      t.tilePositionY = old.tilePositionY;
-      return t;
-    };
-    const fade = (old, next, group) => {
-      group.add(next);
-      if (ms <= 0) {
-        group.remove(old, true, true);
-        return;
-      }
-      next.setAlpha(0);
-      this.tweens.add({ targets: next, alpha: 1, duration: ms, onComplete: () => group.remove(old, true, true) });
-    };
-    const bg = make(this.bg, tex.bg);
-    fade(this.bg, bg, this.bgTiles);
-    this.bg = bg;
-    this.bgInfo = background(tex.bg);
-    const walls = this.wallTiles.map((old) => make(old, tex.wall));
-    this.wallTiles.forEach((old, i) => fade(old, walls[i], this.walls));
-    this.wallTiles = walls;
+    this.biomes.enter(biome, instant);
   }
 
   /** Вбивство для мета-прогресу: Шаги, лічильник, досягнення (тост у HUD). */
@@ -1173,10 +1022,7 @@ export default class GameScene extends Phaser.Scene {
         if (obj.y > limit) obj.destroy();
       }
     }
-    for (const wall of this.walls.getChildren()) {
-      wall.tilePositionY -= dy;
-    }
-    for (const bg of this.bgTiles.getChildren()) bg.tilePositionY -= dy * this.bgInfo.parallax;
+    this.biomes.scroll(dy);
   }
 
   update(time, delta) {
@@ -1195,9 +1041,7 @@ export default class GameScene extends Phaser.Scene {
     this.player.step(dt);
     this.weaponView.update();
     this.scrollObjects(dy);
-    this.snow?.step(dt, dy);
-    this.fog?.step(dt, dy);
-    this.embers?.step(dt, dy);
+    this.biomes.step(dt, dy);
     this.spawnSpikes();
     this.spawnEnemies();
     this.autoFire(dt);

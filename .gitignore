@@ -8,3 +8,4 @@ playtest-*.png
 
 # локальний стан wrangler dev (етап 12)
 server/.wrangler/
+deathtest-*.png

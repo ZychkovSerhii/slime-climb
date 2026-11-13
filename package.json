@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "smoke": "node scripts/smoke.mjs",
+    "deathtest": "node scripts/deathtest.mjs",
     "android:sync": "npm run build && npx cap sync android"
   },
   "dependencies": {
