@@ -24,11 +24,11 @@ function attacksIn(ms, opts) {
 }
 
 describe('damage', () => {
-  test('base shot ×1, axe ×4, shotgun ×1.25 per pellet; Урон bonus is included', () => {
+  test('base shot ×1, axe ×4, shotgun ×1 per pellet; Урон bonus is included', () => {
     expect(attackDamage(null, 3)).toBe(3);
     expect(attackDamage('axe', 1)).toBe(4);
     expect(attackDamage('axe', 4)).toBe(16);
-    expect(attackDamage('shotgun', 2)).toBe(2.5);
+    expect(attackDamage('shotgun', 2)).toBe(2);
     expect(attackDamage('chakra', 2)).toBe(2);
   });
 });
@@ -105,7 +105,7 @@ describe('weapon upgrades (feedback-2)', () => {
   test('+0.35 damage per upgrade on top of the weapon multiplier', () => {
     expect(W.attackDamage('axe', 1, 0)).toBe(4);
     expect(W.attackDamage('axe', 1, 2)).toBeCloseTo(4.7);
-    expect(W.attackDamage('shotgun', 2, 1)).toBeCloseTo(2.85);
+    expect(W.attackDamage('shotgun', 2, 1)).toBeCloseTo(2.15); // свій приріст 0,15 на кулю (фідбек-6)
     expect(W.attackDamage(null, 2, 3)).toBe(2); // стартовий постріл не прокачується
   });
   test('axe: bigger radius, faster swings, mini axe at 5', () => {
@@ -115,10 +115,10 @@ describe('weapon upgrades (feedback-2)', () => {
     expect(W.hasMiniAxe('axe', 5)).toBe(true);
     expect(W.hasMiniAxe('shotgun', 5)).toBe(false);
   });
-  test('shotgun: +8% speed, 2 extra pellets from level 3', () => {
-    expect(W.upgradeIntervalMul('shotgun', 1)).toBeCloseTo(1 / 1.08);
-    expect(W.shotgunAngles(0, 2)).toHaveLength(3);
-    expect(W.shotgunAngles(0, 3)).toHaveLength(5);
+  test('shotgun: +5% speed, 2 extra pellets from level 6', () => {
+    expect(W.upgradeIntervalMul('shotgun', 1)).toBeCloseTo(1 / 1.05);
+    expect(W.shotgunAngles(0, 5)).toHaveLength(3);
+    expect(W.shotgunAngles(0, 6)).toHaveLength(5);
   });
   test('chakra: +10% speed, burst +4 from level 3', () => {
     expect(W.chakraBurst(2)).toBe(8);
@@ -158,7 +158,7 @@ describe('етап 10: прокачка без межі, стелі', () => {
   });
   test('на малих прокачках інтервал — як був', () => {
     const r = stepFire(createFireState(), 0, { main: 'shotgun', fireIntervalMs: 1000, hasTarget: true, upgrades: 2 });
-    expect(r.state.cooldownMs).toBeCloseTo(1000 / 1.08 ** 2);
+    expect(r.state.cooldownMs).toBeCloseTo(1000 / 1.05 ** 2);
   });
   test('вигляди сокири: 0/3/6/9/12+', () => {
     expect([0, 2, 3, 5, 6, 9, 11, 12, 40].map(W.axeTier)).toEqual([0, 0, 1, 1, 2, 3, 3, 4, 4]);

@@ -3,7 +3,7 @@ import { BALANCE } from '../config/balance.js';
 import { scrollSpeed } from '../systems/Difficulty.js';
 import { createSpawnState, dueSpawns } from '../systems/Spawner.js';
 import { afterBossSpawnMul, bannerVisible, hazardsSuppressed } from '../systems/BossPlanner.js';
-import { biomeIndex, firstSegment, nextSegment, runStage } from '../systems/Cycle.js';
+import { biomeIndex, familiarDamage, firstSegment, nextSegment, runStage } from '../systems/Cycle.js';
 import { createStatus, fireIntervalMul, isPoisoned, isRoared, playerSpeedMul, poison, roar } from '../systems/Status.js';
 import { createGiftState, createSantaState, giftDue, giftX, giftXp, penguinHp, rollGift, santaDue, xpToLevelUp } from '../systems/Biome.js';
 import { ninjaInterval, otherSide, spikesBlock } from '../systems/WallWalkers.js';
@@ -17,7 +17,7 @@ import {
   activateInvis, breakArmor, cardLoot, createArmor, createInvis, hatStats, hitEffects, invisCharge, invisStats,
   isInvisible, jumpMul, maxLivesFor, rollLoot, stepArmor,
 } from '../systems/Skills.js';
-import { inInvisButton } from '../systems/Layout.js';
+import { inInvisButton, inPauseButton } from '../systems/Layout.js';
 import Familiar from '../entities/Familiar.js';
 import { createSpikeState, planSpikes, prefillStartWorld, reserveFree, skipSpikes } from '../systems/SpikePlanner.js';
 import { heightPoints, killPoints } from '../systems/Score.js';
@@ -172,6 +172,7 @@ export default class GameScene extends Phaser.Scene {
     this.fog = null; // туман бамбука (етап 9)
     this.embers = null; // іскри лави (етап 11)
     this.dropAt = Infinity; // наступна лавова крапля (мс гри)
+    this.salamanderWaiting = false; // саламандра чекає, поки звільниться стіна (фідбек-6)
     this.landedAt = -Infinity; // коли слизак востаннє приземлився (пільга від струменя саламандри)
     this.santaState = null;
     this.giftState = null;
@@ -280,6 +281,11 @@ export default class GameScene extends Phaser.Scene {
 
     this.input.on('pointerdown', (pointer) => {
       if (this.paused || this.dead || this.game.loop.time < this.inputBlockedUntil) return;
+      // кнопка паузи в правому верхньому куті (фідбек-6): малює HUD, ловимо тут — щоб тап не став стрибком
+      if (inPauseButton(pointer.x, pointer.y, this.scale.width, this.scene.get('Hud').top ?? 0)) {
+        this.pauseWithOverlay();
+        return;
+      }
       // тап по кнопці невидимості не стрибок (кнопку малює і ловить HUD)
       if (this.invisStats() && inInvisButton(pointer.x, pointer.y, this.scale.width, this.scale.height)) return;
       this.player.press();
@@ -489,9 +495,9 @@ export default class GameScene extends Phaser.Scene {
 
   /** Закінчити забіг з паузи: рекорд зберігається (Шаги й лічильники вже записані при вбивствах), далі — меню. */
   quitToMenu() {
-    if (this.dead) return;
+    // уже мертвий (GAME OVER не відкрився) — усе одно виходимо: «У меню» не має бути глухим кутом (фідбек-6)
+    if (!this.dead) recordResult(this.storage, this.score);
     this.dead = true;
-    recordResult(this.storage, this.score);
     stopMusic();
     resumeAudio();
     for (const key of ['Hud', 'LevelUp', 'BossIntro']) this.scene.stop(key);
@@ -896,7 +902,13 @@ export default class GameScene extends Phaser.Scene {
    * на її стіну, тож там резерв без шипів (Lava.salamanderDodgeWindow). Поки летить крапля — не з'являється.
    */
   requestSalamander() {
-    if (this.lavaWallBusy) return;
+    // фідбек-6: краплі (раз на ~7 с) займали стіни майже завжди, і саламандра за 80 с з'являлась один раз.
+    // Тепер зайнято — вона чекає своєї черги, а наступна крапля поступається їй (spawnLavaDrop).
+    if (this.lavaWallBusy) {
+      this.salamanderWaiting = true;
+      return;
+    }
+    this.salamanderWaiting = false;
     const S = BALANCE.enemies.salamander;
     const y = this.scale.height * (S.minYFrac + Math.random() * (S.maxYFrac - S.minYFrac));
     this.walkerQueue.push({ type: 'salamander', y, until: this.nowMs + BALANCE.wallWalk.maxWaitMs, id: `walk${++this.walkerSeq}` });
@@ -915,6 +927,11 @@ export default class GameScene extends Phaser.Scene {
    * повз гравця (Lava.dropPassWindow); крапля з'являється, коли там розійдуться шипи (не дочекалась — не з'являється).
    */
   spawnLavaDrop() {
+    if (this.salamanderWaiting && !this.lavaWallBusy && !hazardsSuppressed(this.stage)) {
+      this.requestSalamander(); // саламандра чекала — її черга, крапля зсувається
+      this.dropAt = Math.max(this.dropAt, this.nowMs + BALANCE.lava.drop.everyMs / 2);
+      return;
+    }
     if (this.nowMs < this.dropAt) return;
     if (!dropsAllowed(this.bossActive) || hazardsSuppressed(this.stage) || this.lavaWallBusy) return;
     const dropSideNow = dropSide(Math.random, { left: false, right: false });
@@ -1086,6 +1103,7 @@ export default class GameScene extends Phaser.Scene {
       this.embers.destroy();
       this.embers = null;
     }
+    this.salamanderWaiting = false;
     this.dropAt = biome === 'lava' ? this.nowMs + BALANCE.lava.drop.firstMs + BALANCE.boss.calmSec * 1000 : Infinity;
     this.swapTiles(TEX[biome], instant ? 0 : BALANCE.winter.transitionMs);
     if (!instant) this.events.emit('hud:banner', { text: BIOME_BANNER[biome] ?? `Коло ${this.loop + 1}`, ms: 1800 });
@@ -1246,7 +1264,8 @@ export default class GameScene extends Phaser.Scene {
         offset: { x: 30, y: 26 },
         speed: L.oksana.speed,
         restMs: L.oksana.intervalMs,
-        damage: () => L.oksana.damage + (this.weapon.damage - BALANCE.projectileDamage), // росте з «Уроном»
+        // росте з «Уроном» і з біомом — тим самим множником, що й HP ворогів (фідбек-6)
+        damage: () => familiarDamage(L.oksana.damage, this.weapon.damage, this.biomeIdx),
       });
     }
     // трансформації: діє остання взята (павук або Шкодько), скін — її
