@@ -109,12 +109,24 @@ for (const sc of SCENARIOS) {
       await expectFreshRun(page, `${sc}: після смерті на ${sec}-й с`);
       log.push(`смерть@${sec}с→ок`);
     }
+    // пауза → «Продовжити» → гра йде далі (якщо не відкрите вікно карток чи представлення боса)
+    await page.evaluate(() => window.game.scene.getScene('Game').pauseWithOverlay());
+    await page.waitForTimeout(200);
+    if (!(await state(page)).paused) throw new Error(`${sc}: пауза не ввімкнулась`);
+    await page.mouse.click(180, 320);
+    await page.waitForTimeout(300);
+    const resumed = await page.evaluate(() => {
+      const s = window.game.scene.getScene('Game');
+      return { paused: s.paused, held: s.levelUpOpen || s.introOpen, overlay: s.pause.overlayOpen, dead: s.dead };
+    });
+    if (resumed.overlay || (resumed.paused && !resumed.held && !resumed.dead)) throw new Error(`${sc}: «Продовжити» не зняло паузу ${JSON.stringify(resumed)}`);
+    log.push('продовжити→ок');
     // пауза → «У меню» (два тапи: перший перепитує) → нова гра
     await page.evaluate(() => window.game.scene.getScene('Game').pauseWithOverlay());
     await page.waitForTimeout(200);
     const btn = await page.evaluate(() => {
       const s = window.game.scene.getScene('Game');
-      const b = s.pauseMenuBtn;
+      const b = s.pause.menuBtn;
       const c = window.game.canvas.getBoundingClientRect();
       return { x: c.left + (b.x / s.scale.width) * c.width, y: c.top + (b.y / s.scale.height) * c.height };
     });

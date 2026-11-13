@@ -22,9 +22,9 @@ import Familiar from '../entities/Familiar.js';
 import { createSpikeState, planSpikes, prefillStartWorld, reserveFree, skipSpikes } from '../systems/SpikePlanner.js';
 import { heightPoints, killPoints } from '../systems/Score.js';
 import { loadMeta, recordKill, saveMeta, skinSprite, stepsForKill } from '../systems/Meta.js';
-import { browserStorage, recordResult } from '../systems/HighScore.js';
+import { browserStorage } from '../systems/HighScore.js';
 import { interceptPoint, pickNearest } from '../systems/Targeting.js';
-import { playMusic, resumeAudio, sfx, stopMusic, suspendAudio } from '../systems/Audio.js';
+import { playMusic, sfx, stopMusic } from '../systems/Audio.js';
 import { animKey } from '../art/sprites/index.js';
 import Player from '../entities/Player.js';
 import Spike from '../entities/Spike.js';
@@ -36,6 +36,7 @@ import SpiderBoss from '../entities/SpiderBoss.js';
 import ShkodkoBoss from '../entities/ShkodkoBoss.js';
 import KolyaBoss from '../entities/KolyaBoss.js';
 import BearBoss from '../entities/BearBoss.js';
+import PauseController from '../game/PauseController.js';
 import WeaponView from '../entities/WeaponView.js';
 import Elf from '../entities/Elf.js';
 import Penguin from '../entities/Penguin.js';
@@ -63,9 +64,6 @@ import { bossIntroInfo } from '../systems/BossIntro.js';
 import { loadTuning, setTuning, tuning } from '../systems/Tuning.js';
 import { isEligibleRun } from '../systems/LeaderboardRules.js';
 
-const PAUSE_MENU_LABEL = 'У меню';
-const PAUSE_MENU_CONFIRM = 'Точно вийти?';
-const PAUSE_MENU_DY = 150; // кнопка «У меню» нижче «Продовжити»
 import { canSplit, KOLYA_LOOT_IDS, lootShotDamage, lootStepsBonus, useSplit } from '../systems/KolyaLoot.js';
 import { canBoil, KAZAN_LOOT_IDS, ladleDamage, ringVictims, useBoil } from '../systems/KazanLoot.js';
 
@@ -301,66 +299,14 @@ export default class GameScene extends Phaser.Scene {
     if (this.seg.biome !== 'cave') this.enterBiome(this.seg.biome); // до перших шипів — щоб одразу були бурульки
     this.spawnSpikes(); // шипи видно з першого кадру
 
-    this.createPauseOverlay();
+    this.pause = new PauseController(this);
     // ?intro=1 — представлення павучихи одразу після старту (перевірка §9.3)
     if (q.get('intro') === '1') this.showIntro('spider', { music: false });
-    this.onVisibility = () => {
-      if (document.hidden) this.pauseWithOverlay();
-    };
-    document.addEventListener('visibilitychange', this.onVisibility);
+    this.pause.watchVisibility();
     this.layoutWidth = this.scale.width;
     const onResize = () => this.relayout();
     this.scale.on(Phaser.Scale.Events.RESIZE, onResize);
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-      document.removeEventListener('visibilitychange', this.onVisibility);
-      this.scale.off(Phaser.Scale.Events.RESIZE, onResize);
-    });
-  }
-
-  createPauseOverlay() {
-    const { width, height } = this.scale;
-    // «У меню» (відгук після етапу 10): закінчити забіг з паузи. Перший тап перепитує — щоб випадковий не губив забіг.
-    this.pauseMenuBtn = this.add
-      .text(width / 2, height / 2 + PAUSE_MENU_DY, PAUSE_MENU_LABEL, {
-        fontFamily: 'sans-serif',
-        fontSize: '44px',
-        color: '#cfe8cf',
-        backgroundColor: '#000000aa',
-        padding: { x: 32, y: 18 },
-      })
-      .setOrigin(0.5)
-      .setDepth(1000)
-      .setVisible(false)
-      .setInteractive({ useHandCursor: true });
-    this.pauseMenuBtn.on('pointerdown', (pointer, x, y, event) => {
-      event?.stopPropagation?.();
-      if (this.pauseMenuBtn.text === PAUSE_MENU_LABEL) {
-        this.pauseMenuBtn.setText(PAUSE_MENU_CONFIRM).setColor('#ffd84a');
-        return;
-      }
-      this.quitToMenu();
-    });
-    this.pauseOverlay = this.add
-      .text(width / 2, height / 2, 'Продовжити', {
-        fontFamily: 'sans-serif',
-        fontSize: '64px',
-        color: '#ffffff',
-        backgroundColor: '#000000aa',
-        padding: { x: 40, y: 24 },
-      })
-      .setOrigin(0.5)
-      .setDepth(1000)
-      .setVisible(false)
-      .setInteractive({ useHandCursor: true });
-    this.pauseOverlay.on('pointerdown', (pointer, x, y, event) => {
-      event?.stopPropagation?.();
-      this.pauseOverlay.setVisible(false);
-      this.pauseMenuBtn.setVisible(false);
-      resumeAudio();
-      this.inputBlockedUntil = this.game.loop.time + BALANCE.tapGuardMs;
-      // під час вибору картки чи представлення боса гра лишається на паузі, доки вони відкриті
-      if (!this.levelUpOpen && !this.introOpen) this.setPaused(false);
-    });
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.off(Phaser.Scale.Events.RESIZE, onResize));
   }
 
   /** Досвід (вбивства, подарунки): нові рівні лікують і відкривають вікно карток. */
@@ -398,7 +344,7 @@ export default class GameScene extends Phaser.Scene {
       this.openLevelUp();
       return;
     }
-    if (!this.pauseOverlay.visible) this.setPaused(false);
+    if (!this.pause.overlayOpen) this.setPaused(false);
   }
 
   /** Пауза гри і вікно вибору картки (по одному на кожен набраний рівень). */
@@ -482,41 +428,20 @@ export default class GameScene extends Phaser.Scene {
     this.levelUpOpen = false;
     this.inputBlockedUntil = this.game.loop.time + BALANCE.tapGuardMs;
     // якщо застосунок згортали під час вибору — лишаємось на паузі з «Продовжити»
-    if (!this.pauseOverlay.visible) this.setPaused(false);
+    if (!this.pause.overlayOpen) this.setPaused(false);
   }
 
-  /** Пауза з кнопкою «Продовжити» (згортання застосунку / вкладки). */
+  // Пауза живе в game/PauseController; ці три методи — зовнішній договір (main.js, HUD, сутності, бот).
   pauseWithOverlay() {
-    this.setPaused(true);
-    suspendAudio();
-    this.pauseOverlay.setVisible(true);
-    this.pauseMenuBtn.setVisible(true).setText(PAUSE_MENU_LABEL).setColor('#cfe8cf');
+    this.pause.openOverlay();
   }
 
-  /** Закінчити забіг з паузи: рекорд зберігається (Шаги й лічильники вже записані при вбивствах), далі — меню. */
   quitToMenu() {
-    // уже мертвий (GAME OVER не відкрився) — усе одно виходимо: «У меню» не має бути глухим кутом (фідбек-6)
-    if (!this.dead) recordResult(this.storage, this.score);
-    this.dead = true;
-    stopMusic();
-    resumeAudio();
-    for (const key of ['Hud', 'LevelUp', 'BossIntro']) this.scene.stop(key);
-    this.scene.start('Menu');
+    this.pause.quitToMenu();
   }
 
-  /** Ставить/знімає паузу фізики, таймерів, твінів і логіки update. */
   setPaused(paused) {
-    this.paused = paused;
-    if (paused) {
-      this.physics.pause();
-      this.tweens.pauseAll();
-      this.anims.pauseAll();
-    } else {
-      this.physics.resume();
-      this.tweens.resumeAll();
-      this.anims.resumeAll();
-    }
-    this.time.paused = paused;
+    this.pause.set(paused);
   }
 
   /** Зміна розміру екрана: стіни на всю висоту, слизак на своїй висоті й стіні. */
@@ -537,8 +462,7 @@ export default class GameScene extends Phaser.Scene {
     right.setSize(w, height).setPosition(width - w / 2, height / 2);
     this.player.relayout();
     this.fog?.relayout();
-    this.pauseOverlay.setPosition(width / 2, height / 2);
-    this.pauseMenuBtn.setPosition(width / 2, height / 2 + PAUSE_MENU_DY);
+    this.pause.relayout();
   }
 
   /** Скільки біомів пройдено (етап 10): звичайні вороги міцніші ×1,15 за кожен (Enemy читає). */
