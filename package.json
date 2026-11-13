@@ -10,6 +10,7 @@
     "test": "vitest run",
     "smoke": "node scripts/smoke.mjs",
     "deathtest": "node scripts/deathtest.mjs",
+    "loottest": "node scripts/loottest.mjs",
     "android:sync": "npm run build && npx cap sync android"
   },
   "dependencies": {
