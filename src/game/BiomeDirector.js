@@ -16,7 +16,7 @@ const BIOME_BANNER = { winter: 'Зима', bamboo: 'Туманний бамбу�
 
 /**
  * Вигляд біому: фон, стіни, перехід між біомами, погода (сніг, туман, іскри).
- * Назва поточного біому лишається в scene.biome (її читають сутності), стан спавну — у GameScene.enterBiome.
+ * Назва поточного біому лишається в scene.biome (її читають сутності), стан спавну — у game/SpawnDirector.
  * Від сцени бере: scale, add, tweens, events, settings, loop.
  */
 export default class BiomeDirector {

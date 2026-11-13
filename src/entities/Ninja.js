@@ -65,7 +65,7 @@ export default class Ninja extends Enemy {
     this.smoke = null;
     this.play(animKey('ninja', 'throw'));
     this.shuriken();
-    // посилений (коло 1+, етап 10): ще сюрикени з кроком gapMs (стіна ніндзі вільна довше — GameScene.stepNinja)
+    // посилений (коло 1+, етап 10): ще сюрикени з кроком gapMs (стіна ніндзі вільна довше — SpawnDirector.stepNinja)
     const t = this.trait;
     for (let i = 1; i < (t?.shurikens ?? 1); i++) {
       scene.time.delayedCall(t.gapMs * i, () => {

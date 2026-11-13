@@ -1,13 +1,10 @@
 import * as Phaser from 'phaser';
 import { BALANCE } from '../config/balance.js';
 import { scrollSpeed } from '../systems/Difficulty.js';
-import { createSpawnState, dueSpawns } from '../systems/Spawner.js';
-import { afterBossSpawnMul, bannerVisible, hazardsSuppressed } from '../systems/BossPlanner.js';
+import { bannerVisible } from '../systems/BossPlanner.js';
 import { biomeIndex, firstSegment, nextSegment, runStage } from '../systems/Cycle.js';
 import { createStatus, fireIntervalMul, isPoisoned, isRoared, playerSpeedMul, poison, roar } from '../systems/Status.js';
-import { createGiftState, createSantaState, giftDue, giftX, giftXp, penguinHp, rollGift, santaDue, xpToLevelUp } from '../systems/Biome.js';
-import { ninjaInterval, otherSide, spikesBlock } from '../systems/WallWalkers.js';
-import { ninjaDodgeWindow, ninjaY } from '../systems/Bamboo.js';
+import { giftXp, rollGift, xpToLevelUp } from '../systems/Biome.js';
 import { loadSettings } from '../systems/Settings.js';
 import { addXp, applyCard, cardUpgrade, createProgression, killXp, rollLevelUp, weaponCard, weaponUpgrades, xpToNext } from '../systems/Progression.js';
 import { attackDamage, axeRadius, axeTier, createFireState, hasMiniAxe, inRadius, shotgunAngles, stepFire, weaponJumpMul } from '../systems/Weapons.js';
@@ -19,18 +16,14 @@ import {
 } from '../systems/Skills.js';
 import { inInvisButton, inPauseButton } from '../systems/Layout.js';
 import Familiar from '../entities/Familiar.js';
-import { createSpikeState, planSpikes, prefillStartWorld, reserveFree, skipSpikes } from '../systems/SpikePlanner.js';
 import { heightPoints, killPoints } from '../systems/Score.js';
 import { loadMeta, recordKill, saveMeta, skinSprite, stepsForKill } from '../systems/Meta.js';
 import { browserStorage } from '../systems/HighScore.js';
 import { interceptPoint, pickNearest } from '../systems/Targeting.js';
 import { playMusic, sfx, stopMusic } from '../systems/Audio.js';
 import Player from '../entities/Player.js';
-import Spike from '../entities/Spike.js';
 import Projectile from '../entities/Projectile.js';
-import Lion from '../entities/Lion.js';
 import Bat from '../entities/Bat.js';
-import Plant from '../entities/Plant.js';
 import SpiderBoss from '../entities/SpiderBoss.js';
 import ShkodkoBoss from '../entities/ShkodkoBoss.js';
 import KolyaBoss from '../entities/KolyaBoss.js';
@@ -38,21 +31,9 @@ import BearBoss from '../entities/BearBoss.js';
 import BiomeDirector from '../game/BiomeDirector.js';
 import LootEffects from '../game/LootEffects.js';
 import PauseController from '../game/PauseController.js';
+import SpawnDirector from '../game/SpawnDirector.js';
 import WeaponView from '../entities/WeaponView.js';
-import Elf from '../entities/Elf.js';
-import Penguin from '../entities/Penguin.js';
-import Santa from '../entities/Santa.js';
-import Gift from '../entities/Gift.js';
-import Ninja from '../entities/Ninja.js';
-import Lantern from '../entities/Lantern.js';
 import KazanBoss from '../entities/KazanBoss.js';
-import Salamander from '../entities/Salamander.js';
-import Spark from '../entities/Spark.js';
-import Sparkling from '../entities/Sparkling.js';
-import LavaDrop from '../entities/LavaDrop.js';
-import { dropPassWindow, dropSide, dropsAllowed, nextDropMs, salamanderDodgeWindow, sparkSplit } from '../systems/Lava.js';
-import HeartPickup from '../entities/HeartPickup.js';
-import { createHeartState, heartDue, heartSide } from '../systems/Heart.js';
 import { activeForm, SHKODKO_LOOT_IDS } from '../systems/ShkodkoLoot.js';
 import { bossIntroInfo } from '../systems/BossIntro.js';
 import { loadTuning, setTuning, tuning } from '../systems/Tuning.js';
@@ -124,7 +105,7 @@ export default class GameScene extends Phaser.Scene {
     // Зброя гравця — частина прогресії, картки поліпшень змінюють її
     this.weapon = this.progression.weapon;
     this.fireState = createFireState();
-    this.spawnState = createSpawnState();
+    this.spawner = new SpawnDirector(this); // шипи, вороги за розкладом, черга ходоків, зима, сердечка
     // Коло біомів (етап 6b, systems/Cycle): відрізок — біом і бос наприкінці; етап рахує runStage
     // (calm → before/after → prep → fight). killedAtSec — секунда смерті попереднього боса (тиша й плавний спавн).
     // Перевірка: ?boss=1 — павучиха на 6-й с, ?winter=1 — зима без боса, ?shkodko=1 — зима і Шкодько на 6-й с,
@@ -133,8 +114,6 @@ export default class GameScene extends Phaser.Scene {
     const q = new URLSearchParams(window.location.search);
     const start = ['kazan', 'lava', 'bear', 'kolya', 'bamboo', 'shkodko', 'winter'].find((k) => q.get(k) === '1') ?? (q.get('boss') === '1' ? 'spider' : 'cave');
     this.seg = firstSegment(start, Math.max(0, Math.min(9, parseInt(q.get('loop') ?? '0', 10) || 0)));
-    this.walkerSeq = 0;
-    this.walkerQueue = []; // ніндзя, що чекають, поки на їхній стіні розійдуться шипи (етап 9)
     this.loop = this.seg.loop; // номер кола з 0: вороги й боси міцніші (Enemy читає scene.loop)
     this.stage = 'before';
     this.bossSpawned = false;
@@ -143,19 +122,9 @@ export default class GameScene extends Phaser.Scene {
     this.status = createStatus();
     this.biome = 'cave';
     this.settings = loadSettings(browserStorage());
-    this.dropAt = Infinity; // наступна лавова крапля (мс гри)
-    this.salamanderWaiting = false; // саламандра чекає, поки звільниться стіна (фідбек-6)
     this.landedAt = -Infinity; // коли слизак востаннє приземлився (пільга від струменя саламандри)
-    this.santaState = null;
-    this.giftState = null;
-    this.heartState = createHeartState(); // сердечка (етап 10)
-    this.heartSeq = 0;
     // ?weapon=axe|chakra|shotgun — одразу з повністю вкачаною зброєю (для перевірки)
     this.debugWeapon = new URLSearchParams(window.location.search).get('weapon');
-    // Планувальник шипів для обох стін разом (світові координати = distancePx)
-    this.spikeState = null;
-    // рослини сідають на місце чергового запланованого шипа — так на них теж діють правила проміжків
-    this.pendingPlants = 0;
 
     // Фон, стіни й погода біому
     this.biomes = new BiomeDirector(this);
@@ -209,7 +178,7 @@ export default class GameScene extends Phaser.Scene {
 
     const onKilled = ({ type, x, y }) => {
       if (this.dead) return;
-      if (type === 'spark') this.splitSpark(x, y);
+      if (type === 'spark') this.spawner.splitSpark(x, y);
       sfx('kill');
       this.killScore += killPoints(type);
       this.onMetaKill(type);
@@ -260,7 +229,7 @@ export default class GameScene extends Phaser.Scene {
     this.player.on('reversed', () => sfx('reverse'));
 
     if (this.seg.biome !== 'cave') this.enterBiome(this.seg.biome); // до перших шипів — щоб одразу були бурульки
-    this.spawnSpikes(); // шипи видно з першого кадру
+    this.spawner.spawnSpikes(); // шипи видно з першого кадру
 
     this.pause = new PauseController(this);
     // ?intro=1 — представлення павучихи одразу після старту (перевірка §9.3)
@@ -523,33 +492,6 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
-  /** Ставить шипи над екраном за планувальником (сусідні шипи обох стін розділені щонайменше spikeBand). */
-  spawnSpikes() {
-    if (!this.spikeState) {
-      // перший виклик: одразу заповнюємо екран, щоб не чекати перших шипів
-      this.spikeState = createSpikeState(prefillStartWorld(this.distancePx, this.player.y), Math.random);
-    }
-    if (hazardsSuppressed(this.stage)) {
-      // біля боса шипів немає; план просто «проїжджає» цей відрізок, щоб потім не висипати пачку
-      this.spikeState = skipSpikes(this.spikeState, this.distancePx, scrollSpeed(this.elapsedSec, false), Math.random);
-      return;
-    }
-    // проміжки рахуємо за швидкістю БЕЗ сповільнення боса: шип, поставлений під час боса,
-    // може доїхати до гравця вже після нього, на повній швидкості
-    const r = planSpikes(this.spikeState, this.distancePx, scrollSpeed(this.elapsedSec, false), Math.random);
-    this.spikeState = r.state;
-    for (const { side, w } of r.spikes) {
-      // центр шипа: над верхнім краєм + наскільки світ уже проїхав після точки w
-      const y = -BALANCE.spikeHeight / 2 + (this.distancePx - w);
-      if (this.pendingPlants > 0) {
-        this.pendingPlants -= 1;
-        this.spawnEnemy(new Plant(this, side, y));
-      } else {
-        this.hazards.add(new Spike(this, side, y, this.biomes.spikeTexture(this.biome)));
-      }
-    }
-  }
-
   /** Вороги, видимі на екрані й живі — кандидати в цілі. */
   visibleEnemies() {
     return this.enemies.getChildren().filter((e) => e.active && e.hp > 0 && !e.invulnerable && e.isOnScreen());
@@ -610,6 +552,11 @@ export default class GameScene extends Phaser.Scene {
     if (hitAlive) sfx('hit');
   }
 
+  // Спавн живе в game/SpawnDirector; spawnEnemies лишився делегатом — його глушить бот (playtest --no-enemies).
+  spawnEnemies() {
+    this.spawner.spawnEnemies();
+  }
+
   spawnEnemy(enemy) {
     this.enemies.add(enemy);
     enemy.spawned();
@@ -629,7 +576,7 @@ export default class GameScene extends Phaser.Scene {
 
   /** Перед босом: шипи, звичайні вороги й їхні кулі плавно зникають (без нагород, без зіткнень). */
   clearMap() {
-    this.pendingPlants = 0;
+    this.spawner.pendingPlants = 0;
     for (const group of [this.hazards, this.enemies, this.enemyProjectiles, this.pickups, this.bombs]) {
       for (const obj of group.getChildren().slice()) this.fadeOut(obj, group);
     }
@@ -711,183 +658,6 @@ export default class GameScene extends Phaser.Scene {
     sfx('bossAppear');
   }
 
-  /** Звичайні вороги за розкладом Spawner. */
-  spawnEnemies() {
-    const mul = afterBossSpawnMul(this.elapsedSec, this.killedAtSec);
-    const r = dueSpawns(this.spawnState, this.elapsedSec, hazardsSuppressed(this.stage), mul);
-    this.spawnState = r.state;
-    for (const type of r.spawn) {
-      // лев біжить по стіні, де гравця НЕМАЄ: загроза — ривок, від якого можна відскочити,
-      // а не удар знизу по власній стіні, коли згори йдуть шипи
-      if (type === 'lion') this.spawnEnemy(new Lion(this, this.player.side === 'left' ? 'right' : 'left'));
-      else if (type === 'bat') this.spawnEnemy(new Bat(this, { biome: this.biome }));
-      else if (type === 'lantern') this.spawnEnemy(new Lantern(this));
-      else if (type === 'ninja') this.requestNinja();
-      else if (type === 'spark') this.spawnEnemy(new Spark(this));
-      else if (type === 'salamander') this.requestSalamander();
-      else if (type === 'plant') this.pendingPlants += 1;
-      else if (type === 'elf') this.spawnEnemy(new Elf(this));
-      else if (type === 'penguin') this.spawnPenguins();
-    }
-    this.stepWalkers();
-    if (this.biome === 'winter') this.spawnWinterExtras();
-    if (this.biome === 'lava') this.spawnLavaDrop();
-    this.spawnHeart();
-  }
-
-  /**
-   * Сердечко (етап 10, §10.5): з 1-ї хвилини раз на 20–70 с, якщо життя не повні; у бою — одне за бій.
-   * Стіна — без шипа ближче spikeGapPx; там же резерв, щоб нові шипи не сіли поруч.
-   */
-  spawnHeart() {
-    const fight = this.bossActive ? `${this.seg.boss}@${this.seg.atSec}` : null;
-    if (!fight && hazardsSuppressed(this.stage)) return; // підготовка до боса і тиша після — без сердечок
-    const r = heartDue(this.heartState, { tSec: this.elapsedSec, livesFull: this.health.lives >= this.maxLives, fight }, Math.random);
-    if (!r.spawn) return;
-    const y = -this.textures.getFrame('heart').height;
-    const spikes = this.hazards.getChildren().filter((h) => h.active && h.side).map((h) => ({ side: h.side, y: h.y }));
-    const side = heartSide(spikes, y, Math.random);
-    if (!side) return; // обидві стіни зайняті — спробуємо наступного кадру
-    this.heartState = r.state;
-    const w = this.distancePx - y;
-    const gap = BALANCE.heart.spikeGapPx;
-    this.spikeState = reserveFree(this.spikeState, side, w - gap - BALANCE.spikeHeight, w + gap, this.distancePx, `heart${++this.heartSeq}`);
-    this.pickups.add(new HeartPickup(this, side, y));
-  }
-
-  // ---------- Ніндзя в черзі (етап 9): з'являється, коли на його стіні біля гравця немає кілків ----------
-
-  /**
-   * Пінгвін (етап 10, §10.3): вгорі біля стіни, де гравця немає; посилений (коло 1+) — парою з різницею pairGapMs.
-   */
-  spawnPenguins() {
-    const side = otherSide(this.player.side);
-    this.spawnEnemy(new Penguin(this, side, penguinHp(Math.random)));
-    const t = this.loop >= BALANCE.scaling.enhancedFromLoop ? BALANCE.traits.penguin : null;
-    if (t) this.time.delayedCall(t.pairGapMs, () => {
-      if (!this.dead && !hazardsSuppressed(this.stage)) this.spawnEnemy(new Penguin(this, side, penguinHp(Math.random)));
-    });
-  }
-
-  /**
-   * Ніндзя (етап 9) у чергу: не більше одного на екрані (і в черзі), на стіні, де гравця немає, і не на стіні ходока.
-   * Від сюрикена ховаються на стіні ніндзі, тож резерв без шипів — на ній (див. WallWalkers.ninjaInterval).
-   */
-  requestNinja() {
-    const busy = this.enemies.getChildren().some((e) => e.active && e.ninja) || this.walkerQueue.some((q) => q.type === 'ninja');
-    if (busy) return;
-    this.walkerQueue.push({ type: 'ninja', y: ninjaY(Math.random, this.scale.height), until: this.nowMs + BALANCE.wallWalk.maxWaitMs, id: `walk${++this.walkerSeq}` });
-  }
-
-  /**
-   * Саламандра (етап 11, §11.2): як ніндзя — не більше однієї, на стіні, де гравця немає; від струменя рятує стрибок
-   * на її стіну, тож там резерв без шипів (Lava.salamanderDodgeWindow). Поки летить крапля — не з'являється.
-   */
-  requestSalamander() {
-    // фідбек-6: краплі (раз на ~7 с) займали стіни майже завжди, і саламандра за 80 с з'являлась один раз.
-    // Тепер зайнято — вона чекає своєї черги, а наступна крапля поступається їй (spawnLavaDrop).
-    if (this.lavaWallBusy) {
-      this.salamanderWaiting = true;
-      return;
-    }
-    this.salamanderWaiting = false;
-    const S = BALANCE.enemies.salamander;
-    const y = this.scale.height * (S.minYFrac + Math.random() * (S.maxYFrac - S.minYFrac));
-    this.walkerQueue.push({ type: 'salamander', y, until: this.nowMs + BALANCE.wallWalk.maxWaitMs, id: `walk${++this.walkerSeq}` });
-  }
-
-  /** Активна лавова крапля або саламандра (жива чи в черзі): вони не з'являються одночасно (§11.2, ruling плану). */
-  get lavaWallBusy() {
-    return this.hazards.getChildren().some((h) => h.active && h.lavaDrop)
-      || this.enemies.getChildren().some((e) => e.active && e.salamander)
-      || this.walkerQueue.some((q) => q.type === 'salamander' || q.type === 'drop');
-  }
-
-  /**
-   * Лавова крапля (етап 11): раз на everyMs ± jitter, не під час бою з Казаном і не разом із саламандрою.
-   * Як ніндзя — через чергу: стіна краплі випадкова, протилежна резервується без шипів на час проходу краплі
-   * повз гравця (Lava.dropPassWindow); крапля з'являється, коли там розійдуться шипи (не дочекалась — не з'являється).
-   */
-  spawnLavaDrop() {
-    if (this.salamanderWaiting && !this.lavaWallBusy && !hazardsSuppressed(this.stage)) {
-      this.requestSalamander(); // саламандра чекала — її черга, крапля зсувається
-      this.dropAt = Math.max(this.dropAt, this.nowMs + BALANCE.lava.drop.everyMs / 2);
-      return;
-    }
-    if (this.nowMs < this.dropAt) return;
-    if (!dropsAllowed(this.bossActive) || hazardsSuppressed(this.stage) || this.lavaWallBusy) return;
-    const dropSideNow = dropSide(Math.random, { left: false, right: false });
-    this.walkerQueue.push({ type: 'drop', dropSide: dropSideNow, until: this.nowMs + BALANCE.wallWalk.maxWaitMs, id: `walk${++this.walkerSeq}` });
-    this.dropAt = this.nowMs + nextDropMs(Math.random);
-  }
-
-  /** Убита іскра розпадається на дрібні (етап 11): віялом, не більше maxSmall на екрані. */
-  splitSpark(x, y) {
-    const alive = this.enemies.getChildren().filter((e) => e.active && e.sparkling).length;
-    const n = sparkSplit(this.loop >= BALANCE.scaling.enhancedFromLoop, alive);
-    const base = Math.random() * Math.PI * 2;
-    for (let i = 0; i < n; i++) this.spawnEnemy(new Sparkling(this, x, y, base + (i * 2 * Math.PI) / n));
-  }
-
-  /** Крок ніндзі в черзі: true — ще чекає. */
-  stepNinja(q, spikes) {
-    // крапля (етап 11): вільною має лишитися стіна навпроти краплі; ніндзя й саламандра — стіна, де гравця немає
-    const side = q.type === 'drop' ? otherSide(q.dropSide) : otherSide(this.player.side);
-    if (q.side && q.side !== side) this.spikeState = reserveFree(this.spikeState, q.side, 0, -1, this.distancePx, q.id); // гравець перестрибнув
-    q.side = side;
-    const p = this.player;
-    const dist = Math.hypot(this.scale.width - 2 * BALANCE.wallWidth, p.baseY - q.y);
-    const scroll = scrollSpeed(this.elapsedSec, false);
-    const enh = this.loop >= BALANCE.scaling.enhancedFromLoop;
-    const t = enh ? BALANCE.traits.ninja : null;
-    const extra = t ? ((t.shurikens - 1) * t.gapMs) / 1000 : 0;
-    const win = q.type === 'salamander' ? salamanderDodgeWindow(enh) : q.type === 'drop' ? dropPassWindow(p.baseY) : ninjaDodgeWindow(dist, extra);
-    const iv = ninjaInterval({ d0: this.distancePx, zoneY: p.baseY, scroll, ...win });
-    // поки чекаємо: відрізок рухається разом із гравцем, тож резервуємо його з запасом на весь час очікування —
-    // інакше нові шипи згори заходять у нього швидше, ніж старі виходять
-    const waitSec = Math.max(q.until - this.nowMs, 0) / 1000;
-    this.spikeState = reserveFree(this.spikeState, side, iv.from, iv.to + scroll * waitSec, this.distancePx, q.id);
-    if (spikesBlock(spikes, side, iv, this.distancePx)) {
-      if (this.nowMs < q.until) return true;
-      this.spikeState = reserveFree(this.spikeState, side, 0, -1, this.distancePx, q.id);
-      return false;
-    }
-    this.spikeState = reserveFree(this.spikeState, side, iv.from, iv.to, this.distancePx, q.id); // ніндзя з'явився — лише його вікно
-    if (q.type === 'drop') this.hazards.add(new LavaDrop(this, q.dropSide));
-    else this.spawnEnemy(q.type === 'salamander' ? new Salamander(this, side, q.y) : new Ninja(this, side, q.y));
-    return false;
-  }
-
-  /** Щокадру: ніндзя в черзі чекають, поки на їхній стіні розійдуться шипи (не дочекався maxWaitMs — не з'являється). */
-  stepWalkers() {
-    if (!this.walkerQueue.length) return;
-    if (hazardsSuppressed(this.stage)) {
-      this.walkerQueue = [];
-      return;
-    }
-    const spikes = this.hazards.getChildren().filter((h) => h.active && h.side).map((h) => ({ side: h.side, y: h.y }));
-    this.walkerQueue = this.walkerQueue.filter((q) => this.stepNinja(q, spikes));
-  }
-
-  /** Зима: Санта (шанс щохвилини) і подарунки на траєкторії стрибка. */
-  spawnWinterExtras() {
-    const suppressed = hazardsSuppressed(this.stage);
-    const s = santaDue(this.santaState, this.elapsedSec, Math.random, suppressed);
-    this.santaState = s.state;
-    if (s.spawn) {
-      this.spawnEnemy(new Santa(this));
-      sfx('jingle');
-      this.events.emit('hud:banner', { text: 'Санта!', ms: 1200 });
-    }
-    const g = giftDue(this.giftState, this.nowMs, Math.random, suppressed);
-    this.giftState = g.state;
-    if (g.spawn) {
-      const w = BALANCE.wallWidth;
-      const gift = new Gift(this, giftX(Math.random, w, this.scale.width - w), -this.textures.getFrame('gift').height / 2);
-      this.pickups.add(gift);
-    }
-  }
-
   collectGift(gift) {
     if (this.paused || this.dead || !gift.active) return;
     gift.destroy();
@@ -961,14 +731,8 @@ export default class GameScene extends Phaser.Scene {
     this.biome = biome;
     // після боса — тиша calmSec; перші появи біому рахуються від її кінця
     const startSec = this.elapsedSec < 0.5 ? 0 : this.elapsedSec + BALANCE.boss.calmSec;
-    this.spawnState = createSpawnState(biome, startSec);
+    this.spawner.onBiome(biome, startSec);
     const instant = from === biome || this.elapsedSec < 0.5;
-    if (biome === 'winter') {
-      this.santaState = createSantaState(startSec);
-      this.giftState = createGiftState(startSec * 1000);
-    }
-    this.salamanderWaiting = false;
-    this.dropAt = biome === 'lava' ? this.nowMs + BALANCE.lava.drop.firstMs + BALANCE.boss.calmSec * 1000 : Infinity;
     this.biomes.enter(biome, instant);
   }
 
@@ -1031,7 +795,7 @@ export default class GameScene extends Phaser.Scene {
     this.weaponView.update();
     this.scrollObjects(dy);
     this.biomes.step(dt, dy);
-    this.spawnSpikes();
+    this.spawner.spawnSpikes();
     this.spawnEnemies();
     this.autoFire(dt);
     for (const f of this.hats) f.step(dt);
