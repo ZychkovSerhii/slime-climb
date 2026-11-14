@@ -1,8 +1,7 @@
 import * as Phaser from 'phaser';
 import { BALANCE } from '../config/balance.js';
 import { scrollSpeed } from '../systems/Difficulty.js';
-import { bannerVisible } from '../systems/BossPlanner.js';
-import { biomeIndex, firstSegment, nextSegment, runStage } from '../systems/Cycle.js';
+import { biomeIndex, firstSegment } from '../systems/Cycle.js';
 import { createStatus, fireIntervalMul, isPoisoned, isRoared, playerSpeedMul, poison, roar } from '../systems/Status.js';
 import { giftXp, rollGift, xpToLevelUp } from '../systems/Biome.js';
 import { loadSettings } from '../systems/Settings.js';
@@ -12,35 +11,29 @@ import { clampDelta } from '../systems/Time.js';
 import { applyDamage, createHealth, heal, healForLevels } from '../systems/Health.js';
 import {
   activateInvis, breakArmor, cardLoot, createInvis, hatStats, hitEffects, invisCharge, invisStats,
-  isInvisible, jumpMul, maxLivesFor, rollLoot, stepArmor,
+  isInvisible, jumpMul, maxLivesFor, stepArmor,
 } from '../systems/Skills.js';
 import { inInvisButton, inPauseButton } from '../systems/Layout.js';
 import Familiar from '../entities/Familiar.js';
 import { heightPoints, killPoints } from '../systems/Score.js';
-import { loadMeta, recordKill, saveMeta, skinSprite, stepsForKill } from '../systems/Meta.js';
+import { loadMeta, recordKill, saveMeta, skinSprite } from '../systems/Meta.js';
 import { browserStorage } from '../systems/HighScore.js';
 import { interceptPoint, pickNearest } from '../systems/Targeting.js';
 import { playMusic, sfx, stopMusic } from '../systems/Audio.js';
 import Player from '../entities/Player.js';
 import Projectile from '../entities/Projectile.js';
-import Bat from '../entities/Bat.js';
-import SpiderBoss from '../entities/SpiderBoss.js';
-import ShkodkoBoss from '../entities/ShkodkoBoss.js';
-import KolyaBoss from '../entities/KolyaBoss.js';
-import BearBoss from '../entities/BearBoss.js';
 import BiomeDirector from '../game/BiomeDirector.js';
+import BossDirector, { BOSS_OF_KILL } from '../game/BossDirector.js';
 import LootEffects from '../game/LootEffects.js';
 import PauseController from '../game/PauseController.js';
 import SpawnDirector from '../game/SpawnDirector.js';
 import WeaponView from '../entities/WeaponView.js';
-import KazanBoss from '../entities/KazanBoss.js';
-import { activeForm, SHKODKO_LOOT_IDS } from '../systems/ShkodkoLoot.js';
-import { bossIntroInfo } from '../systems/BossIntro.js';
+import { activeForm } from '../systems/ShkodkoLoot.js';
 import { loadTuning, setTuning, tuning } from '../systems/Tuning.js';
 import { isEligibleRun } from '../systems/LeaderboardRules.js';
 
-import { canSplit, KOLYA_LOOT_IDS, lootStepsBonus, useSplit } from '../systems/KolyaLoot.js';
-import { canBoil, KAZAN_LOOT_IDS, useBoil } from '../systems/KazanLoot.js';
+import { canSplit, useSplit } from '../systems/KolyaLoot.js';
+import { canBoil, useBoil } from '../systems/KazanLoot.js';
 
 const POISON_TINT = 0xb0d040; // слизак і так зелений — під отрутою він темніший, болотний
 const ROAR_TINT = 0x9fb4c8; // приголомшений ричанням — сірувато-блакитний
@@ -50,16 +43,6 @@ const VENOM_SHOT_TINT = 0x9cff3a; // постріли з «Ядовитою мо
 // шляпа на голові слизака: центр шляпи відносно центру слизака і зсув другої шляпи
 const HAT_Y = -15;
 const HAT_STACK = 12;
-// Боси (етап 9 — третій): тип у події 'enemy:killed' → ключ відрізка, ім'я, клас, трофеї
-const BOSS_OF_KILL = { boss: 'spider', shkodko: 'shkodko', kolya: 'kolya', bear: 'bear', kazan: 'kazan' };
-const BOSSES = {
-  spider: { name: BALANCE.boss.name, make: (s) => new SpiderBoss(s), loot: (relics) => rollLoot(relics, Math.random) },
-  shkodko: { name: BALANCE.shkodko.name, make: (s) => new ShkodkoBoss(s), loot: (relics) => rollLoot(relics, Math.random, SHKODKO_LOOT_IDS, BALANCE.shkodkoLoot.offer) },
-  kolya: { name: BALANCE.kolya.name, make: (s) => new KolyaBoss(s), loot: (relics) => rollLoot(relics, Math.random, KOLYA_LOOT_IDS, BALANCE.kolyaLoot.offer) },
-  // етап 10: міні-бос без трофеїв (і без бонусу Шагів «трофеї вже твої»)
-  bear: { name: BALANCE.bearBoss.name, make: (s) => new BearBoss(s), loot: null },
-  kazan: { name: BALANCE.kazan.name, make: (s) => new KazanBoss(s), loot: (relics) => rollLoot(relics, Math.random, KAZAN_LOOT_IDS, BALANCE.kazanLoot.offer) }, // етап 11
-};
 
 export default class GameScene extends Phaser.Scene {
   constructor() {
@@ -116,9 +99,8 @@ export default class GameScene extends Phaser.Scene {
     this.seg = firstSegment(start, Math.max(0, Math.min(9, parseInt(q.get('loop') ?? '0', 10) || 0)));
     this.loop = this.seg.loop; // номер кола з 0: вороги й боси міцніші (Enemy читає scene.loop)
     this.stage = 'before';
-    this.bossSpawned = false;
-    this.bannerShown = false;
     this.killedAtSec = null;
+    this.bosses = new BossDirector(this); // етапи навколо боса, представлення, смерть і трофеї
     this.status = createStatus();
     this.biome = 'cave';
     this.settings = loadSettings(browserStorage());
@@ -182,7 +164,7 @@ export default class GameScene extends Phaser.Scene {
       sfx('kill');
       this.killScore += killPoints(type);
       this.onMetaKill(type);
-      if (BOSS_OF_KILL[type]) this.onBossKilled(type);
+      if (BOSS_OF_KILL[type]) this.bosses.onBossKilled(type);
       // Санта дає рівень: рівно стільки досвіду, скільки бракує до наступного
       const xp = type === 'santa' ? xpToLevelUp(this.progression.xp, xpToNext(this.progression.level)) : killXp(type, { biome: this.biomeIdx });
       this.gainXp(xp);
@@ -190,7 +172,7 @@ export default class GameScene extends Phaser.Scene {
     const onPicked = (id) => this.onCardPicked(id);
     const onRage = () => playMusic('rage');
     const onInvis = () => this.useInvisibility();
-    const onIntroClosed = () => this.onIntroClosed();
+    const onIntroClosed = () => this.bosses.onIntroClosed();
     this.events.on('intro:closed', onIntroClosed);
     this.events.on('skill:invis', onInvis);
     this.events.on('enemy:killed', onKilled);
@@ -233,7 +215,7 @@ export default class GameScene extends Phaser.Scene {
 
     this.pause = new PauseController(this);
     // ?intro=1 — представлення павучихи одразу після старту (перевірка §9.3)
-    if (q.get('intro') === '1') this.showIntro('spider', { music: false });
+    if (q.get('intro') === '1') this.bosses.showIntro('spider', { music: false });
     this.pause.watchVisibility();
     this.layoutWidth = this.scale.width;
     const onResize = () => this.relayout();
@@ -250,33 +232,6 @@ export default class GameScene extends Phaser.Scene {
     const healed = healForLevels(before, this.progression.level); // з 8-го рівня лікує кожен другий (етап 10)
     if (healed > 0) this.health = heal(this.health, healed, this.maxLives);
     if ((this.levelUpQueue > 0 || this.lootCards) && !this.levelUpOpen && !this.introOpen) this.openLevelUp();
-  }
-
-  // ---------- Представлення боса (етап 9, §9.3) ----------
-
-  /** Пауза і сцена BossIntro. music — false для ?intro=1 (боса немає, бойова музика не потрібна). */
-  showIntro(boss, { music = true } = {}) {
-    const info = bossIntroInfo(boss, this.loop);
-    this.introOpen = true;
-    this.introMusic = music;
-    this.setPaused(true);
-    playMusic(info.music);
-    this.scene.launch('BossIntro', info);
-  }
-
-  /** Представлення закрилось: graceMs без шкоди, бойова музика, гра йде (якщо не згорнута й не вікно рівня). */
-  onIntroClosed() {
-    if (!this.introOpen) return;
-    this.introOpen = false;
-    this.health = { ...this.health, invulnerableUntil: Math.max(this.health.invulnerableUntil, this.nowMs + BALANCE.bossIntro.graceMs) };
-    this.inputBlockedUntil = this.game.loop.time + BALANCE.tapGuardMs; // дотик, що закрив представлення, — не стрибок
-    if (this.introMusic) playMusic('boss');
-    else stopMusic();
-    if (this.levelUpQueue > 0 || this.lootCards) {
-      this.openLevelUp();
-      return;
-    }
-    if (!this.pause.overlayOpen) this.setPaused(false);
   }
 
   /** Пауза гри і вікно вибору картки (по одному на кожен набраний рівень). */
@@ -568,20 +523,6 @@ export default class GameScene extends Phaser.Scene {
     return this.stage === 'fight';
   }
 
-  /** Перехід між етапами забігу навколо боса. */
-  onStage(stage) {
-    this.stage = stage;
-    if (stage === 'prep') this.clearMap();
-  }
-
-  /** Перед босом: шипи, звичайні вороги й їхні кулі плавно зникають (без нагород, без зіткнень). */
-  clearMap() {
-    this.spawner.pendingPlants = 0;
-    for (const group of [this.hazards, this.enemies, this.enemyProjectiles, this.pickups, this.bombs]) {
-      for (const obj of group.getChildren().slice()) this.fadeOut(obj, group);
-    }
-  }
-
   /** Об'єкт плавно зникає: без нагород і зіткнень, але ще їде зі світом, поки не розтане. */
   fadeOut(obj, group) {
     group.remove(obj);
@@ -591,71 +532,9 @@ export default class GameScene extends Phaser.Scene {
     this.tweens.add({ targets: obj, alpha: 0, duration: FADE_MS, onComplete: () => obj.destroy() });
   }
 
-  showBossBanner() {
-    this.bannerShown = true;
-    sfx('bossAppear');
-    const kind = this.seg.boss === 'bear' ? 'МІНІ-БОС' : 'БОС';
-    this.events.emit('hud:banner', { text: `${kind}: ${BOSSES[this.seg.boss].name}`, ms: BALANCE.boss.bannerSec * 1000 });
-  }
-
-  startBoss() {
-    this.bossSpawned = true;
-    const boss = this.spawnEnemy(BOSSES[this.seg.boss].make(this));
-    boss.emitHud();
-    this.showIntro(this.seg.boss);
-  }
-
-  /**
-   * Після боса: calmSec нічого небезпечного, далі вороги повертаються поступово. Наступний відрізок кола:
-   * після павучихи — зима і Шкодько, після Шкодька — печера наступного кола (вороги й боси міцніші).
-   */
-  onBossKilled(type) {
-    this.killedAtSec = this.elapsedSec;
-    this.seg = nextSegment(this.seg, this.elapsedSec);
-    this.loop = this.seg.loop;
-    this.bossSpawned = false;
-    this.bannerShown = false;
-    this.clearBossAttacks();
-    // унікальні картки боса: 2 з ще не взятих (кожна — раз за забіг). У Шкодька й Колі їх лише 2, тож на наступному колі
-    // пропонується та, яку не взяли. Усе вже взято — +50% Шагів боса (§0). Ведмідь (етап 10) трофеїв не має.
-    const boss = BOSSES[BOSS_OF_KILL[type]];
-    if (boss.loot) {
-      const loot = boss.loot(this.progression.relics);
-      this.lootCards = loot.length ? loot : null;
-      this.lootTitle = `Трофей: ${boss.name}`;
-      const bonus = lootStepsBonus(stepsForKill(type), loot);
-      if (bonus) {
-        this.meta = { ...this.meta, steps: this.meta.steps + bonus };
-        this.runSteps += bonus;
-        saveMeta(this.storage, this.meta);
-        this.floatText(`+${bonus} Шагів: трофеї вже твої`, '#f2c440');
-      }
-    }
-    this.events.emit('hud:boss', null);
-    playMusic('victory');
-  }
-
-  /**
-   * Смерть боса (етап 10, §10.4, для всіх): зникають усі ворожі снаряди, бомби й прислужники боса (рій, малі слимаки,
-   * миші й аура ведмедя), і bossKillGraceMs гравця нічого не б'є. Звичайні вороги лишаються.
-   */
-  clearBossAttacks() {
-    for (const b of this.bombs.getChildren().slice()) b.destroy();
-    for (const e of this.enemies.getChildren().slice()) if (e.kolyaMinion || e.bossMinion || e.kazanMinion) this.fadeOut(e, this.enemies);
-    for (const p of this.enemyProjectiles.getChildren().slice()) this.fadeOut(p, this.enemyProjectiles);
-    const until = this.nowMs + BALANCE.bossKillGraceMs;
-    this.health = { ...this.health, invulnerableUntil: Math.max(this.health.invulnerableUntil, until) };
-  }
-
-  /** Ведмідь на 20% HP: 2 зимові летючі миші з верхніх кутів (прислужники — зникають разом з ним). */
+  // Боси живуть у game/BossDirector; spawnBearBats лишився делегатом — його кличе BearBoss.
   spawnBearBats() {
-    const { width } = this.scale;
-    const m = BALANCE.wallWidth + 30;
-    for (let i = 0; i < BALANCE.bearBoss.bats; i++) {
-      const bat = this.spawnEnemy(new Bat(this, { biome: 'winter', x: i % 2 ? width - m : m, y: -20 }));
-      bat.bossMinion = true;
-    }
-    sfx('bossAppear');
+    this.bosses.spawnBearBats();
   }
 
   collectGift(gift) {
@@ -782,11 +661,7 @@ export default class GameScene extends Phaser.Scene {
     if (this.paused || this.dead) return;
     const dt = clampDelta(delta);
     this.elapsedSec += dt / 1000;
-    const stage = runStage(this.elapsedSec, this.seg, this.killedAtSec);
-    if (stage !== this.stage) this.onStage(stage);
-    if (this.seg.biome !== this.biome) this.enterBiome(this.seg.biome);
-    if (this.seg.boss && !this.bannerShown && bannerVisible(this.elapsedSec, this.seg.atSec)) this.showBossBanner();
-    if (stage === 'fight' && !this.bossSpawned) this.startBoss();
+    this.bosses.step(); // етап забігу, зміна біому, плашка й поява боса
     this.currentScroll = scrollSpeed(this.elapsedSec, this.bossActive);
     const dy = (this.currentScroll * dt) / 1000;
     this.distancePx += dy;

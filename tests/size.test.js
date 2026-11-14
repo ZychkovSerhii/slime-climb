@@ -5,7 +5,7 @@ import { expect, test } from 'vitest';
 // Запобіжник модульності (docs/architecture-2026-11-13.md): файли не розростаються мовчки.
 // Виняток — GameScene: стеля опускається після кожного кроку рефакторингу, піднімати її не можна.
 const LIMIT = 650;
-const EXCEPTIONS = { 'scenes/GameScene.js': 860 };
+const EXCEPTIONS = { 'scenes/GameScene.js': 735 };
 
 const root = join(import.meta.dirname, '..', 'src');
 function walk(dir) {
