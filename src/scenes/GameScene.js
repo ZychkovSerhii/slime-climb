@@ -2,32 +2,29 @@ import * as Phaser from 'phaser';
 import { BALANCE } from '../config/balance.js';
 import { scrollSpeed } from '../systems/Difficulty.js';
 import { biomeIndex, firstSegment } from '../systems/Cycle.js';
-import { createStatus, fireIntervalMul, isPoisoned, isRoared, playerSpeedMul, poison, roar } from '../systems/Status.js';
+import { createStatus, isPoisoned, isRoared, playerSpeedMul, poison, roar } from '../systems/Status.js';
 import { giftXp, rollGift, xpToLevelUp } from '../systems/Biome.js';
 import { loadSettings } from '../systems/Settings.js';
-import { addXp, applyCard, cardUpgrade, createProgression, killXp, rollLevelUp, weaponCard, weaponUpgrades, xpToNext } from '../systems/Progression.js';
-import { attackDamage, axeRadius, axeTier, createFireState, hasMiniAxe, inRadius, shotgunAngles, stepFire, weaponJumpMul } from '../systems/Weapons.js';
+import { addXp, applyCard, cardUpgrade, createProgression, killXp, rollLevelUp, weaponCard, xpToNext } from '../systems/Progression.js';
+import { weaponJumpMul } from '../systems/Weapons.js';
 import { clampDelta } from '../systems/Time.js';
 import { applyDamage, createHealth, heal, healForLevels } from '../systems/Health.js';
 import {
-  activateInvis, breakArmor, cardLoot, createInvis, hatStats, hitEffects, invisCharge, invisStats,
+  activateInvis, breakArmor, cardLoot, createInvis, invisCharge, invisStats,
   isInvisible, jumpMul, maxLivesFor, stepArmor,
 } from '../systems/Skills.js';
 import { inInvisButton, inPauseButton } from '../systems/Layout.js';
-import Familiar from '../entities/Familiar.js';
 import { heightPoints, killPoints } from '../systems/Score.js';
 import { loadMeta, recordKill, saveMeta, skinSprite } from '../systems/Meta.js';
 import { browserStorage } from '../systems/HighScore.js';
-import { interceptPoint, pickNearest } from '../systems/Targeting.js';
 import { playMusic, sfx, stopMusic } from '../systems/Audio.js';
 import Player from '../entities/Player.js';
-import Projectile from '../entities/Projectile.js';
 import BiomeDirector from '../game/BiomeDirector.js';
 import BossDirector, { BOSS_OF_KILL } from '../game/BossDirector.js';
+import Combat from '../game/Combat.js';
 import LootEffects from '../game/LootEffects.js';
 import PauseController from '../game/PauseController.js';
 import SpawnDirector from '../game/SpawnDirector.js';
-import WeaponView from '../entities/WeaponView.js';
 import { activeForm } from '../systems/ShkodkoLoot.js';
 import { loadTuning, setTuning, tuning } from '../systems/Tuning.js';
 import { isEligibleRun } from '../systems/LeaderboardRules.js';
@@ -39,10 +36,6 @@ const POISON_TINT = 0xb0d040; // слизак і так зелений — пі�
 const ROAR_TINT = 0x9fb4c8; // приголомшений ричанням — сірувато-блакитний
 // глибини фону: фон −3, сніг −2 (Snow.js), стіни −1, усе інше 0
 const FADE_MS = 600; // шипи й вороги плавно зникають перед босом
-const VENOM_SHOT_TINT = 0x9cff3a; // постріли з «Ядовитою мордою» — кислотні
-// шляпа на голові слизака: центр шляпи відносно центру слизака і зсув другої шляпи
-const HAT_Y = -15;
-const HAT_STACK = 12;
 
 export default class GameScene extends Phaser.Scene {
   constructor() {
@@ -65,7 +58,6 @@ export default class GameScene extends Phaser.Scene {
     // скіли етапу 4b і трофеї павучихи
     this.invis = createInvis();
     this.armor = null; // «Кожух з павучихи»: { on, regenAt }
-    this.hats = [];
     this.loot = new LootEffects(this); // ефекти трофеїв босів (Оксанка, мішок, личинка, черпачок…)
     this.lootCards = null; // картки трофеїв, що чекають на вікно (після смерті боса)
     this.lootTitle = null; // заголовок вікна трофеїв: чий трофей
@@ -87,7 +79,6 @@ export default class GameScene extends Phaser.Scene {
     this.dead = false;
     // Зброя гравця — частина прогресії, картки поліпшень змінюють її
     this.weapon = this.progression.weapon;
-    this.fireState = createFireState();
     this.spawner = new SpawnDirector(this); // шипи, вороги за розкладом, черга ходоків, зима, сердечка
     // Коло біомів (етап 6b, systems/Cycle): відрізок — біом і бос наприкінці; етап рахує runStage
     // (calm → before/after → prep → fight). killedAtSec — секунда смерті попереднього боса (тиша й плавний спавн).
@@ -125,10 +116,10 @@ export default class GameScene extends Phaser.Scene {
 
     this.player = new Player(this);
     this.player.setSkin(skinSprite(this.meta));
-    this.weaponView = new WeaponView(this, this.player);
+    this.combat = new Combat(this); // автоатака, вигляд зброї, влучання, шляпи, міні-сокира
     if (BALANCE.weapons[this.debugWeapon]) {
       for (let i = 0; i < BALANCE.weapons[this.debugWeapon].steps; i++) this.progression = applyCard(this.progression, weaponCard(this.debugWeapon));
-      this.weaponView.setMain(this.debugWeapon);
+      this.combat.weaponView.setMain(this.debugWeapon);
     }
     // ?cards=hat,hat,invisibility,loot:web — картки й трофеї з першої секунди (для перевірки)
     const debugCards = new URLSearchParams(window.location.search).get('cards');
@@ -150,13 +141,7 @@ export default class GameScene extends Phaser.Scene {
       this.hurtPlayer();
     });
 
-    this.physics.add.overlap(this.playerProjectiles, this.enemies, (proj, enemy) => {
-      // крізь невразливого боса снаряди пролітають
-      if (this.paused || !proj.active || !enemy.active || enemy.invulnerable) return;
-      enemy.takeHit(proj.damage, proj.fx, this.nowMs);
-      proj.destroy();
-      if (enemy.active) sfx('hit');
-    });
+    this.combat.bindHits();
 
     const onKilled = ({ type, x, y }) => {
       if (this.dead) return;
@@ -257,48 +242,20 @@ export default class GameScene extends Phaser.Scene {
     this.scene.launch('LevelUp', { cards: r.cards, picks, arsenal });
   }
 
-  /** Основна зброя змінилась: вигляд, звук, плашка. */
-  onMainWeapon(main) {
-    this.weaponView.setMain(main);
-    this.fireState = createFireState();
-    sfx('weaponReady');
-    this.events.emit('hud:banner', { text: `Нова зброя:\n${BALANCE.weapons[main].name}`, ms: 1800 });
-  }
-
-  /** Прокачка основної зброї: банер; на miniAxeAt у сокири — міні-сокира-помічниця. */
-  onWeaponUpgrade(weaponId) {
-    const n = weaponUpgrades(this.progression, weaponId);
-    sfx('weaponReady');
-    this.events.emit('hud:banner', { text: `${BALANCE.weapons[weaponId].name}\n+${n}`, ms: 1200 });
-    if (weaponId === 'axe') this.weaponView.setTier(axeTier(n));
-    if (hasMiniAxe(weaponId, n) && !this.miniAxe) {
-      const M = BALANCE.weaponUpgrades.axe.miniAxe;
-      this.miniAxe = new Familiar(this, {
-        texture: 'axe',
-        offset: { x: 34, y: -6 },
-        speed: M.speed,
-        restMs: M.restMs,
-        spin: true,
-        scale: 0.6,
-        damage: () => M.damage,
-      });
-    }
-  }
-
   /** Застосовує картку (звичайну, зброю, скіл чи трофей) і її наслідки в сцені. */
   applyPicked(id) {
     const mainBefore = this.progression.arsenal.main;
     this.progression = applyCard(this.progression, id);
     this.weapon = this.progression.weapon;
     const main = this.progression.arsenal.main;
-    if (main !== mainBefore) this.onMainWeapon(main);
+    if (main !== mainBefore) this.combat.onMainWeapon(main);
     if (id === 'extraLife') {
       this.maxLives = maxLivesFor(this.progression.picks.extraLife);
       this.health = heal(this.health, 1, this.maxLives);
     }
-    if (id === 'hat') this.syncHats();
+    if (id === 'hat') this.combat.syncHats();
     const up = cardUpgrade(id);
-    if (up) this.onWeaponUpgrade(up);
+    if (up) this.combat.onWeaponUpgrade(up);
     const loot = cardLoot(id);
     if (loot) this.loot.onLoot(loot);
   }
@@ -447,64 +404,9 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
-  /** Вороги, видимі на екрані й живі — кандидати в цілі. */
+  // Бій живе в game/Combat; visibleEnemies лишився делегатом — його кличуть Familiar і LootEffects.
   visibleEnemies() {
-    return this.enemies.getChildren().filter((e) => e.active && e.hp > 0 && !e.invulnerable && e.isOnScreen());
-  }
-
-  /** Атака основної зброї: стартовий постріл, сокира, черга чакри або дробовик (логіка — systems/Weapons.js). */
-  autoFire(dt) {
-    const main = this.progression.arsenal.main;
-    const upgrades = main ? weaponUpgrades(this.progression, main) : 0;
-    const targets = this.visibleEnemies();
-    const radius = axeRadius(this.scale.width, upgrades);
-    // сокира б'є лише тих, хто в радіусі; великий бос — краєм тіла
-    const size = (t) => Math.min(t.displayWidth, t.displayHeight) / 2;
-    const inZone = main === 'axe' ? inRadius(this.player, targets, radius, size) : null;
-    // розмах — коли хтось підійшов ближче (triggerFrac радіуса), а б'є всіх у повному радіусі
-    const close = inZone ? inRadius(this.player, inZone, radius * BALANCE.weapons.axe.triggerFrac, size) : null;
-    const r = stepFire(this.fireState, dt, {
-      main,
-      fireIntervalMs: this.weapon.fireIntervalMs * fireIntervalMul(this.status, this.nowMs),
-      upgrades,
-      hasTarget: close ? close.length > 0 : targets.length > 0,
-    });
-    this.fireState = r.state;
-    if (!r.fire) return;
-    const damage = attackDamage(main, this.weapon.damage, upgrades);
-    if (inZone) {
-      this.swingAxe(inZone, damage, radius);
-      return;
-    }
-    const target = pickNearest(this.player, targets);
-    const { vx, vy } = target.screenVelocity(this.currentScroll);
-    const aim = interceptPoint(this.player, { x: target.x, y: target.y, vx, vy }, BALANCE.projectileSpeed);
-    const angle = Math.atan2(aim.y - this.player.y, aim.x - this.player.x);
-    const angles = main === 'shotgun' ? shotgunAngles(angle, upgrades) : [angle];
-    const relics = this.progression.relics;
-    const fx = hitEffects(this.weapon.slow, relics);
-    const texture = relics.includes('web') ? 'webShot' : 'projectile';
-    for (const a of angles) {
-      const proj = new Projectile(this, this.player.x, this.player.y, texture, { damage, fx });
-      if (relics.includes('venom')) proj.setTint(VENOM_SHOT_TINT);
-      this.playerProjectiles.add(proj);
-      proj.launch(this.player.x + Math.cos(a) * 100, this.player.y + Math.sin(a) * 100, BALANCE.projectileSpeed, BALANCE.projectileHitboxMul);
-    }
-    this.weaponView.aim(angle);
-    sfx(main === 'shotgun' ? 'shotgun' : 'shoot');
-  }
-
-  /** Розмах сокири: шкода всім у радіусі (зокрема босу), без снарядів. */
-  swingAxe(targets, damage, radius) {
-    this.weaponView.swing(radius);
-    sfx('axe');
-    let hitAlive = false;
-    for (const t of targets) {
-      if (!t.active || t.invulnerable) continue;
-      t.takeHit(damage, hitEffects(this.weapon.slow, this.progression.relics), this.nowMs);
-      if (t.active) hitAlive = true;
-    }
-    if (hitAlive) sfx('hit');
+    return this.combat.visibleEnemies();
   }
 
   // Спавн живе в game/SpawnDirector; spawnEnemies лишився делегатом — його глушить бот (playtest --no-enemies).
@@ -667,15 +569,15 @@ export default class GameScene extends Phaser.Scene {
     this.distancePx += dy;
     this.applyStatus();
     this.player.step(dt);
-    this.weaponView.update();
+    this.combat.weaponView.update();
     this.scrollObjects(dy);
     this.biomes.step(dt, dy);
     this.spawner.spawnSpikes();
     this.spawnEnemies();
-    this.autoFire(dt);
-    for (const f of this.hats) f.step(dt);
+    this.combat.autoFire(dt);
+    for (const f of this.combat.hats) f.step(dt);
     this.loot.oksana?.step(dt);
-    this.miniAxe?.step(dt);
+    this.combat.miniAxe?.step(dt);
     this.loot.step();
     this.stepShield();
     this.emitHud();
@@ -701,25 +603,6 @@ export default class GameScene extends Phaser.Scene {
     this.invis = activateInvis(this.invis, this.invisStats(), this.nowMs);
     if (this.invis !== before) sfx('weaponReady');
     this.emitHud();
-  }
-
-  /** Шляпи на голові: кількість і шкода — за взяттями картки. */
-  syncHats() {
-    const st = hatStats(this.progression.picks.hat ?? 0);
-    const H = BALANCE.skills.hat;
-    while (this.hats.length < st.count) {
-      const i = this.hats.length;
-      this.hats.push(
-        new Familiar(this, {
-          texture: 'hat',
-          offset: { x: 0, y: HAT_Y - i * HAT_STACK }, // друга — на першій
-          speed: H.speed,
-          restMs: H.restMs,
-          spin: true,
-          damage: () => hatStats(this.progression.picks.hat ?? 0).damage,
-        }),
-      );
-    }
   }
 
   /** Короткий напис над слизаком, що спливає й тане. */
