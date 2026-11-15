@@ -94,14 +94,13 @@ export function rushOver(rush, nowMs, fallMs) {
 }
 
 /**
- * Лікування після дощу (частка maxHp): ціль не виконано → healEach за кожен незібраний,
- * але HP не вище healCap. hp — поточне, повертає нове HP.
+ * Лікування після дощу: ціль не виконано → +healFail від maxHp (фідбек-6: 25%), але HP не вище healCap
+ * і ніколи не нижче поточного. hp — поточне, повертає нове HP.
  */
 export function rushHeal(hp, maxHp, collected) {
   const R = S.rush;
   if (collected >= R.goal) return hp;
-  const missed = R.count - collected;
-  const healed = hp + missed * R.healEach * maxHp;
+  const healed = hp + R.healFail * maxHp;
   return Math.max(hp, Math.min(healed, R.healCap * maxHp));
 }
 
@@ -120,19 +119,6 @@ export function peekDamage(hp, maxHp, damage) {
 /** HP після потяга: min(поточне, rageHpCap), але не менше 1. */
 export function afterTrainHp(hp, maxHp) {
   return Math.max(1, Math.min(hp, Math.round(S.rageHpCap * maxHp)));
-}
-
-/** x-и вагонів на старті проїзду: dir +1 — їде вправо (стартує зліва за краєм). Перший — паровоз. */
-export function trainLayout(n, dir, width, carW) {
-  const step = carW + S.train.wagonGapPx;
-  const start = dir > 0 ? -carW / 2 : width + carW / 2;
-  return Array.from({ length: n }, (_, i) => start - dir * i * step);
-}
-
-/** Чи весь потяг (останній вагон) виїхав за протилежний край. */
-export function trainGone(xs, dir, width, carW) {
-  if (!xs.length) return true;
-  return dir > 0 ? Math.min(...xs) > width + carW / 2 : Math.max(...xs) < -carW / 2;
 }
 
 /** Кути віяла цукерок навколо напрямку aim (радіани). */

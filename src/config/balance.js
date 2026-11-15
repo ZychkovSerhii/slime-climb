@@ -86,7 +86,7 @@ export const BALANCE = deepFreeze({
     // Нагорода: Шаги (meta.stepsPerKill.santa) і рівень (досвід до наступного рівня).
     santa: { hp: 5, xp: 0, points: 300, speed: 170, y: 210, wraps: 2, chancePerMin: 0.1 },
     // Вагон потяга Шкодька (етап 6b): окреме HP; паровоз невразливий
-    wagon: { hp: 6, xp: 2, points: 60 },
+    wagon: { hp: 18, xp: 2, points: 60 }, // фідбек-6 п.18: ×3 (було 6)
     // ---- Туманний бамбук (етап 9, специфікація §9.1)
     // Ніндзя [рішення плану]: тримається за стіну на сталій висоті екрана (minYFrac…maxYFrac висоти), на стіні, де гравця немає.
     // smokeMs — дим-попередження (у диму невразливий і не шкодить), потім кидок 1 сюрикена, через stayMs — зникає в диму.
@@ -210,7 +210,8 @@ export const BALANCE = deepFreeze({
     zone: { top: 200, bottomGap: 90 }, // танцює між y=top і (y гравця − bottomGap)
     // танець: пауза на точці, швидкість, кожна aimEvery-та точка — там, де гравець
     dance: {
-      p1: { speed: 260, pauseMs: 700, aimEvery: 4 },
+      // фідбек-6 п.18: у фазі 1 на гравця кидається втричі швидше (+200%) і кусає; перед ривком блимає biteWindupMs
+      p1: { speed: 260, pauseMs: 700, aimEvery: 4, aimSpeedMul: 3, biteWindupMs: 450 },
       p2: { speed: 340, pauseMs: 550, aimEvery: 2, bombs: 2 },
       p3: { speed: 380, pauseMs: 450, aimEvery: 2, bombs: 2 },
       rage: { speed: 440, pauseMs: 350, aimEvery: 2, bombs: 2 },
@@ -219,21 +220,25 @@ export const BALANCE = deepFreeze({
     volley: { everyMs: 12000, enhancedEveryMs: 9000, holdMs: 3000, count: 6, centerY: 220 },
     bomb: { flightMs: 650, fuseMinMs: 2000, fuseMaxMs: 3000, radiusPx: 75, nearPlayerShare: 0.5, nearSpreadPx: 90 },
     // фаза 3: подарунковий дощ; heal — частка maxHp за кожен незібраний, якщо ціль не виконано
-    rush: { count: 10, durationMs: 8000, goal: 6, xp: 3, healEach: 0.05, healCap: 0.65, fallSpeed: 260 },
-    candy: { everyMs: 1600, count: 3, spreadDeg: 16, speed: 320 },
+    // фідбек-6 п.17: подарунки вдвічі швидші (було 260), під час дощу кидає цукерки раз на candyEveryMs,
+    // ціль не виконано — +healFail від maxHp (було по 5% за кожен незібраний, ≈15%), не вище healCap
+    rush: { count: 10, durationMs: 8000, goal: 6, xp: 3, healFail: 0.25, healCap: 0.65, fallSpeed: 520, candyEveryMs: 1500 },
+    candy: { everyMs: 1600, count: 3, spreadDeg: 16, speed: 320, scale: 3 }, // scale — фідбек-6 п.17: льодяники втричі більші
+    // Фідбек-6 п.18: потяг утричі довший (було 5 вагонів) і утричі більший, їде змійкою (systems/Snake.js): ряди
+    // від rowTop до (висота гравця − rowBottomGap) — гравця не зачіпають; раз на diveEveryMs на кінці ряду пірнає вздовж
+    // стіни до висоти гравця (попередження за warnPx шляху). Нове пірнання — коли хвіст попереднього піднявся на
+    // diveClearPx: одна стіна завжди вільна. Числа, крім ×3, — припущення.
     train: {
       sitMs: 1000, // поки сідає — невразливий
-      wagons: 5,
-      // Вагони на довгій зчіпці: на екрані ~1 вагон за раз, кожен перестрибується окремо.
-      // Суцільний потяг (~750 px) проїжджав би повз слизака ~1,5 с, а стрибок тримає його вгорі лише ~0,5 с.
-      speed: 600, // px/s
-      wagonGapPx: 480, // проміжок між вагонами (зчіпка)
-      warnMs: 1200, // свисток і стрілка перед проїздом
-      pauseMs: 900, // між проїздами
+      wagons: 15,
+      carScale: 3,
+      speed: 300, // px/s уздовж шляху
+      snake: { rowTop: 200, rowBottomGap: 280, rowGap: 150, laneGapPx: 24, gapPx: 14, warnPx: 750, lookaheadPx: 400,
+        firstDiveMs: 4000, diveEveryMs: 7000, diveClearPx: 200 },
       peekEveryMs: 3500, peekMs: 1200, // Шкодько визирає з паровоза — тоді вразливий
       peekFloor: 0.15, // нижче цієї частки HP визирання не збиває
     },
-    stunMs: 3000, // після потяга
+    // stunMs прибрано (фідбек-6 п.18): після вагонів одразу лють — бігає по карті й кидає цукерки
     rageHpCap: 0.15, // після потяга HP = min(поточне, rageHpCap)
     debugAtSec: 6, // ?shkodko=1
   },
@@ -420,7 +425,7 @@ export const BALANCE = deepFreeze({
     // (counts / damageSteps, шкода ще ×biomeHpMul^біом, як в Оксанки — щоб скіл тягнув і на дальніх колах).
     // Один ворог отримує удар від кільця не частіше, ніж раз на hitCdMs; боса — ×bossMul. Числа — припущення.
     shuriken: { name: 'Сюрикени', counts: [1, 2, 3, 3, 4], damageSteps: [1, 1, 1, 1, 1], maxPicks: 5,
-      radiusPx: 62, radiusStep: 6, turnsPerSec: 0.55, hitPx: 16, hitCdMs: 450, bossMul: 0.5 },
+      radiusPx: 62, radiusStep: 6, turnsPerSec: 0.55, hitPx: 20, hitCdMs: 450, bossMul: 0.5, scale: 1.7 },
     extraLife: { maxLives: 5 },
   },
 

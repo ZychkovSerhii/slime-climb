@@ -26,7 +26,7 @@ export default class ShurikenRing {
     const { count } = this.stats;
     while (this.blades.length < count) {
       const b = this.scene.add.image(this.scene.player.x, this.scene.player.y, 'orbitShuriken');
-      b.setDepth(this.scene.player.depth + 1);
+      b.setDepth(this.scene.player.depth + 1).setScale(R.scale);
       this.blades.push(b);
     }
   }

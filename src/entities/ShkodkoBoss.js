@@ -15,7 +15,7 @@ import Train from './Train.js';
 const S = BALANCE.shkodko;
 const RAGE_TINT = 0xff9a9a;
 const ARRIVE_PX = 6;
-const PEEK_DY = -40; // Шкодько визирає над кабіною паровоза
+const PEEK_DY = -40; // Шкодько визирає над кабіною паровоза (не нижче 45% висоти паровоза)
 const SCALE = S.scale; // спрайт 64×64 замалий для боса; хітбокс масштабується разом зі спрайтом
 
 /**
@@ -23,7 +23,9 @@ const SCALE = S.scale; // спрайт 64×64 замалий для боса; х
  * Фаза 1 (100–80%): танець між точками, кожна 4-та — на гравця.
  * Фаза 2 (80–50%): швидше, кожна 2-га — на гравця, на зупинках бомби; раз на volley.everyMs — угору по центру, невразливий, залп.
  * Фаза 3 (50–30%): подарунковий дощ (невразливий, сміється), далі як фаза 2 + град цукерок.
- * Фаза 4 (30%): сідає в потяг (невразливий), визирає з паровоза (шкода не нижче 15%). Вагони розбиті → оглушений → лють.
+ * Фаза 1 (фідбек-6): на гравця — після блимання, втричі швидше, з укусом.
+ * Фаза 3 (фідбек-6): під час дощу кидає цукерки; льодяники втричі більші.
+ * Фаза 4 (30%): сідає в потяг-змійку (невразливий), визирає з паровоза (шкода не нижче 15%). Вагони розбиті → одразу лють.
  * HP не падає нижче порогу фази, поки її подія (дощ, потяг) не відбулась, — інакше сильна зброя її б проскакувала.
  * Таймери — на scene.nowMs. Подія 'hud:boss' — як у павучихи.
  */
@@ -117,8 +119,12 @@ export default class ShkodkoBoss extends Enemy {
       case 'enter':
         if (this.moveTo(this.x, S.zone.top, D.speed * mul)) this.nextStop();
         break;
+      case 'windup':
+        if (now >= this.stateUntil) this.lunge();
+        break;
       case 'dance':
-        if (this.moveTo(this.target.x, this.target.y, D.speed * mul)) {
+        if (this.moveTo(this.target.x, this.target.y, D.speed * (this.target.lunge ? D.aimSpeedMul : 1) * mul)) {
+          if (this.target.lunge) this.bite();
           this.body.setVelocity(0, 0);
           this.setState('pause', D.pauseMs);
         }
@@ -148,14 +154,11 @@ export default class ShkodkoBoss extends Enemy {
       case 'train':
         this.stepTrain(now);
         break;
-      case 'stun':
-        if (now >= this.stateUntil) this.startRage();
-        break;
       default:
         break;
     }
     // град цукерок: фаза 3 після дощу і лють, лише коли він «у бою» (не невразливий)
-    if (!this.invulnerable && this.state !== 'stun' && this.state !== 'train' && now >= this.nextCandyAt) {
+    if (!this.invulnerable && this.state !== 'train' && now >= this.nextCandyAt) {
       this.nextCandyAt = now + S.candy.everyMs / (this.rage ? 1.25 : 1);
       this.throwCandies();
     }
@@ -180,7 +183,35 @@ export default class ShkodkoBoss extends Enemy {
     this.stopNo += 1;
     const b = danceBounds(scene.scale.width, this.halfW, scene.player.baseY);
     this.target = danceTarget(this.stopNo, this.danceCfg.aimEvery, scene.player, b, Math.random);
+    // фідбек-6 п.18: у фазі 1 на гравця — з попередженням і втричі швидше, з укусом
+    if (this.target.aimed && this.danceCfg.aimSpeedMul && !this.rage) this.startWindup();
+    else this.setState('dance');
+  }
+
+  /** Перед ривком на гравця: стоїть і блимає biteWindupMs (ціль — де гравець буде в момент ривка). */
+  startWindup() {
+    const D = this.danceCfg;
+    this.body.setVelocity(0, 0);
+    this.windupTween = this.scene.tweens.add({ targets: this, alpha: 0.45, duration: D.biteWindupMs / 4, yoyo: true, repeat: 1 });
+    this.setState('windup', D.biteWindupMs);
+  }
+
+  lunge() {
+    const scene = this.scene;
+    this.windupTween?.stop();
+    this.setAlpha(1);
+    const b = danceBounds(scene.scale.width, this.halfW, scene.player.baseY);
+    this.target = { ...danceTarget(this.danceCfg.aimEvery, this.danceCfg.aimEvery, scene.player, b, Math.random), lunge: true };
+    sfx('throw');
     this.setState('dance');
+  }
+
+  bite() {
+    this.play(animKey('shkodko', 'laugh'), true);
+    sfx('bite');
+    this.scene.time.delayedCall(300, () => {
+      if (this.active && !this.invulnerable) this.play(animKey('shkodko', 'dance'), true);
+    });
   }
 
   /** Повертає вразливість і HUD, потім next(). */
@@ -217,7 +248,7 @@ export default class ShkodkoBoss extends Enemy {
     const p = scene.player;
     const aim = Math.atan2(p.y - this.y, p.x - this.x);
     for (const a of candyAngles(aim)) {
-      const c = new Candy(scene, this.x, this.y);
+      const c = new Candy(scene, this.x, this.y).setScale(S.candy.scale); // хітбокс теж
       c.type = 'candy';
       scene.enemyProjectiles.add(c);
       c.launch(this.x + Math.cos(a) * 100, this.y + Math.sin(a) * 100, S.candy.speed);
@@ -244,6 +275,11 @@ export default class ShkodkoBoss extends Enemy {
 
   stepRush(now) {
     const scene = this.scene;
+    // фідбек-6 п.17: поки сипляться подарунки, кидає цукерки в гравця
+    if (now >= (this.rushCandyAt ?? now)) {
+      if (this.rushCandyAt !== undefined) this.throwCandies();
+      this.rushCandyAt = now + S.rush.candyEveryMs;
+    }
     const due = rushDueCount(this.rush, now);
     while (this.rush.spawned < due) {
       this.rush.spawned += 1;
@@ -303,7 +339,7 @@ export default class ShkodkoBoss extends Enemy {
     const loco = this.train.update(now);
     this.body.setVelocity(0, 0);
     if (this.state !== 'train') return; // потяг міг скінчитися в update
-    if (loco?.active) this.setPosition(loco.x, loco.y + PEEK_DY);
+    if (loco?.active) this.setPosition(loco.x, loco.y - Math.max(-PEEK_DY, loco.displayHeight * 0.45)); // над кабіною великого паровоза
     const visible = loco?.active && loco.visible;
     if (now >= this.nextPeekAt && visible) {
       this.peekUntil = now + S.train.peekMs;
@@ -326,11 +362,10 @@ export default class ShkodkoBoss extends Enemy {
     this.hp = afterTrainHp(this.hp, this.maxHp);
     const { width } = this.scene.scale;
     this.setPosition(width / 2, S.volley.centerY).setAlpha(1).setScale(SCALE);
-    this.play(animKey('shkodko', 'stun'), true);
     sfx('bossPain');
-    this.scene.events.emit('hud:banner', { text: 'Шкодько оглушений!', ms: 1500 });
-    this.setState('stun', S.stunMs);
+    this.scene.events.emit('hud:banner', { text: 'Шкодько розлютився!', ms: 1500 });
     this.emitHud();
+    this.startRage(); // фідбек-6 п.18: без оглушення — одразу бігає й кидає цукерки
   }
 
   startRage() {

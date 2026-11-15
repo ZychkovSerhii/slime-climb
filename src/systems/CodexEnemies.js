@@ -121,6 +121,6 @@ export const ENEMIES = {
     name: 'Вагон потяга',
     biome: 'winter',
     speed: BALANCE.shkodko.train.speed,
-    desc: `Частина потяга «${BALANCE.shkodko.name}». Кожен вагон перестрибуй окремо, паровоз невразливий.`,
+    desc: `Частина потяга-змійки «${BALANCE.shkodko.name}». Їде слідом за паровозом; паровоз невразливий.`,
   }),
 };
