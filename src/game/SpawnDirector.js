@@ -15,6 +15,7 @@ import Bat from '../entities/Bat.js';
 import Plant from '../entities/Plant.js';
 import Elf from '../entities/Elf.js';
 import Penguin from '../entities/Penguin.js';
+import Snowball from '../entities/Snowball.js';
 import Santa from '../entities/Santa.js';
 import Gift from '../entities/Gift.js';
 import Ninja from '../entities/Ninja.js';
@@ -107,6 +108,7 @@ export default class SpawnDirector {
       else if (type === 'plant') this.pendingPlants += 1;
       else if (type === 'elf') scene.spawnEnemy(new Elf(scene));
       else if (type === 'penguin') this.spawnPenguins();
+      else if (type === 'snowball') scene.spawnEnemy(new Snowball(scene, otherSide(scene.player.side)));
     }
     this.stepWalkers();
     if (scene.biome === 'winter') this.spawnWinterExtras();

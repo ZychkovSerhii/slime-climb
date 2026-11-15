@@ -52,13 +52,25 @@ const SCENARIOS = {
       }
       if (!names.includes('Santa')) bad.push('Санта не з\'явився');
       if (scene.pickups.getChildren().length !== gifts0 + 1) bad.push('подарунок не з\'явився');
+      // снігова куля (фідбек-6 п.15): з розкладу, на стіні без гравця, котиться вниз і росте
+      sp.spawnState = { ...sp.spawnState, nextAt: { snowball: 0 } };
+      sp.spawnEnemies();
+      const ball = scene.enemies.getChildren().find((e) => e.snowball);
+      if (!ball) bad.push('снігова куля не з\'явилась');
+      else {
+        if (ball.side === scene.player.side) bad.push('снігова куля на стіні гравця');
+        const y0 = ball.y;
+        const s0 = ball.scaleX;
+        await new Promise((r) => setTimeout(r, 1200));
+        if (ball.active && !(ball.y > y0 && ball.scaleX > s0)) bad.push(`куля не котиться / не росте: y ${y0}→${ball.y}, розмір ${s0}→${ball.scaleX}`);
+      }
       return bad;
     },
   },
   'bamboo: ніндзя з черги': {
     query: '?bamboo=1',
     run: async () => {
-      const { scene, sp, names, noSpikes } = window.__t;
+      const { scene, sp, names, noSpikes, until } = window.__t;
       const bad = [];
       for (const e of scene.enemies.getChildren().slice()) if (e.ninja) e.destroy();
       sp.walkerQueue = [];
@@ -70,6 +82,12 @@ const SCENARIOS = {
       sp.stepWalkers();
       if (!names.includes('Ninja')) bad.push('ніндзя не з\'явився на вільній стіні');
       if (sp.walkerQueue.length) bad.push('черга не спорожніла');
+      // фідбек-6 п.10: після кидка ніндзя перескакує на протилежну стіну
+      const ninja = scene.enemies.getChildren().find((e) => e.ninja);
+      // у хмарі туман бамбука гальмує гру в рази (див. bosstest) — чекаємо щедро
+      const side0 = ninja?.side;
+      if (ninja && !(await until(() => ninja.teleported, 20000))) bad.push(`ніндзя не перескочив: active ${ninja.active} thrown ${ninja.thrown} tp ${ninja.teleportAt} now ${scene.nowMs} paused ${scene.paused}`);
+      else if (ninja && (ninja.side === side0 || !ninja.harmless)) bad.push(`після перескоку стіна ${ninja.side} (була ${side0}), harmless ${ninja.harmless}`);
       return bad;
     },
   },
