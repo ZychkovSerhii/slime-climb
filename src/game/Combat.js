@@ -8,6 +8,7 @@ import { sfx } from '../systems/Audio.js';
 import Familiar from '../entities/Familiar.js';
 import Projectile from '../entities/Projectile.js';
 import WeaponView from '../entities/WeaponView.js';
+import ShurikenRing from '../entities/ShurikenRing.js';
 
 const VENOM_SHOT_TINT = 0x9cff3a; // постріли з «Ядовитою мордою» — кислотні
 // шляпа на голові слизака: центр шляпи відносно центру слизака і зсув другої шляпи
@@ -16,8 +17,8 @@ const HAT_STACK = 12;
 
 /**
  * Бій гравця (scene.combat): автоатака основної зброї (постріл, сокира, чакра, дробовик), вигляд зброї,
- * влучання снарядів гравця, шляпи й міні-сокира-помічниця.
- * Тут живуть fireState, weaponView, hats, miniAxe. Поле weapon лишилось у сцені (його читає LootEffects),
+ * влучання снарядів гравця, шляпи, кільце сюрикенів і міні-сокира-помічниця.
+ * Тут живуть fireState, weaponView, hats, ring, miniAxe. Поле weapon лишилось у сцені (його читає LootEffects),
  * а visibleEnemies — делегатом у сцені (кличуть Familiar і LootEffects).
  * Від сцени бере: player, progression, weapon, status, nowMs, paused, currentScroll, групи enemies і
  * playerProjectiles, а також scale, physics, events.
@@ -29,6 +30,7 @@ export default class Combat {
     this.fireState = createFireState();
     this.hats = [];
     this.miniAxe = null;
+    this.ring = new ShurikenRing(scene); // фідбек-6 п.8
     this.weaponView = new WeaponView(scene, scene.player);
   }
 
@@ -133,6 +135,18 @@ export default class Combat {
       if (t.active) hitAlive = true;
     }
     if (hitAlive) sfx('hit');
+  }
+
+  /** Скіл-картка взята: шляпи або сюрикени. */
+  onSkill(id) {
+    if (id === 'hat') this.syncHats();
+    if (id === 'shuriken') this.ring.sync();
+  }
+
+  /** Щокадру: шляпи й кільце сюрикенів. */
+  stepHelpers(dt) {
+    for (const f of this.hats) f.step(dt);
+    this.ring.step();
   }
 
   /** Шляпи на голові: кількість і шкода — за взяттями картки. */

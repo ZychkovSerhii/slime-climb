@@ -89,7 +89,7 @@ export const BALANCE = deepFreeze({
     // smokeMs — дим-попередження (у диму невразливий і не шкодить), потім кидок 1 сюрикена, через stayMs — зникає в диму.
     // Стіна ніндзі вільна від шипів біля висоти гравця від (приліт − dodgeLeadSec) до (приліт + dodgeSec).
     ninja: { hp: 6, xp: 4, // фідбек-6 п.4: було 3 — у бамбуку всі гинули з одного пострілу
-      points: 40, smokeMs: 600, teleportMs: 450, stayMs: 1200, // teleportMs — фідбек-6 п.10 shurikenSpeed: 260, minYFrac: 0.12, maxYFrac: 0.4, dodgeLeadSec: 1, dodgeSec: 0.6 },
+      points: 40, smokeMs: 600, teleportMs: 450, stayMs: 1200, shurikenSpeed: 260, minYFrac: 0.12, maxYFrac: 0.4, dodgeLeadSec: 1, dodgeSec: 0.6 }, // teleportMs — фідбек-6 п.10
     // Ліхтарик-дух: пливе на гравця, за armPx блимає blinkMs і вибухає радіусом radiusPx. Убитий раніше — вибуху немає.
     // фідбек-6: «літають по приколу» — були 70 px/с і 2 HP: гинули, не долетівши. Тепер швидші, міцніші, вибух ширший і раніше
     lantern: { hp: 5, xp: 3, // фідбек-6 п.4: було 3
@@ -413,6 +413,11 @@ export const BALANCE = deepFreeze({
     // шляпа: летить на видимого ворога, влучає завжди, повертається; шкода за взяттями 1, +1, +1, +1
     // (фідбек-2, було +3/+5/+5 — надто сильна); 5-те — друга шляпа
     hat: { name: "Солом'яна шляпа", damageSteps: [1, 1, 1, 1], maxPicks: 5, speed: 900, restMs: 1000 }, // restMs — [рішення]: з 250 мс 2 капелюхи по 14 вбивали боса за секунди
+    // фідбек-6 п.8: сюрикени крутяться довкола слизака й ріжуть усіх, кого зачеплять. Кількість і шкода — за взяттями
+    // (counts / damageSteps, шкода ще ×biomeHpMul^біом, як в Оксанки — щоб скіл тягнув і на дальніх колах).
+    // Один ворог отримує удар від кільця не частіше, ніж раз на hitCdMs; боса — ×bossMul. Числа — припущення.
+    shuriken: { name: 'Сюрикени', counts: [1, 2, 3, 3, 4], damageSteps: [1, 1, 1, 1, 1], maxPicks: 5,
+      radiusPx: 62, radiusStep: 6, turnsPerSec: 0.55, hitPx: 16, hitCdMs: 450, bossMul: 0.5 },
     extraLife: { maxLives: 5 },
   },
 

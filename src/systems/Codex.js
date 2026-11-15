@@ -117,7 +117,7 @@ function weapons() {
   return [start, ...list];
 }
 
-const SKILL_SPRITES = { slow: 'frost', hat: 'hat', extraLife: 'heart', invisibility: 'slime' };
+const SKILL_SPRITES = { slow: 'frost', hat: 'hat', shuriken: 'orbitShuriken', extraLife: 'heart', invisibility: 'slime' };
 
 function skills() {
   return CARD_IDS.map((id) => {
@@ -129,6 +129,13 @@ function skills() {
       damage = H.damageSteps[0];
       facts.push(`До ${H.maxPicks} взять, на ${H.maxPicks}-му — друга шляпа`);
       facts.push(`Шкода росте: ${H.damageSteps.map((_, i) => H.damageSteps.slice(0, i + 1).reduce((a, b) => a + b, 0)).join(' → ')}`);
+    }
+    if (id === 'shuriken') {
+      const R = BALANCE.skills.shuriken;
+      damage = R.damageSteps[0];
+      facts.push(`До ${R.maxPicks} взять: сюрикенів ${R.counts.join(' → ')}, шкода ${R.damageSteps.map((_, i) => R.damageSteps.slice(0, i + 1).reduce((a, b) => a + b, 0)).join(' → ')}`);
+      facts.push(`Шкода росте з біомом, як HP ворогів; «Урон» її не посилює`);
+      facts.push(`Одного ворога ріже не частіше, ніж раз на ${sec(R.hitCdMs)} с; боса — вполовину`);
     }
     if (id === 'damage') {
       damage = BALANCE.cards.damageFirst;

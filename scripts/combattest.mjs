@@ -9,7 +9,9 @@ import { BALANCE } from '../src/config/balance.js';
 
 const UPGRADES = BALANCE.weaponUpgrades.axe.miniAxeAt; // стільки прокачок — і в сокири з'являється міні-сокира
 // шляпа до maxPicks — тоді їх дві
-const LOOT = `${Array(BALANCE.skills.hat.maxPicks).fill('hat').join(',')},loot:venom,loot:web`;
+// і сюрикени до maxPicks (фідбек-6 п.8)
+const SHURIKENS = BALANCE.skills.shuriken;
+const LOOT = `${Array(BALANCE.skills.hat.maxPicks).fill('hat').join(',')},${Array(SHURIKENS.maxPicks).fill('shuriken').join(',')},loot:venom,loot:web`;
 const WEAPONS = ['start', 'axe', 'chakra', 'shotgun'];
 
 const server = await createServer({ server: { port: 5500 + Math.floor(Math.random() * 100) }, logLevel: 'error' });
@@ -49,7 +51,12 @@ for (const weapon of WEAPONS) {
       const { default: Bat } = await import('/src/entities/Bat.js');
       s.spawnEnemies = () => {}; // лише наші кажани
       s.health = { ...s.health, invulnerableUntil: Number.MAX_SAFE_INTEGER };
-      const a = { shots: 0, swings: 0, venomTint: 0, webShots: 0, hitsFx: 0, hits: 0, familiarHits: 0 };
+      const a = { shots: 0, swings: 0, venomTint: 0, webShots: 0, hitsFx: 0, hits: 0, familiarHits: 0, ringHits: 0 };
+      const ringSet = s.combat.ring.lastHit.set.bind(s.combat.ring.lastHit);
+      s.combat.ring.lastHit.set = (...x) => {
+        a.ringHits++;
+        return ringSet(...x);
+      };
       const shotAdd = s.playerProjectiles.add.bind(s.playerProjectiles);
       s.playerProjectiles.add = (p, ...rest) => {
         a.shots++;
@@ -100,6 +107,7 @@ for (const weapon of WEAPONS) {
       return {
         ...a,
         hats: s.combat.hats.length,
+        blades: s.combat.ring.blades.length,
         miniAxe: Boolean(s.combat.miniAxe),
         main: s.progression.arsenal.main ?? 'start',
         view: s.combat.weaponView.main ?? null,
@@ -122,12 +130,15 @@ for (const weapon of WEAPONS) {
     if (r.hitsFx < 2) bad.push(`влучань основною зброєю з ефектом павутини ${r.hitsFx}`);
     if (r.familiarHits < 1) bad.push('шляпи / міні-сокира не влучили');
     if (r.hats !== 2) bad.push(`шляп ${r.hats}, чекали 2`);
+    const wantBlades = SHURIKENS.counts[SHURIKENS.maxPicks - 1];
+    if (r.blades !== wantBlades) bad.push(`сюрикенів ${r.blades}, чекали ${wantBlades}`);
+    if (r.ringHits < 2) bad.push(`удари кільця сюрикенів ${r.ringHits}`);
     if (r.frames <= 0) bad.push('кадри стали');
     if (r.crash) bad.push('екран «Гра зламалась»');
     if (!r.alive) bad.push('слизак помер');
     if (errs.length) bad.push(`помилки: ${errs.slice(0, 3).join(' | ')}`);
     if (bad.length) failures.push(`${weapon}: ${bad.join('; ')}`);
-    const stat = `постріли ${r.shots}, розмахи ${r.swings}, влучання ${r.hits} (з павутиною ${r.hitsFx}, помічники ${r.familiarHits})`;
+    const stat = `постріли ${r.shots}, розмахи ${r.swings}, влучання ${r.hits} (з павутиною ${r.hitsFx}, помічники ${r.familiarHits}, кільце ${r.ringHits})`;
     console.log(`${weapon.padEnd(8)} ${bad.length ? 'ПРОВАЛ — ' + bad.join('; ') : 'ок'} — ${stat}`);
   } catch (e) {
     failures.push(`${weapon}: ${e.message.split('\n')[0]}${errs.length ? ' | ' + errs[0] : ''}`);
