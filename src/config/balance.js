@@ -89,7 +89,7 @@ export const BALANCE = deepFreeze({
     // smokeMs — дим-попередження (у диму невразливий і не шкодить), потім кидок 1 сюрикена, через stayMs — зникає в диму.
     // Стіна ніндзі вільна від шипів біля висоти гравця від (приліт − dodgeLeadSec) до (приліт + dodgeSec).
     ninja: { hp: 6, xp: 4, // фідбек-6 п.4: було 3 — у бамбуку всі гинули з одного пострілу
-      points: 40, smokeMs: 600, stayMs: 1200, shurikenSpeed: 260, minYFrac: 0.12, maxYFrac: 0.4, dodgeLeadSec: 1, dodgeSec: 0.6 },
+      points: 40, smokeMs: 600, teleportMs: 450, stayMs: 1200, // teleportMs — фідбек-6 п.10 shurikenSpeed: 260, minYFrac: 0.12, maxYFrac: 0.4, dodgeLeadSec: 1, dodgeSec: 0.6 },
     // Ліхтарик-дух: пливе на гравця, за armPx блимає blinkMs і вибухає радіусом radiusPx. Убитий раніше — вибуху немає.
     // фідбек-6: «літають по приколу» — були 70 px/с і 2 HP: гинули, не долетівши. Тепер швидші, міцніші, вибух ширший і раніше
     lantern: { hp: 5, xp: 3, // фідбек-6 п.4: було 3
