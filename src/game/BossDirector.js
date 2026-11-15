@@ -88,11 +88,14 @@ export default class BossDirector {
     if (stage === 'prep') this.clearMap();
   }
 
-  /** Перед босом: шипи, звичайні вороги й їхні кулі плавно зникають (без нагород, без зіткнень). */
+  /**
+   * Перед босом: шипи, підбирачки й бомби плавно зникають (без нагород, без зіткнень). Звичайні вороги та їхні кулі
+   * лишаються (фідбек-6, п.11) — нових до кінця тиші після боса не буде (hazardsSuppressed у SpawnDirector).
+   */
   clearMap() {
     const scene = this.scene;
     scene.spawner.pendingPlants = 0;
-    for (const group of [scene.hazards, scene.enemies, scene.enemyProjectiles, scene.pickups, scene.bombs]) {
+    for (const group of [scene.hazards, scene.pickups, scene.bombs]) {
       for (const obj of group.getChildren().slice()) scene.fadeOut(obj, group);
     }
   }
