@@ -253,7 +253,7 @@ export default class GameScene extends Phaser.Scene {
       this.maxLives = maxLivesFor(this.progression.picks.extraLife);
       this.health = heal(this.health, 1, this.maxLives);
     }
-    if (id === 'hat') this.combat.syncHats();
+    this.combat.onSkill(id); // шляпи, сюрикени
     const up = cardUpgrade(id);
     if (up) this.combat.onWeaponUpgrade(up);
     const loot = cardLoot(id);
@@ -575,7 +575,7 @@ export default class GameScene extends Phaser.Scene {
     this.spawner.spawnSpikes();
     this.spawnEnemies();
     this.combat.autoFire(dt);
-    for (const f of this.combat.hats) f.step(dt);
+    this.combat.stepHelpers(dt); // шляпи, сюрикени
     this.loot.oksana?.step(dt);
     this.combat.miniAxe?.step(dt);
     this.loot.step();

@@ -1,7 +1,7 @@
 // Тексти карток вікна рівня. Чисті функції без Phaser: їх читає і LevelUpScene, і довідник (етап 7).
 import { BALANCE } from '../config/balance.js';
 import { cardUpgrade, cardWeapon, damageCardBonus, iceStats } from './Progression.js';
-import { cardLoot, hatStats, invisStats, maxLivesFor } from './Skills.js';
+import { cardLoot, hatStats, invisStats, maxLivesFor, shurikenStats } from './Skills.js';
 
 export const WEAPON_DESC = {
   axe: (w) => `розмах навколо: ×${w.damageMul} шкоди всім поруч,\nзокрема босу; лише ближній бій`,
@@ -118,6 +118,11 @@ export function cardText(id, picks, arsenal) {
       const two = st.count > hatStats(n - 1).count && n > 1 ? 'друга шляпа!\n' : '';
       const name = BALANCE.skills.hat.name;
       return { title: `${name}${n > 1 ? ` ${n}` : ''}`, desc: `${two}злітає на ворога і завжди влучає:\n${st.damage} шкоди за удар` };
+    }
+    case 'shuriken': {
+      const st = shurikenStats(n);
+      const more = n > 1 && st.count > shurikenStats(n - 1).count ? `${st.count}-й сюрикен!\n` : '';
+      return { title: `${BALANCE.skills.shuriken.name}${n > 1 ? ` ${n}` : ''}`, desc: `${more}${st.count} крутяться довкола тебе й ріжуть\nкожного, хто зачепить: ${st.damage} шкоди` };
     }
     case 'extraLife':
       return { title: 'Додаткове життя', desc: `+1 серце (до ${maxLivesFor(n)} з ${BALANCE.skills.extraLife.maxLives})` };

@@ -9,6 +9,7 @@ import { invisStats, LOOT_IDS, lootCard } from './Skills.js';
 import { SHKODKO_LOOT_IDS } from './ShkodkoLoot.js';
 import { KOLYA_LOOT_IDS } from './KolyaLoot.js';
 import { KAZAN_LOOT_IDS } from './KazanLoot.js';
+import { ENEMIES } from './CodexEnemies.js';
 
 export const CATEGORIES = [
   { id: 'character', name: 'Персонаж' },
@@ -117,7 +118,7 @@ function weapons() {
   return [start, ...list];
 }
 
-const SKILL_SPRITES = { slow: 'frost', hat: 'hat', extraLife: 'heart', invisibility: 'slime' };
+const SKILL_SPRITES = { slow: 'frost', hat: 'hat', shuriken: 'orbitShuriken', extraLife: 'heart', invisibility: 'slime' };
 
 function skills() {
   return CARD_IDS.map((id) => {
@@ -129,6 +130,13 @@ function skills() {
       damage = H.damageSteps[0];
       facts.push(`До ${H.maxPicks} взять, на ${H.maxPicks}-му — друга шляпа`);
       facts.push(`Шкода росте: ${H.damageSteps.map((_, i) => H.damageSteps.slice(0, i + 1).reduce((a, b) => a + b, 0)).join(' → ')}`);
+    }
+    if (id === 'shuriken') {
+      const R = BALANCE.skills.shuriken;
+      damage = R.damageSteps[0];
+      facts.push(`До ${R.maxPicks} взять: сюрикенів ${R.counts.join(' → ')}, шкода ${R.damageSteps.map((_, i) => R.damageSteps.slice(0, i + 1).reduce((a, b) => a + b, 0)).join(' → ')}`);
+      facts.push(`Шкода росте з біомом, як HP ворогів; «Урон» її не посилює`);
+      facts.push(`Одного ворога ріже не частіше, ніж раз на ${sec(R.hitCdMs)} с; боса — вполовину`);
     }
     if (id === 'damage') {
       damage = BALANCE.cards.damageFirst;
@@ -177,118 +185,6 @@ function loot() {
     ...KAZAN_LOOT_IDS.map((id) => make(id, `Трофей з «${BALANCE.kazan.name}»: 1 з ${BALANCE.kazanLoot.offer}, невзята лишається на наступне коло`)),
   ];
 }
-
-// Тексти поведінки ворогів. Числа — з BALANCE.
-const ENEMIES = {
-  lion: () => ({
-    name: 'Левиця',
-    biome: 'cave',
-    speed: E.lion.speed,
-    desc: `Біжить по стіні знизу вгору. За ${E.lion.lungeBelowPx} px під тобою завмирає, блимає і стрибає туди, де ти був.`,
-    facts: [`Промахнулась — ще ${E.lion.returns} раз повертається знизу на іншій стіні`, `Ривок: ${E.lion.lungeSpeed} px/с`],
-  }),
-  bat: () => ({
-    name: 'Кажан',
-    biome: 'cave',
-    speed: E.bat.speed,
-    desc: 'Летить прямо на тебе згори. Б\'є лише дотиком.',
-    facts: [`У бамбуку: ${BALANCE.bamboo.bat.hp} HP і на ${pct(BALANCE.bamboo.bat.speedMul - 1)}% швидший`],
-  }),
-  plant: () => ({
-    name: 'Квітка',
-    biome: 'cave',
-    desc: `Сидить на стіні й стріляє в тебе, коли вона вище за тебе. Перед пострілом ${sec(E.plant.windupMs)} с блимає жовтим.`,
-    facts: [`Постріл раз на ${sec(E.plant.fireMs)} с`, 'Від кулі рятує стрибок'],
-  }),
-  smallSpider: () => ({
-    name: 'Павучок',
-    biome: 'cave',
-    speed: E.smallSpider.speed,
-    desc: `Повзе на тебе. З'являється в рої «${BALANCE.boss.name}».`,
-    facts: [`Дотик павучка з рою отруює: ${sec(BALANCE.boss.poison.durationMs)} с ти на ${pct(1 - BALANCE.boss.poison.speedMul)}% повільніший`],
-  }),
-  elf: () => ({
-    name: 'Ельф',
-    biome: 'winter',
-    speed: E.elf.speed,
-    desc: `Летить на крильцях до тебе і кидає льодяник туди, де ти був. Перед кидком ${sec(E.elf.windupMs)} с замахується.`,
-    facts: [`Кидок раз на ${sec(E.elf.throwMs)} с`, `Вилетів за край — ще ${E.elf.wraps} раз з'являється з іншого боку`],
-  }),
-  penguin: () => ({
-    name: 'Пінгвін',
-    biome: 'winter',
-    hp: `${E.penguin.hp}–${E.penguin.hpMax}`,
-    speed: E.penguin.slideSpeed,
-    desc: `З'являється вгорі біля стіни, де тебе немає, блимає ${sec(E.penguin.warnMs)} с і ковзає на пузі прямо туди, де ти був.`,
-    facts: [`Вилетів за край — ще ${E.penguin.wraps} раз атакує з іншого боку`, 'Ухиляйся стрибком на іншу стіну'],
-  }),
-  santa: () => ({
-    name: 'Санта',
-    biome: 'winter',
-    speed: E.santa.speed,
-    desc: 'Пролітає поперек екрана й тебе не б\'є. Зіб\'єш — отримаєш рівень і Шаги.',
-    facts: [`Шанс появи: ${pct(E.santa.chancePerMin)}% щохвилини`],
-  }),
-  // ---- Туманний бамбук і Коля (етап 9)
-  ninja: () => ({
-    name: 'Ніндзя',
-    biome: 'bamboo',
-    desc: `З'являється в клубі диму вгорі на стіні, де тебе немає, кидає сюрикен і за ${sec(E.ninja.stayMs)} с зникає. Збив до кидка — кидка немає.`,
-    facts: [`Сюрикен: ${E.ninja.shurikenSpeed} px/с, від нього рятує стрибок`, 'Поки летить сюрикен, на стіні ніндзі біля тебе немає кілків', 'Дим не б\'є'],
-  }),
-  lantern: () => ({
-    name: 'Ліхтарик-дух',
-    biome: 'bamboo',
-    speed: E.lantern.speed,
-    desc: `Паперовий ліхтар з вогником. Повільно пливе до тебе, за ${E.lantern.armPx} px блимає ${sec(E.lantern.blinkMs)} с і вибухає.`,
-    facts: [`Вибух: радіус ${E.lantern.radiusPx} px — стрибни на іншу стіну`, 'Збив раніше — вибуху немає'],
-  }),
-  slugBiter: () => ({
-    name: 'Слимак-кусака',
-    biome: 'bamboo',
-    speed: E.slugBiter.speed,
-    desc: `Малий слимак «${BALANCE.kolya.name}». Повзе по повітрю прямо на тебе.`,
-  }),
-  slugSpitter: () => ({
-    name: 'Личинка-стрілець',
-    biome: 'bamboo',
-    speed: E.slugSpitter.speed,
-    desc: `Малий слимак «${BALANCE.kolya.name}». Тримається над тобою на ${E.slugSpitter.keepPx} px і плює слизом.`,
-    facts: [`Плювок раз на ${sec(E.slugSpitter.spitMs)} с, перед ним блимає жовтим`],
-  }),
-  // ---- Лавові надра і Пан Казан (етап 11)
-  salamander: () => ({
-    name: 'Саламандра',
-    biome: 'lava',
-    desc: `Вилазить із тріщини на стіні, де тебе немає. Показує лінію на твоїй висоті і за ${sec(E.salamander.warnMs)} с дихає вогнем через увесь коридор.`,
-    facts: ['Від струменя рятує стрибок: траєкторія йде вгору', 'Збив до видиху — видиху немає', 'Поки вона дихає, на її стіні біля тебе немає кілків'],
-  }),
-  spark: () => ({
-    name: 'Іскра',
-    biome: 'lava',
-    speed: E.spark.speed,
-    desc: `Летить до тебе зигзагом. Збив — розпадається на ${E.spark.splits} дрібні іскри, що летять по прямій.`,
-  }),
-  sparkling: () => ({
-    name: 'Дрібна іскра',
-    biome: 'lava',
-    speed: E.sparkling.speed,
-    desc: `Уламок іскри. Летить по прямій і гасне за ${sec(E.sparkling.lifeMs)} с.`,
-  }),
-  bubble: () => ({
-    name: 'Бульбашка',
-    biome: 'lava',
-    speed: E.bubble.speed,
-    desc: `Її випускає «${BALANCE.kazan.name}», коли закипає. Пливе до тебе і лопається від дотику або за ${sec(E.bubble.lifeMs)} с.`,
-    facts: [`Вибух: радіус ${E.bubble.popPx} px`],
-  }),
-  wagon: () => ({
-    name: 'Вагон потяга',
-    biome: 'winter',
-    speed: BALANCE.shkodko.train.speed,
-    desc: `Частина потяга «${BALANCE.shkodko.name}». Кожен вагон перестрибуй окремо, паровоз невразливий.`,
-  }),
-};
 
 // Властивості посилених ворогів з 2-го кола (етап 10, §10.1)
 const T = BALANCE.traits;
@@ -481,8 +377,10 @@ function bosses() {
       desc: 'Зелений гоблін у шапці-ялинці. Танцює, кидає подарунки-бомби й льодяники, а наприкінці сідає на потяг.',
       facts: [
         `Приходить через ${Math.floor(S.afterSec / 60)} хв після перемоги над «${B.name}» (і не раніше ніж через ${BB.shkodkoGapSec} с після ведмедя)`,
-        `Подарунковий дощ: збери ${S.rush.goal} з ${S.rush.count}, інакше він лікується`,
-        `Після потяга оглушений на ${sec(S.stunMs)} с`,
+        'На початку кидається на тебе втричі швидше й кусає — перед ривком блимає',
+        `Подарунковий дощ: збери ${S.rush.goal} з ${S.rush.count}, поки він кидає цукерки, інакше він лікується на ${pct(S.rush.healFail)}%`,
+        `Потяг-змійка з ${S.train.wagons} вагонів пірнає до тебе вздовж стіни — стрілка показує куди`,
+        'Розбив вагони — одразу лютує: бігає по карті й кидає цукерки',
         `Нагорода: ${BALANCE.meta.stepsPerKill.shkodko} Шагів і трофей`,
         cycleFact,
       ],
@@ -546,7 +444,7 @@ function biomes() {
       biome: 'winter',
       desc: `Настає після перемоги над «${BALANCE.boss.name}». Тут чекає бос «${BALANCE.shkodko.name}».`,
       facts: [
-        `Вороги: ${names(['elf', 'penguin'])}, ${W.bat.name}; міні-бос «${BB.name}»`,
+        `Вороги: ${names(['elf', 'penguin', 'snowball'])}, ${W.bat.name}; міні-бос «${BB.name}»`,
         'Пастки: бурульки, льодяники',
         `Подарунок: випадково досвід (${pct(W.gift.xpShare)}% рівня), ${W.gift.steps} Шаги, щит на ${sec(W.gift.shieldMs)} с або рідко +1 життя`,
         'Сніг вимикається в меню',

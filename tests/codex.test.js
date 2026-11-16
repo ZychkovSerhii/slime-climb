@@ -71,7 +71,7 @@ test('numeric sort: strongest first, entries without the value last', () => {
   const known = hp.filter((v) => v != null);
   expect(known).toEqual([...known].sort((a, b) => b - a));
   expect(hp.slice(known.length).every((v) => v == null)).toBe(true);
-  expect(r[0].id).toBe('enemy:wagon');
+  expect(r[0].id).toBe('enemy:snowball'); // фідбек-6: 20 HP міцніша за вагон
 });
 
 test('biome sort: cave, then winter, then bamboo, then entries without a biome', () => {

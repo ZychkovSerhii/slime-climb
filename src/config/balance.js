@@ -76,6 +76,9 @@ export const BALANCE = deepFreeze({
     // Пінгвін (етап 10, §10.3, рішення користувача: діагональ). Було у фідбеку-3: ходок по стіні — «надто безполезні».
     // З'являється вгорі біля стіни, де тебе немає (edgeY), блимає warnMs і ковзає по прямій у точку гравця на slideSpeed.
     // Вилетів за край — раз (wraps) з'являється згори біля протилежної стіни і знову атакує.
+    // Снігова куля (фідбек-6 п.15): котиться по стіні, де гравця немає, донизу на speed px/с (швидше за світ), росте
+    // від startScale до maxScale за growMs. 20 HP — слово користувача (×множник біому, як усім). Решта — припущення.
+    snowball: { hp: 20, xp: 6, points: 60, speed: 150, startScale: 0.8, maxScale: 2.2, growMs: 3500, spinPerSec: 5 },
     penguin: { hp: 3, hpMax: 4, xp: 3, points: 30, warnMs: 400, slideSpeed: 420, edgeY: 70, wraps: 1 },
     // Ельф лишається в повітрі; фідбек-3: на спрайті крильця, щоб політ мав пояснення.
     // Санта: шанс chancePerMin щохвилини в зимі, пролітає поперек екрана на висоті y, гравця не б'є.
@@ -83,15 +86,17 @@ export const BALANCE = deepFreeze({
     // Нагорода: Шаги (meta.stepsPerKill.santa) і рівень (досвід до наступного рівня).
     santa: { hp: 5, xp: 0, points: 300, speed: 170, y: 210, wraps: 2, chancePerMin: 0.1 },
     // Вагон потяга Шкодька (етап 6b): окреме HP; паровоз невразливий
-    wagon: { hp: 6, xp: 2, points: 60 },
+    wagon: { hp: 18, xp: 2, points: 60 }, // фідбек-6 п.18: ×3 (було 6)
     // ---- Туманний бамбук (етап 9, специфікація §9.1)
     // Ніндзя [рішення плану]: тримається за стіну на сталій висоті екрана (minYFrac…maxYFrac висоти), на стіні, де гравця немає.
     // smokeMs — дим-попередження (у диму невразливий і не шкодить), потім кидок 1 сюрикена, через stayMs — зникає в диму.
     // Стіна ніндзі вільна від шипів біля висоти гравця від (приліт − dodgeLeadSec) до (приліт + dodgeSec).
-    ninja: { hp: 3, xp: 4, points: 40, smokeMs: 600, stayMs: 1200, shurikenSpeed: 260, minYFrac: 0.12, maxYFrac: 0.4, dodgeLeadSec: 1, dodgeSec: 0.6 },
+    ninja: { hp: 6, xp: 4, // фідбек-6 п.4: було 3 — у бамбуку всі гинули з одного пострілу
+      points: 40, smokeMs: 600, teleportMs: 450, stayMs: 1200, shurikenSpeed: 260, minYFrac: 0.12, maxYFrac: 0.4, dodgeLeadSec: 1, dodgeSec: 0.6 }, // teleportMs — фідбек-6 п.10
     // Ліхтарик-дух: пливе на гравця, за armPx блимає blinkMs і вибухає радіусом radiusPx. Убитий раніше — вибуху немає.
     // фідбек-6: «літають по приколу» — були 70 px/с і 2 HP: гинули, не долетівши. Тепер швидші, міцніші, вибух ширший і раніше
-    lantern: { hp: 3, xp: 3, points: 30, speed: 150, armPx: 130, blinkMs: 600, radiusPx: 100 },
+    lantern: { hp: 5, xp: 3, // фідбек-6 п.4: було 3
+      points: 30, speed: 150, armPx: 130, blinkMs: 600, radiusPx: 100 },
     // Малі слимаки Колі (фаза 80%). Кусака повзе на гравця; личинка-стрілець тримається на keepPx і плює раз на spitMs,
     // завжди вище за гравця щонайменше на minAbovePx (крута траєкторія — від неї рятує стрибок, як від квітки).
     slugBiter: { hp: 6, xp: 3, points: 40, speed: 120 },
@@ -110,10 +115,10 @@ export const BALANCE = deepFreeze({
   // spawnBaseMs зими [рішення]: інтервали ще й падають з часом гри (spawnRampSec), а зима починається на ~2:10,
   // коли множник уже ~0,6 — тому бази більші, ніж у біомі 1.
   winter: {
-    from: { elf: 3, bat: 8, penguin: 12 }, // етап 10: звичайних ведмедів більше немає (міні-бос, bearBoss)
+    from: { elf: 3, bat: 8, penguin: 12, snowball: 20 }, // snowball — фідбек-6 п.15 // етап 10: звичайних ведмедів більше немає (міні-бос, bearBoss)
     // Фідбек після 6a: «забагато мобів» — інтервали ×1,25 (було elf 6500, bat 7000, penguin 11000, bear 17000);
     // після 6b ельф ще ×1,2 (8100 → 9700). Увага: ?winter=1 стартує з tSec 0, а справжня зима — з ~2:10, де інтервали вже ×~0,57
-    spawnBaseMs: { elf: 9700, bat: 8750, penguin: 13750 },
+    spawnBaseMs: { elf: 9700, bat: 8750, penguin: 13750, snowball: 16000 },
     // «Зимова летюча миша» (етап 10, §10.3): HP 6 (було 2, рішення користувача: «6, далі за ботом»), ще +15% швидкості
     bat: { name: 'Зимова летюча миша', hp: 6, speedMul: 1.15 },
     // подарунок: летить разом зі світом посеред коридору, у смузі стрибка.
@@ -134,7 +139,7 @@ export const BALANCE = deepFreeze({
   bamboo: {
     from: { lantern: 3, bat: 8, ninja: 10 },
     spawnBaseMs: { lantern: Math.round(9700 * 0.9), bat: Math.round(8750 * 0.9), ninja: Math.round(13750 * 0.9) },
-    bat: { hp: 2, speedMul: 1.15 }, // як у зимі
+    bat: { hp: 4, speedMul: 1.15 }, // фідбек-6 п.4: було 2 (як у зимі)
     // туман: 2 шари лише на фоні (під стінами, шипами й ворогами), повільний паралакс і дрейф, низький контраст
     fog: { layers: [{ alpha: 0.12, parallax: 0.12, driftX: 7 }, { alpha: 0.08, parallax: 0.22, driftX: -4 }] },
     transitionMs: 1500,
@@ -205,7 +210,8 @@ export const BALANCE = deepFreeze({
     zone: { top: 200, bottomGap: 90 }, // танцює між y=top і (y гравця − bottomGap)
     // танець: пауза на точці, швидкість, кожна aimEvery-та точка — там, де гравець
     dance: {
-      p1: { speed: 260, pauseMs: 700, aimEvery: 4 },
+      // фідбек-6 п.18: у фазі 1 на гравця кидається втричі швидше (+200%) і кусає; перед ривком блимає biteWindupMs
+      p1: { speed: 260, pauseMs: 700, aimEvery: 4, aimSpeedMul: 3, biteWindupMs: 450 },
       p2: { speed: 340, pauseMs: 550, aimEvery: 2, bombs: 2 },
       p3: { speed: 380, pauseMs: 450, aimEvery: 2, bombs: 2 },
       rage: { speed: 440, pauseMs: 350, aimEvery: 2, bombs: 2 },
@@ -214,21 +220,26 @@ export const BALANCE = deepFreeze({
     volley: { everyMs: 12000, enhancedEveryMs: 9000, holdMs: 3000, count: 6, centerY: 220 },
     bomb: { flightMs: 650, fuseMinMs: 2000, fuseMaxMs: 3000, radiusPx: 75, nearPlayerShare: 0.5, nearSpreadPx: 90 },
     // фаза 3: подарунковий дощ; heal — частка maxHp за кожен незібраний, якщо ціль не виконано
-    rush: { count: 10, durationMs: 8000, goal: 6, xp: 3, healEach: 0.05, healCap: 0.65, fallSpeed: 260 },
-    candy: { everyMs: 1600, count: 3, spreadDeg: 16, speed: 320 },
+    // фідбек-6 п.17: подарунки вдвічі швидші (було 260), під час дощу кидає цукерки раз на candyEveryMs,
+    // ціль не виконано — +healFail від maxHp (було по 5% за кожен незібраний, ≈15%), не вище healCap
+    rush: { count: 10, durationMs: 8000, goal: 6, xp: 3, healFail: 0.25, healCap: 0.75, // healCap було 0,65 — з'їдало +25% до +15%
+      fallSpeed: 520, candyEveryMs: 1500 },
+    candy: { everyMs: 1600, count: 3, spreadDeg: 16, speed: 320, scale: 3 }, // scale — фідбек-6 п.17: льодяники втричі більші
+    // Фідбек-6 п.18: потяг утричі довший (було 5 вагонів) і утричі більший, їде змійкою (systems/Snake.js): ряди
+    // від rowTop до (висота гравця − rowBottomGap) — гравця не зачіпають; раз на diveEveryMs на кінці ряду пірнає вздовж
+    // стіни до висоти гравця (попередження за warnPx шляху). Нове пірнання — коли хвіст попереднього піднявся на
+    // diveClearPx: одна стіна завжди вільна. Числа, крім ×3, — припущення.
     train: {
       sitMs: 1000, // поки сідає — невразливий
-      wagons: 5,
-      // Вагони на довгій зчіпці: на екрані ~1 вагон за раз, кожен перестрибується окремо.
-      // Суцільний потяг (~750 px) проїжджав би повз слизака ~1,5 с, а стрибок тримає його вгорі лише ~0,5 с.
-      speed: 600, // px/s
-      wagonGapPx: 480, // проміжок між вагонами (зчіпка)
-      warnMs: 1200, // свисток і стрілка перед проїздом
-      pauseMs: 900, // між проїздами
+      wagons: 15,
+      carScale: 3,
+      speed: 300, // px/s уздовж шляху
+      snake: { rowTop: 200, rowBottomGap: 280, rowGap: 150, laneGapPx: 24, gapPx: 14, warnPx: 750, lookaheadPx: 400,
+        firstDiveMs: 4000, diveEveryMs: 7000, diveClearPx: 200 },
       peekEveryMs: 3500, peekMs: 1200, // Шкодько визирає з паровоза — тоді вразливий
       peekFloor: 0.15, // нижче цієї частки HP визирання не збиває
     },
-    stunMs: 3000, // після потяга
+    // stunMs прибрано (фідбек-6 п.18): після вагонів одразу лють — бігає по карті й кидає цукерки
     rageHpCap: 0.15, // після потяга HP = min(поточне, rageHpCap)
     debugAtSec: 6, // ?shkodko=1
   },
@@ -411,6 +422,11 @@ export const BALANCE = deepFreeze({
     // шляпа: летить на видимого ворога, влучає завжди, повертається; шкода за взяттями 1, +1, +1, +1
     // (фідбек-2, було +3/+5/+5 — надто сильна); 5-те — друга шляпа
     hat: { name: "Солом'яна шляпа", damageSteps: [1, 1, 1, 1], maxPicks: 5, speed: 900, restMs: 1000 }, // restMs — [рішення]: з 250 мс 2 капелюхи по 14 вбивали боса за секунди
+    // фідбек-6 п.8: сюрикени крутяться довкола слизака й ріжуть усіх, кого зачеплять. Кількість і шкода — за взяттями
+    // (counts / damageSteps, шкода ще ×biomeHpMul^біом, як в Оксанки — щоб скіл тягнув і на дальніх колах).
+    // Один ворог отримує удар від кільця не частіше, ніж раз на hitCdMs; боса — ×bossMul. Числа — припущення.
+    shuriken: { name: 'Сюрикени', counts: [1, 2, 3, 3, 4], damageSteps: [1, 1, 1, 1, 1], maxPicks: 5,
+      radiusPx: 62, radiusStep: 6, turnsPerSec: 0.55, hitPx: 20, hitCdMs: 450, bossMul: 0.5, scale: 1.7 },
     extraLife: { maxLives: 5 },
   },
 
@@ -471,7 +487,7 @@ export const BALANCE = deepFreeze({
   // Ціль специфікації: ~120–180 Шагів за нормальний забіг (боса вбито, смерть на 3:00–3:30) — ще не перевірено плейтестом.
   meta: {
     // Шаги за вбивство. smallSpider — павучки рою павучихи: їх за бій десятки, тому 0 [рішення], інакше рій давав би більше за саму павучиху
-    stepsPerKill: { lion: 2, bat: 1, plant: 2, smallSpider: 0, boss: 60, elf: 1, penguin: 1, bear: 30, santa: 40, shkodko: 100, wagon: 0,
+    stepsPerKill: { lion: 2, bat: 1, plant: 2, smallSpider: 0, boss: 60, elf: 1, penguin: 1, snowball: 2, bear: 30, santa: 40, shkodko: 100, wagon: 0,
       ninja: 2, lantern: 1, slugBiter: 1, slugSpitter: 1, kolya: 120, kolyaPart: 0, bearAura: 0,
       salamander: 2, spark: 1, sparkling: 0, bubble: 0, kazan: 150 },
     // Скіни лише візуальні. sprite — ключ спрайта в src/art/sprites (однаковий розмір полотна → хітбокс той самий)

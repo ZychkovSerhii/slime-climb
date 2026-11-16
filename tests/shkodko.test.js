@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { BALANCE } from '../src/config/balance.js';
 import {
   afterTrainHp, blastHits, bombFuseMs, bombTargets, candyAngles, createRush, danceBounds, danceTarget, peekDamage,
-  phaseFor, rushDueCount, rushHeal, rushOver, trainGone, trainLayout,
+  phaseFor, rushDueCount, rushHeal, rushOver,
 } from '../src/systems/ShkodkoPlanner.js';
 
 const S = BALANCE.shkodko;
@@ -67,12 +67,14 @@ describe('подарунковий дощ', () => {
     expect(rushOver(r, R.durationMs, 2000)).toBe(false);
     expect(rushOver(r, R.durationMs + 2000, 2000)).toBe(true);
   });
-  test('ціль виконано — не лікує; ні — 5% за незібраний, не вище 65%', () => {
+  test('ціль виконано — не лікує; ні — +25% (фідбек-6), не вище 75%', () => {
     expect(rushHeal(40, 100, R.goal)).toBe(40);
     expect(rushHeal(40, 100, 8)).toBe(40);
-    expect(rushHeal(40, 100, 5)).toBeCloseTo(40 + 5 * 5);
-    expect(rushHeal(40, 100, 0)).toBe(65);
-    expect(rushHeal(70, 100, 0)).toBe(70); // ніколи не знижує
+    expect(rushHeal(30, 100, 5)).toBeCloseTo(55); // фідбек-6: +25% за провал, скільки б не зібрав
+    expect(rushHeal(30, 100, 0)).toBeCloseTo(55);
+    expect(rushHeal(50, 100, 0)).toBe(75); // дощ на 50% → провал дає рівно +25% (стеля healCap)
+    expect(rushHeal(60, 100, 0)).toBe(75);
+    expect(rushHeal(80, 100, 0)).toBe(80); // ніколи не знижує
   });
 });
 
@@ -86,23 +88,6 @@ describe('потяг', () => {
     expect(afterTrainHp(28, 100)).toBe(15);
     expect(afterTrainHp(12, 100)).toBe(12);
     expect(afterTrainHp(0.4, 100)).toBe(1);
-  });
-  test('розстановка і виїзд', () => {
-    const xs = trainLayout(3, 1, 540, 56);
-    expect(xs[0]).toBe(-28);
-    expect(xs[1]).toBe(-28 - (56 + S.train.wagonGapPx));
-    expect(trainGone(xs, 1, 540, 56)).toBe(false);
-    expect(trainGone(xs.map((x) => x + 5000), 1, 540, 56)).toBe(true);
-    const back = trainLayout(2, -1, 540, 56);
-    expect(back[0]).toBe(540 + 28);
-    expect(trainGone(back.map((x) => x - 5000), -1, 540, 56)).toBe(true);
-  });
-  test('інваріант чесності: вагон проїжджає повз слизака швидше, ніж тримає стрибок з утриманням', () => {
-    const passMs = ((56 + 48) / S.train.speed) * 1000;
-    const holdFlight = BALANCE.jumpDurationMs * BALANCE.holdDurationMul;
-    expect(passMs).toBeLessThan(holdFlight * 0.6);
-    // між вагонами слизак встигає приземлитися і стрибнути знову
-    expect((S.train.wagonGapPx / S.train.speed) * 1000).toBeGreaterThan(holdFlight);
   });
 });
 

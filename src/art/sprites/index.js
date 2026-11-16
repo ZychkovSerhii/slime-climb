@@ -66,6 +66,8 @@ import puddle from './puddle.js';
 import ladle from './ladle.js';
 import slimeKazan from './slimeKazan.js';
 import ember from './ember.js';
+import orbitShuriken from './orbitShuriken.js';
+import snowball from './snowball.js';
 
 export const SPRITES = [slime, wall, spike, projectile, plantBullet, heart, heartArmor, bat, plant, lion, spider, smallSpider, shadow, axe, shotgun, chakraVeins, webBall, hat, webShot, slimeSpider, frost, skinAssassin, skinCommander, skinRaccoon, skinMurzik,
   wallIce, icicle, elf, candy, bear, penguin, santa, gift, snowflake,
@@ -73,7 +75,8 @@ export const SPRITES = [slime, wall, spike, projectile, plantBullet, heart, hear
   slimeShkodko, sack,
   wallBamboo, stake, ninja, smoke, shuriken, lantern, kolya, slug, slimeSpit, larva, slimeKolya,
   traitStar,
-  wallLava, basalt, salamander, beam, spark, sparkling, lavaDrop, kazan, lid, magma, bubble, puddle, ladle, slimeKazan, ember];
+  wallLava, basalt, salamander, beam, spark, sparkling, lavaDrop, kazan, lid, magma, bubble, puddle, ladle, slimeKazan, ember,
+  orbitShuriken, snowball];
 
 /** Ключ анімації в Phaser: 'slime:idle'. */
 export const animKey = (spriteKey, anim) => `${spriteKey}:${anim}`;

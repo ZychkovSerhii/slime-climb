@@ -1,7 +1,7 @@
 import { BALANCE } from '../config/balance.js';
 import { cardLoot, maxLivesFor } from './Skills.js';
 
-export const CARD_IDS = ['attackSpeed', 'damage', 'slow', 'invisibility', 'hat', 'extraLife'];
+export const CARD_IDS = ['attackSpeed', 'damage', 'slow', 'invisibility', 'hat', 'shuriken', 'extraLife'];
 export const WEAPON_IDS = Object.keys(BALANCE.weapons);
 const WEAPON_PREFIX = 'weapon:';
 const UPGRADE_PREFIX = 'upgrade:';
@@ -62,6 +62,7 @@ export function availableCards(p) {
     if (id === 'attackSpeed') return p.weapon.fireIntervalMs > BALANCE.minFireIntervalMs;
     if (id === 'extraLife') return maxLivesFor(p.picks.extraLife) < BALANCE.skills.extraLife.maxLives;
     if (id === 'hat') return (p.picks.hat ?? 0) < BALANCE.skills.hat.maxPicks;
+    if (id === 'shuriken') return (p.picks.shuriken ?? 0) < BALANCE.skills.shuriken.maxPicks;
     return true;
   });
 }

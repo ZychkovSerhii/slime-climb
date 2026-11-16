@@ -48,6 +48,37 @@ export function hatStats(n) {
   return { count: n >= S.hat.maxPicks ? 2 : 1, damage };
 }
 
+/**
+ * Сюрикени після n взять (фідбек-6 п.8): { count, damage, radius }. damage — до множника біому (Cycle.familiarDamage
+ * тут не підходить: «Урон» основної зброї кільце не посилює, інакше воно затьмарить саму зброю).
+ */
+export function shurikenStats(n) {
+  const R = S.shuriken;
+  if (!n) return { count: 0, damage: 0, radius: R.radiusPx };
+  const k = Math.min(n, R.maxPicks);
+  return {
+    count: R.counts[k - 1],
+    damage: R.damageSteps.slice(0, k).reduce((a, b) => a + b, 0),
+    radius: R.radiusPx + R.radiusStep * (k - 1),
+  };
+}
+
+/** Точки сюрикенів на колі навколо (cx, cy) у мить nowMs: рівномірно, кільце обертається turnsPerSec. */
+export function orbitPoints(cx, cy, count, radius, nowMs, turnsPerSec = S.shuriken.turnsPerSec) {
+  const base = (nowMs / 1000) * turnsPerSec * Math.PI * 2;
+  const out = [];
+  for (let i = 0; i < count; i++) {
+    const a = base + (i * Math.PI * 2) / count;
+    out.push({ x: cx + Math.cos(a) * radius, y: cy + Math.sin(a) * radius });
+  }
+  return out;
+}
+
+/** Шкода кільця по ворогу: × множник біому; боса — × bossMul. */
+export function orbitDamage(damage, biomeMul, isBoss) {
+  return damage * biomeMul * (isBoss ? S.shuriken.bossMul : 1);
+}
+
 /** Максимум життів з урахуванням карток «Додаткове життя». */
 export function maxLivesFor(extraLifePicks) {
   return Math.min(BALANCE.maxLives + (extraLifePicks ?? 0), S.extraLife.maxLives);

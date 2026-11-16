@@ -57,6 +57,13 @@ export function penguinHp(rng) {
 }
 
 
+/** Розмір снігової кулі (фідбек-6 п.15) через ageMs після появи: від startScale лінійно до maxScale за growMs. */
+export function snowballScale(ageMs) {
+  const S = BALANCE.enemies.snowball;
+  const k = Math.min(Math.max(ageMs / S.growMs, 0), 1);
+  return S.startScale + (S.maxScale - S.startScale) * k;
+}
+
 /** Чи зачіпає ричання ведмедя гравця: відстань між центрами ≤ радіуса. */
 export function roarReaches(bear, player, radius = BALANCE.bearBoss.aura.radiusPx) {
   return Math.hypot(bear.x - player.x, bear.y - player.y) <= radius;

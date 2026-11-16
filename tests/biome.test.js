@@ -23,7 +23,7 @@ describe('wrapAxis', () => {
 describe('спавн зими', () => {
   test('у зимі інші вороги, перші появи — від початку зими', () => {
     const s = createSpawnState('winter', 130);
-    expect(s.nextAt).toEqual({ elf: 133, bat: 138, penguin: 142 }); // етап 10: ведмідь — міні-бос, не звичайний спавн
+    expect(s.nextAt).toEqual({ elf: 133, bat: 138, penguin: 142, snowball: 150 }); // етап 10: ведмідь — міні-бос, не звичайний спавн
     expect(s.biome).toBe('winter');
   });
   test('немає левів і квіток', () => {
@@ -34,7 +34,7 @@ describe('спавн зими', () => {
       s = r.state;
       r.spawn.forEach((x) => seen.add(x));
     }
-    expect([...seen].sort()).toEqual(['bat', 'elf', 'penguin']);
+    expect([...seen].sort()).toEqual(['bat', 'elf', 'penguin', 'snowball']);
   });
   test('інтервали зими беруться з winter.spawnBaseMs', () => {
     expect(spawnIntervalMs('penguin', 0, 'winter')).toBe(BALANCE.winter.spawnBaseMs.penguin);
