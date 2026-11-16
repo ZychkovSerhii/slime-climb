@@ -222,7 +222,8 @@ export const BALANCE = deepFreeze({
     // фаза 3: подарунковий дощ; heal — частка maxHp за кожен незібраний, якщо ціль не виконано
     // фідбек-6 п.17: подарунки вдвічі швидші (було 260), під час дощу кидає цукерки раз на candyEveryMs,
     // ціль не виконано — +healFail від maxHp (було по 5% за кожен незібраний, ≈15%), не вище healCap
-    rush: { count: 10, durationMs: 8000, goal: 6, xp: 3, healFail: 0.25, healCap: 0.65, fallSpeed: 520, candyEveryMs: 1500 },
+    rush: { count: 10, durationMs: 8000, goal: 6, xp: 3, healFail: 0.25, healCap: 0.75, // healCap було 0,65 — з'їдало +25% до +15%
+      fallSpeed: 520, candyEveryMs: 1500 },
     candy: { everyMs: 1600, count: 3, spreadDeg: 16, speed: 320, scale: 3 }, // scale — фідбек-6 п.17: льодяники втричі більші
     // Фідбек-6 п.18: потяг утричі довший (було 5 вагонів) і утричі більший, їде змійкою (systems/Snake.js): ряди
     // від rowTop до (висота гравця − rowBottomGap) — гравця не зачіпають; раз на diveEveryMs на кінці ряду пірнає вздовж

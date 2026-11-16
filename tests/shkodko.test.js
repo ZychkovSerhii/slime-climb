@@ -67,13 +67,14 @@ describe('подарунковий дощ', () => {
     expect(rushOver(r, R.durationMs, 2000)).toBe(false);
     expect(rushOver(r, R.durationMs + 2000, 2000)).toBe(true);
   });
-  test('ціль виконано — не лікує; ні — 5% за незібраний, не вище 65%', () => {
+  test('ціль виконано — не лікує; ні — +25% (фідбек-6), не вище 75%', () => {
     expect(rushHeal(40, 100, R.goal)).toBe(40);
     expect(rushHeal(40, 100, 8)).toBe(40);
     expect(rushHeal(30, 100, 5)).toBeCloseTo(55); // фідбек-6: +25% за провал, скільки б не зібрав
     expect(rushHeal(30, 100, 0)).toBeCloseTo(55);
-    expect(rushHeal(50, 100, 0)).toBe(65); // стеля healCap
-    expect(rushHeal(70, 100, 0)).toBe(70); // ніколи не знижує
+    expect(rushHeal(50, 100, 0)).toBe(75); // дощ на 50% → провал дає рівно +25% (стеля healCap)
+    expect(rushHeal(60, 100, 0)).toBe(75);
+    expect(rushHeal(80, 100, 0)).toBe(80); // ніколи не знижує
   });
 });
 
