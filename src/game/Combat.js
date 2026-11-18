@@ -1,7 +1,7 @@
 import { BALANCE } from '../config/balance.js';
 import { fireIntervalMul } from '../systems/Status.js';
 import {
-  attackDamage, axeRadius, axeTier, boomerangStats, burnStats, chainDamage, chainTargets, createFireState, hasMiniAxe,
+  attackDamage, axeRadius, spreadBurn, axeTier, boomerangStats, burnStats, chainDamage, chainTargets, createFireState, hasMiniAxe,
   inRadius, lightningStats, shotgunAngles, shotgunRicochet, stepFire,
 } from '../systems/Weapons.js';
 import { weaponUpgrades } from '../systems/Progression.js';
@@ -69,7 +69,7 @@ export default class Combat {
     const near = this.visibleEnemies().filter((t) => t !== e && !t.burn);
     const close = inRadius(e, near, A.spreadPx);
     if (!close.length) return;
-    pickNearest(e, close).takeHit(0, { burn: e.burnFx }, this.scene.nowMs);
+    pickNearest(e, close).takeHit(0, { burn: spreadBurn(e.burnFx) }, this.scene.nowMs);
   }
 
   /** Згорілий ворог вибухає: шкода всім довкола (без нового підпалу — щоб вибухи не йшли ланцюгом без кінця). */

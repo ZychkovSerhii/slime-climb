@@ -113,6 +113,16 @@ export function burnStats(damage, upgrades = 0) {
   };
 }
 
+/** Горіння, перекинуте на сусіда: слабше в spreadMul раз (правка 2026-11-18 — додаткові цілі слабші за основну). */
+export function spreadBurn(burn) {
+  return { ...burn, dps: burn.dps * U.fire.spreadMul };
+}
+
+/** Шкода бумеранга i-му (з 0) ворогу за прохід: перший ×1, решта ×pierceMul. */
+export function pierceDamage(damage, i) {
+  return i === 0 ? damage : damage * BALANCE.weapons.boomerang.pierceMul;
+}
+
 /** Бумеранг на рівні upgrades: дальність (зі стелею), кількість і щит. */
 export function boomerangStats(upgrades = 0) {
   const B = BALANCE.weapons.boomerang;

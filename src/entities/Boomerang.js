@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser';
 import { BALANCE } from '../config/balance.js';
-import { stepBoomerang } from '../systems/Weapons.js';
+import { pierceDamage, stepBoomerang } from '../systems/Weapons.js';
 
 const SPIN = 0.03; // рад/мс
 const SCALE = 2.2; // на телефоні 1,5 ледве видно (скриншот етапу 14)
@@ -50,8 +50,8 @@ export default class Boomerang extends Phaser.GameObjects.Image {
     const hit = this.state.back ? this.hitBack : this.hitOut;
     for (const t of this.touching(targets)) {
       if (hit.has(t)) continue;
+      t.takeHit(pierceDamage(this.damage, hit.size), this.fx, now); // правка 2026-11-18: перший ×1, решта слабше
       hit.add(t);
-      t.takeHit(this.damage, this.fx, now);
     }
     if (this.state.done) {
       if (!this.shield) return this.gone();
