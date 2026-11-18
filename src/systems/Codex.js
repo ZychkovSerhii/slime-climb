@@ -63,6 +63,7 @@ function character() {
         `Після удару невразливий ${sec(BALANCE.invulnerableMs)} с`,
         `До ${BALANCE.healLateFrom} рівня кожен новий рівень повертає ${BALANCE.healPerLevel} життя, далі — кожен другий`,
         `Стрибок: ${sec(BALANCE.jumpDurationMs)} с, з утриманням ×${num(BALANCE.holdDurationMul)} довше`,
+        `Заряджений стрибок (утримання): сідає на ${BALANCE.charge.liftPx} px вище й сповзає на місце; раз на ${sec(BALANCE.charge.cooldownMs)} с — шкала під слизаком`,
       ],
     }),
     entry({
@@ -92,11 +93,15 @@ function weapons() {
     desc: 'Куля в найближчого ворога. З нею починається кожен забіг.',
     facts: [`Постріл раз на ${sec(BALANCE.fireIntervalMs)} с (картками — до ${sec(BALANCE.minFireIntervalMs)} с)`],
   });
-  const sprites = { axe: 'axe', chakra: 'chakraVeins', shotgun: 'shotgun' };
-  const damage = {
-    axe: BALANCE.projectileDamage * BALANCE.weapons.axe.damageMul,
-    chakra: BALANCE.projectileDamage,
-    shotgun: BALANCE.projectileDamage * BALANCE.weapons.shotgun.damageMul,
+  const sprites = { axe: 'axe', chakra: 'chakraVeins', shotgun: 'shotgun', lightning: 'staffBolt', fire: 'staffFire', boomerang: 'boomerang' };
+  const damage = Object.fromEntries(Object.entries(BALANCE.weapons).map(([id, w]) => [id, BALANCE.projectileDamage * (w.damageMul ?? 1)]));
+  // етап 14: що зброя вміє з рівнем (поведінка міняється, а не лише цифри)
+  const W = BALANCE.weaponUpgrades;
+  const paths = {
+    shotgun: [`З ${W.shotgun.extraAt}-ї прокачки — 5 куль`, `З ${W.shotgun.ricochetAt}-ї — рикошет від стін (×${num(W.shotgun.ricochetMul)} шкоди)`],
+    lightning: [`Перескоків більше з ${W.lightning.moreAt.join('-ї і ')}-ї прокачки`, `З ${W.lightning.stunAt}-ї — вражені застигають (крім босів)`, `З ${W.lightning.blastAt}-ї — вибух у кінці ланцюга`],
+    fire: [`Горіння сильніше й довше з кожною прокачкою`, `З ${W.fire.spreadAt}-ї — вогонь перекидається на сусіда`, `З ${W.fire.explodeAt}-ї — згорілий ворог вибухає`],
+    boomerang: [`Летить далі з кожною прокачкою`, `З ${W.boomerang.twinAt}-ї — два бумеранги`, `З ${W.boomerang.shieldAt}-ї — повернувшись, крутиться над слизаком щитом`],
   };
   const U = BALANCE.weaponUpgrades;
   const list = Object.entries(BALANCE.weapons).map(([id, w]) =>
@@ -106,12 +111,13 @@ function weapons() {
       name: w.name,
       sprite: sprites[id] ?? null,
       damage: damage[id] ?? null,
-      speed: id === 'axe' ? null : BALANCE.projectileSpeed,
+      speed: id === 'axe' || id === 'lightning' ? null : id === 'boomerang' ? w.speed : BALANCE.projectileSpeed,
       desc: oneLine(WEAPON_DESC[id](w)),
       facts: [
-        `Стає основною після ${w.steps} карток`,
-        'Основна зброя одна: нова замінює попередню',
-        `Основну можна прокачувати без межі: +${num(U.damageAdd)} шкоди за кожну прокачку; швидкість і радіус — до стелі`,
+        `Відкривається за ${w.steps} карток`,
+        'Два слоти: стандартна атака й зброя; нова — замість слота на твій вибір, перемикання кнопкою',
+        `Прокачка без межі: +${num(U[id]?.damageAdd ?? U.damageAdd)} шкоди за кожну; рівень зберігається, навіть якщо зброю викинули`,
+        ...(paths[id] ?? []),
       ],
     }),
   );

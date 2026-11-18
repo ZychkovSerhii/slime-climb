@@ -2,7 +2,7 @@ import * as Phaser from 'phaser';
 import { BALANCE } from '../config/balance.js';
 import { formatTime } from '../systems/Format.js';
 import { isDefault, presetName, tuning } from '../systems/Tuning.js';
-import { PAUSE_BUTTON_SIZE, invisButton, parseCssPx, pauseButton, safeTopGamePx } from '../systems/Layout.js';
+import { PAUSE_BUTTON_SIZE, invisButton, parseCssPx, pauseButton, safeTopGamePx, switchButton } from '../systems/Layout.js';
 
 // Розкладка HUD (px базової роздільності) — це верстка, не баланс
 const PAD = 24;
@@ -81,6 +81,7 @@ export default class HudScene extends Phaser.Scene {
     }
     this.armorHeart = this.add.image(0, top + 14, 'heartArmor').setVisible(false); // помаранчево-коричневе (фідбек-6; було чорне)
     this.createInvisButton();
+    this.createSwitchButton();
     this.pauseGfx = this.add.graphics().setDepth(5);
     this.drawPause();
     this.xpBar = this.add.graphics();
@@ -108,6 +109,7 @@ export default class HudScene extends Phaser.Scene {
       this.banner.setPosition(w / 2, this.scale.height * 0.38);
       this.updateBoss(this.lastBoss);
       this.drawInvis(this.lastInvis);
+      this.drawSwitch(this.lastSlots);
     };
     this.scale.on(Phaser.Scale.Events.RESIZE, onResize);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.off(Phaser.Scale.Events.RESIZE, onResize));
@@ -201,6 +203,33 @@ export default class HudScene extends Phaser.Scene {
     this.invisZone.on('pointerdown', () => this.scene.get('Game').events.emit('skill:invis'));
   }
 
+  /** Етап 14: кнопка зброї — видно, коли зайняті обидва слоти; підпис — що в руках зараз. */
+  createSwitchButton() {
+    this.switchGfx = this.add.graphics().setDepth(5);
+    this.switchLabel = this.add
+      .text(0, 0, '', { fontFamily: 'sans-serif', fontSize: '18px', fontStyle: 'bold', color: '#ffffff', align: 'center', wordWrap: { width: 96 } })
+      .setOrigin(0.5)
+      .setDepth(6)
+      .setVisible(false);
+    this.switchZone = this.add.zone(0, 0, 1, 1).setInteractive().setDepth(6);
+    this.switchZone.input.enabled = false;
+    this.switchZone.on('pointerdown', () => this.scene.get('Game').events.emit('weapon:switch'));
+  }
+
+  drawSwitch(slots) {
+    this.lastSlots = slots;
+    this.switchGfx.clear();
+    const on = !!slots;
+    this.switchLabel.setVisible(on);
+    this.switchZone.input.enabled = on;
+    if (!on) return;
+    const b = switchButton(this.scale.width, this.scale.height);
+    this.switchZone.setPosition(b.x, b.y).setSize(2 * b.r + 24, 2 * b.r + 24);
+    this.switchGfx.fillStyle(0x40301a, 0.75).fillCircle(b.x, b.y, b.r);
+    this.switchGfx.lineStyle(6, 0xffb84a, 1).strokeCircle(b.x, b.y, b.r - 3);
+    this.switchLabel.setPosition(b.x, b.y).setText(`⇄\n${slots.other}`);
+  }
+
   drawInvis(inv) {
     this.lastInvis = inv;
     this.invisGfx.clear();
@@ -220,7 +249,8 @@ export default class HudScene extends Phaser.Scene {
     this.invisLabel.setAlpha(ready || inv.active ? 1 : 0.5);
   }
 
-  update_({ timeSec, score, lives, maxLives = BALANCE.maxLives, armor = null, invis = null, level, xp, xpToNext, steps = 0 }) {
+  update_({ timeSec, score, lives, maxLives = BALANCE.maxLives, armor = null, invis = null, slots = null, level, xp, xpToNext, steps = 0 }) {
+    this.drawSwitch(slots);
     this.timeText.setText(formatTime(timeSec));
     this.stepsText.setText(steps > 0 ? `+${steps} Шагів` : '');
     this.scoreText.setText(`SCORE ${score}`);

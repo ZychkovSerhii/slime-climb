@@ -7,11 +7,13 @@ import { BALANCE } from '../config/balance.js';
  */
 export default class Projectile extends Phaser.Physics.Arcade.Image {
   /** fx — ефекти влучання для ворога (systems/Skills.hitEffects) або null. */
-  constructor(scene, x, y, texture, { damage = 0, fx = null } = {}) {
+  /** bounceMul (етап 14, рикошет дробовика) — раз відскочити від стіни з шкодою ×bounceMul; null — без рикошету. */
+  constructor(scene, x, y, texture, { damage = 0, fx = null, bounceMul = null } = {}) {
     super(scene, x, y, texture);
     scene.add.existing(this);
     this.damage = damage;
     this.fx = fx;
+    this.bounceMul = bounceMul;
     this.scrollsWithWorld = false;
   }
 
@@ -30,6 +32,17 @@ export default class Projectile extends Phaser.Physics.Arcade.Image {
   preUpdate(time, delta) {
     const m = BALANCE.offscreenMarginPx;
     const { width, height } = this.scene.scale;
+    if (this.bounceMul !== null && this.body) {
+      const v = this.body.velocity;
+      const left = this.x <= BALANCE.wallWidth && v.x < 0;
+      const right = this.x >= width - BALANCE.wallWidth && v.x > 0;
+      if (left || right) {
+        v.x = -v.x;
+        this.damage *= this.bounceMul;
+        this.bounceMul = null;
+        this.setAlpha(0.7); // рикошет видно: блідіший
+      }
+    }
     if (this.x < -m || this.x > width + m || this.y < -m || this.y > height + m) this.destroy();
   }
 }

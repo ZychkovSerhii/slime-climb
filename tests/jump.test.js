@@ -5,8 +5,11 @@ import {
   jumpArcPx,
   jumpDurationMs,
   jumpPosition,
+  chargeReadiness,
+  landingLift,
   releaseJump,
   reverseJump,
+  slideLift,
   stepJump,
 } from '../src/systems/Jump.js';
 
@@ -78,5 +81,64 @@ describe('jump', () => {
     stepJump(j, 50);
     expect(j.k).toBe(0);
     expect(j.holdMs).toBe(0);
+  });
+});
+
+/** Проганяє стрибок до приземлення; повертає результат stepJump у момент приземлення. */
+function land(j, { releaseAt = Infinity, reverseAt = Infinity } = {}) {
+  for (let t = 0; ; t++) {
+    if (t === releaseAt) j = releaseJump(j);
+    if (t === reverseAt) j = reverseJump(j) ?? j;
+    const r = stepJump(j, 1);
+    if (r.landedSide) return r;
+    j = r.jump;
+  }
+}
+
+describe('заряджений стрибок (етап 14)', () => {
+  const C = BALANCE.charge;
+  test('баг: утримання без заряду сідає на ту саму висоту (як раніше)', () => {
+    const r = land(createJump('left', { holding: true }));
+    expect(r.lift).toBe(0);
+    expect(r.charged).toBe(false);
+  });
+  test('повне утримання із зарядом сідає на крок вище й витрачає заряд', () => {
+    const r = land(createJump('left', { holding: true, charged: true }));
+    expect(r.landedSide).toBe('right');
+    expect(r.lift).toBeCloseTo(C.liftPx, 6);
+    expect(r.charged).toBe(true);
+  });
+  test('крок — це висота шипа: вище за шип, але не більше двох', () => {
+    expect(C.liftPx).toBeGreaterThanOrEqual(BALANCE.spikeHeight);
+    expect(C.liftPx).toBeLessThanOrEqual(BALANCE.spikeHeight * 2);
+  });
+  test('короткий дотик із зарядом майже не піднімає й заряду не витрачає', () => {
+    const r = land(createJump('left', { holding: true, charged: true }), { releaseAt: 20 });
+    expect(r.lift).toBeLessThan(C.liftPx * C.minFrac);
+    expect(r.charged).toBe(false);
+  });
+  test('розворот повертає на висоту старту й заряду не витрачає', () => {
+    const r = land(createJump('left', { holding: true, charged: true, startLift: 12 }), { reverseAt: 100 });
+    expect(r.landedSide).toBe('left');
+    expect(r.lift).toBe(12);
+    expect(r.charged).toBe(false);
+  });
+  test('позиція: старт з поточного підйому, кінець — на підйомі приземлення, без стрибків висоти', () => {
+    const base = 900;
+    const j = { ...createJump('left', { charged: true, startLift: 20 }), holdMs: BALANCE.holdMaxMs };
+    expect(jumpPosition({ ...j, k: 0 }, 0, 100, base).y).toBeCloseTo(base - 20, 6);
+    expect(jumpPosition({ ...j, k: 1 }, 0, 100, base).y).toBeCloseTo(base - landingLift(j), 4);
+  });
+  test('сповзає на місце за slideMs і не нижче baseY', () => {
+    expect(slideLift(C.liftPx, C.slideMs / 2)).toBeCloseTo(C.liftPx / 2, 6);
+    expect(slideLift(C.liftPx, C.slideMs * 2)).toBe(0);
+  });
+  test('сповзання повільніше за прокрутку світу: шип, через який перескочив, тікає вниз швидше', () => {
+    expect((C.liftPx / C.slideMs) * 1000).toBeLessThan(BALANCE.scrollBase);
+  });
+  test('готовність заряду: 0 одразу після стрибка, 1 — після кулдауну', () => {
+    expect(chargeReadiness(C.cooldownMs, 0)).toBe(0);
+    expect(chargeReadiness(C.cooldownMs, C.cooldownMs / 2)).toBeCloseTo(0.5, 6);
+    expect(chargeReadiness(C.cooldownMs, C.cooldownMs)).toBe(1);
   });
 });

@@ -1,5 +1,6 @@
 import { BALANCE } from '../config/balance.js';
 import { cardLoot, maxLivesFor } from './Skills.js';
+import { cardSlot, createSlots, placePending, slotWeapons, weaponReady } from './Arsenal.js';
 
 export const CARD_IDS = ['attackSpeed', 'damage', 'slow', 'invisibility', 'hat', 'shuriken', 'extraLife'];
 export const WEAPON_IDS = Object.keys(BALANCE.weapons);
@@ -38,7 +39,8 @@ export function createProgression() {
     // зброя з прогресом: progress — кроки кожної, main — основна (null — стартовий постріл),
     // lastOffered — зброя з попереднього вікна рівня (не пропонується двічі поспіль)
     // upgrades — скільки разів прокачано кожну зброю, коли вона вже основна (фідбек-2)
-    arsenal: { progress: {}, main: null, lastOffered: null, lastTaken: null, upgrades: {} },
+    // етап 14: slots / active / pending — два слоти (systems/Arsenal.js); main — зброя активного слота
+    arsenal: { progress: {}, main: null, lastOffered: null, lastTaken: null, upgrades: {}, ...createSlots() },
     // унікальні картки павучихи, взяті за забіг ('armor', 'venom', …)
     relics: [],
   };
@@ -105,7 +107,8 @@ export function isWeaponMaxed(p, weaponId) {
  * Якщо лишилась одна зброя — її пропонуємо й підряд.
  */
 export function rollWeapon(p, rng) {
-  const open = WEAPON_IDS.filter((id) => !isWeaponMaxed(p, id));
+  const inSlots = p.arsenal.slots ?? [];
+  const open = WEAPON_IDS.filter((id) => !isWeaponMaxed(p, id) && !inSlots.includes(id));
   if (!open.length) return null;
   if (p.arsenal.lastTaken && open.includes(p.arsenal.lastTaken)) return p.arsenal.lastTaken;
   const pool = open.length > 1 ? open.filter((id) => id !== p.arsenal.lastOffered) : open;
@@ -118,29 +121,34 @@ export function weaponUpgrades(p, weaponId) {
 }
 
 /**
- * 3-тя картка, коли основна зброя вже є (фідбек-2): лише прокачка основної, інші зброї не пропонуються.
- * Прокачано до max — null (3-тя картка звичайна).
+ * 3-тя картка вікна рівня (етап 14, два слоти). Узяв зброю й вона ще не вкачана — пропонуємо її ж.
+ * Інакше, якщо в слотах уже є зброя: з імовірністю newWeaponChance — нова зброя (rollWeapon), решта часу —
+ * прокачка однієї зі зброї в слотах. Без зброї в слотах — нова зброя. Повертає id картки або null.
  */
-export function rollUpgrade(p) {
-  const main = p.arsenal.main;
-  if (!main) return undefined; // основної немає — діє звичайний вибір зброї
-  return weaponUpgrades(p, main) < BALANCE.weaponUpgrades.max ? upgradeCard(main) : null;
+export function rollThird(p, rng) {
+  const a = p.arsenal;
+  const owned = slotWeapons(a);
+  const continuing = a.lastTaken && !isWeaponMaxed(p, a.lastTaken) && !a.slots.includes(a.lastTaken);
+  if (continuing || !owned.length || rng() < BALANCE.slots.newWeaponChance) {
+    const w = rollWeapon(p, rng);
+    if (w) return weaponCard(w);
+  }
+  if (!owned.length) return null;
+  const w = owned[Math.min(Math.floor(rng() * owned.length), owned.length - 1)];
+  return weaponUpgrades(p, w) < BALANCE.weaponUpgrades.max ? upgradeCard(w) : null;
 }
 
 /**
- * Вікно рівня: 2 звичайні випадкові картки + 3-тя завжди зброя (якщо зброї не лишилось — звичайна).
+ * Вікно рівня: 2 звичайні випадкові картки + 3-тя — зброя чи прокачка (rollThird); якщо нічого — звичайна.
  * Повертає картки і прогресію із запам'ятованою запропонованою зброєю.
  */
 export function rollLevelUp(p, rng) {
-  const upgrade = rollUpgrade(p);
-  if (upgrade !== undefined) {
-    const regular = rollCards(p, rng, upgrade ? 2 : 3);
-    return { cards: upgrade ? [...regular, upgrade] : regular, progression: p };
-  }
-  const weapon = rollWeapon(p, rng);
-  const regular = rollCards(p, rng, weapon ? 2 : 3);
-  const cards = weapon ? [...regular, weaponCard(weapon)] : regular;
-  return { cards, progression: { ...p, arsenal: { ...p.arsenal, lastOffered: weapon, lastTaken: null } } };
+  const third = rollThird(p, rng);
+  const weapon = third && cardWeapon(third);
+  const regular = rollCards(p, rng, third ? 2 : 3);
+  const cards = third ? [...regular, third] : regular;
+  const arsenal = weapon ? { ...p.arsenal, lastOffered: weapon, lastTaken: null } : p.arsenal;
+  return { cards, progression: { ...p, arsenal } };
 }
 
 /** Скільки шкоди додасть наступна картка «Урон»: перша +damageFirst, кожна наступна +damageNext. */
@@ -166,6 +174,8 @@ export function iceStats(n) {
 
 /** Застосовує картку до зброї. Не змінює вхід. */
 export function applyCard(p, id) {
+  const slot = cardSlot(id);
+  if (slot !== null) return { ...p, arsenal: placePending(p.arsenal, slot) };
   const weaponId = cardWeapon(id);
   if (weaponId) return applyWeaponCard(p, weaponId, id);
   const upId = cardUpgrade(id);
@@ -187,16 +197,12 @@ export function applyCard(p, id) {
   return { ...p, weapon: w, picks: { ...p.picks, [id]: (p.picks[id] ?? 0) + 1 } };
 }
 
-/** Крок прогресу зброї; повний прогрес робить її основною (замінює попередню). */
+/** Крок прогресу зброї; повний прогрес — у вільний слот або вибір слота (етап 14, Arsenal.weaponReady). */
 function applyWeaponCard(p, weaponId, cardId) {
   const steps = BALANCE.weapons[weaponId].steps;
   const done = Math.min(weaponProgress(p, weaponId) + 1, steps);
-  const arsenal = {
-    ...p.arsenal,
-    progress: { ...p.arsenal.progress, [weaponId]: done },
-    main: done >= steps ? weaponId : p.arsenal.main,
-    lastTaken: weaponId,
-  };
+  let arsenal = { ...p.arsenal, progress: { ...p.arsenal.progress, [weaponId]: done }, lastTaken: weaponId };
+  if (done >= steps) arsenal = weaponReady(arsenal, weaponId);
   return { ...p, arsenal, picks: { ...p.picks, [cardId]: (p.picks[cardId] ?? 0) + 1 } };
 }
 

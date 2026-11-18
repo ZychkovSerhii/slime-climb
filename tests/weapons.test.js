@@ -164,3 +164,80 @@ describe('етап 10: прокачка без межі, стелі', () => {
     expect([0, 2, 3, 5, 6, 9, 11, 12, 40].map(W.axeTier)).toEqual([0, 0, 1, 1, 2, 3, 3, 4, 4]);
   });
 });
+
+describe('етап 14: нова зброя', async () => {
+  const W = await import('../src/systems/Weapons.js');
+  const { BALANCE: B } = await import('../src/config/balance.js');
+  const U = B.weaponUpgrades;
+
+  test('блискавка: перескоки ростуть на moreAt, оглушення й вибух — зі своїх рівнів', () => {
+    expect(W.lightningStats(0)).toEqual({ targets: B.weapons.lightning.targets, stun: false, blast: false });
+    expect(W.lightningStats(U.lightning.moreAt[1]).targets).toBe(B.weapons.lightning.targets + 2);
+    expect(W.lightningStats(U.lightning.stunAt).stun).toBe(true);
+    expect(W.lightningStats(U.lightning.blastAt).blast).toBe(true);
+  });
+
+  test('ланцюг: щоразу найближчий з не вражених, не далі chainPx, без повторів', () => {
+    const a = { x: 0, y: 0 };
+    const b = { x: 100, y: 0 };
+    const c = { x: 180, y: 0 };
+    const far = { x: 900, y: 0 };
+    expect(W.chainTargets(a, [a, c, b, far], 5, 240)).toEqual([a, b, c]);
+    expect(W.chainTargets(a, [a, b, c], 2, 240)).toEqual([a, b]);
+  });
+
+  test('кожен перескок слабший', () => {
+    expect(W.chainDamage(10, 0)).toBe(10);
+    expect(W.chainDamage(10, 2)).toBeCloseTo(10 * B.weapons.lightning.falloff ** 2, 6);
+  });
+
+  test('вогонь: горіння сильніше й довше з прокачкою; перекидання й вибух — зі своїх рівнів', () => {
+    const b0 = W.burnStats(1, 0);
+    const b5 = W.burnStats(1, 5);
+    expect(b0.dps).toBeCloseTo(B.weapons.fire.burnMul, 6);
+    expect(b5.dps).toBeGreaterThan(b0.dps);
+    expect(b5.durationMs).toBeGreaterThan(b0.durationMs);
+    expect(W.burnStats(1, U.fire.spreadAt).spread).toBe(true);
+    expect(W.burnStats(1, U.fire.explodeAt - 1).explode).toBe(false);
+    expect(W.burnStats(1, U.fire.explodeAt).explode).toBe(true);
+  });
+
+  test('вогонь проти боса не слабший за базовий постріл (горіння + удар за секунду)', () => {
+    const F = B.weapons.fire;
+    const perSec = F.damageMul / (F.intervalMul * B.fireIntervalMs / 1000) + W.burnStats(F.damageMul).dps;
+    expect(perSec).toBeGreaterThan(1.5);
+  });
+
+  test('бумеранг: летить rangePx туди і повертається до слизака, де б той не був', () => {
+    const R = 300;
+    let st = { x: 0, y: 0, angle: 0, travelled: 0, back: false };
+    for (let i = 0; i < 100 && !st.back; i++) st = W.stepBoomerang(st, 50, 700, R, { x: 0, y: 0 });
+    expect(st.back).toBe(true);
+    expect(st.x).toBeCloseTo(R, 6);
+    const home = { x: 50, y: 200 }; // слизак перестрибнув
+    for (let i = 0; i < 100 && !st.done; i++) st = W.stepBoomerang(st, 50, 700, R, home);
+    expect(st.done).toBe(true);
+    expect(st).toMatchObject({ x: 50, y: 200 });
+  });
+
+  test('бумеранг: дальність до стелі, два з twinAt, щит з shieldAt', () => {
+    expect(W.boomerangStats(0)).toEqual({ rangePx: B.weapons.boomerang.rangePx, count: 1, shield: false });
+    expect(W.boomerangStats(999).rangePx).toBe(U.boomerang.rangeMaxPx);
+    expect(W.boomerangStats(U.boomerang.twinAt).count).toBe(2);
+    expect(W.boomerangStats(U.boomerang.shieldAt).shield).toBe(true);
+  });
+
+  test('рикошет дробовика: лише з ricochetAt і слабший за пряме влучання', () => {
+    expect(W.shotgunRicochet(U.shotgun.ricochetAt - 1)).toBe(false);
+    expect(W.shotgunRicochet(U.shotgun.ricochetAt)).toBe(true);
+    expect(U.shotgun.ricochetMul).toBeLessThan(1);
+  });
+
+  test('нова зброя стріляє рідше за базу (intervalMul) і швидшає з прокачкою', () => {
+    for (const id of ['lightning', 'fire', 'boomerang']) {
+      const r = W.stepFire(W.createFireState(), 0, { main: id, fireIntervalMs: 1000, hasTarget: true });
+      expect(r.state.cooldownMs).toBe(1000 * B.weapons[id].intervalMul);
+      expect(W.upgradeIntervalMul(id, 5)).toBeLessThan(1);
+    }
+  });
+});
