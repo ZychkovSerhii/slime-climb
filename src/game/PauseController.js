@@ -1,6 +1,7 @@
 import { BALANCE } from '../config/balance.js';
 import { resumeAudio, stopMusic, suspendAudio } from '../systems/Audio.js';
 import { recordResult } from '../systems/HighScore.js';
+import { showBanner } from '../ads/AdService.js';
 
 const MENU_LABEL = 'У меню';
 const MENU_CONFIRM = 'Точно вийти?';
@@ -14,6 +15,7 @@ const MENU_DY = 150; // кнопка «У меню» нижче «Продовж
 export default class PauseController {
   constructor(scene) {
     this.scene = scene;
+    this.banner = null; // заглушка банера, поки відкрита пауза (фідбек-7)
     const { width, height } = scene.scale;
     // «У меню» (відгук після етапу 10): закінчити забіг з паузи. Перший тап перепитує — щоб випадковий не губив забіг.
     this.menuBtn = scene.add
@@ -52,6 +54,7 @@ export default class PauseController {
       event?.stopPropagation?.();
       this.overlay.setVisible(false);
       this.menuBtn.setVisible(false);
+      this.hideAd();
       resumeAudio();
       scene.inputBlockedUntil = scene.game.loop.time + BALANCE.tapGuardMs;
       // під час вибору картки чи представлення боса гра лишається на паузі, доки вони відкриті
@@ -79,6 +82,13 @@ export default class PauseController {
     suspendAudio();
     this.overlay.setVisible(true);
     this.menuBtn.setVisible(true).setText(MENU_LABEL).setColor('#cfe8cf');
+    this.hideAd();
+    this.banner = showBanner(this.scene);
+  }
+
+  hideAd() {
+    this.banner?.destroy();
+    this.banner = null;
   }
 
   /** Закінчити забіг з паузи: рекорд зберігається (Шаги й лічильники вже записані при вбивствах), далі — меню. */
@@ -87,6 +97,7 @@ export default class PauseController {
     // уже мертвий (GAME OVER не відкрився) — усе одно виходимо: «У меню» не має бути глухим кутом (фідбек-6)
     if (!scene.dead) recordResult(scene.storage, scene.score);
     scene.dead = true;
+    this.hideAd();
     stopMusic();
     resumeAudio();
     for (const key of ['Hud', 'LevelUp', 'BossIntro']) scene.scene.stop(key);
@@ -113,5 +124,9 @@ export default class PauseController {
     const { width, height } = this.scene.scale;
     this.overlay.setPosition(width / 2, height / 2);
     this.menuBtn.setPosition(width / 2, height / 2 + MENU_DY);
+    if (this.banner) {
+      this.hideAd();
+      this.banner = showBanner(this.scene);
+    }
   }
 }

@@ -4,6 +4,7 @@ import { formatTime } from '../systems/Format.js';
 import { enqueueResult, fetchTop, flush, statusLine } from '../systems/Leaderboard.js';
 import { LEADERBOARD_URL, REQUEST_TIMEOUT_MS } from '../config/leaderboard.js';
 import { leaderboard, leaderboardOpen } from '../leaderboard/index.js';
+import { showBanner } from '../ads/AdService.js';
 
 // Захист від випадкового тапу: гравець міг тапати для стрибка в момент смерті
 const INPUT_DELAY_MS = 600;
@@ -29,6 +30,9 @@ export default class GameOverScene extends Phaser.Scene {
       data.lb = { eligible: eligible && Boolean(LEADERBOARD_URL), result: null };
       if (data.lb.eligible) enqueueResult(storage, { height: climb, timeSec });
     }
+    // місце для реклами (фідбек-7): банер знизу; перебудова екрана знищує старий через SHUTDOWN
+    const banner = showBanner(this);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => banner?.destroy());
     const cx = width / 2;
     const style = (size, color = '#ffffff') => ({ fontFamily: 'sans-serif', fontSize: `${size}px`, color, align: 'center' });
 
