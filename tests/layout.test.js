@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { inPauseButton, parseCssPx, pauseButton, safeTopGamePx } from '../src/systems/Layout.js';
+import { adBannerRect, inPauseButton, parseCssPx, pauseButton, safeTopGamePx } from '../src/systems/Layout.js';
 
 test('CSS px of the safe-area inset → game px (canvas fills the screen height)', () => {
   // екран 800 css px заввишки показує 1600 ігрових px → 30 css px вирізу = 60 ігрових
@@ -31,5 +31,14 @@ describe('кнопка паузи (фідбек-6)', () => {
     expect(inPauseButton(719, 0, 720, 60)).toBe(true); // самий кут, над кнопкою
     expect(inPauseButton(600, 80, 720, 60)).toBe(false);
     expect(inPauseButton(700, 200, 720, 60)).toBe(false);
+  });
+});
+
+describe('зона банера реклами (фідбек-7)', () => {
+  test('смуга знизу на всю ширину, висота з конфігу', () => {
+    expect(adBannerRect(720, 1280)).toEqual({ x: 360, y: 1230, w: 720, h: 100 });
+  });
+  test('режим off — зони немає', () => {
+    expect(adBannerRect(720, 1280, 'off')).toBeNull();
   });
 });

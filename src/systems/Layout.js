@@ -1,3 +1,5 @@
+import { AD_MODE, BANNER_HEIGHT_PX } from '../config/ads.js';
+
 /** "24px" → 24; порожнє чи сміття → 0. */
 export function parseCssPx(value) {
   const n = Number.parseFloat(String(value ?? '').trim());
@@ -35,4 +37,12 @@ export function invisButton(width, height) {
 export function inInvisButton(x, y, width, height) {
   const b = invisButton(width, height);
   return (x - b.x) ** 2 + (y - b.y) ** 2 <= (b.r + 12) ** 2;
+}
+
+/**
+ * Зона банера реклами: смуга знизу екрана на всю ширину (центр x, y; розміри w, h). null — реклама вимкнена (mode 'off').
+ */
+export function adBannerRect(width, height, mode = AD_MODE) {
+  if (mode === 'off') return null;
+  return { x: width / 2, y: height - BANNER_HEIGHT_PX / 2, w: width, h: BANNER_HEIGHT_PX };
 }
