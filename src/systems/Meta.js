@@ -87,6 +87,11 @@ export function skinSprite(meta) {
   return (skinById(meta.skin) ?? M.skins[0]).sprite;
 }
 
+/** Ключ текстури пострілу для вдягнутого скіна. */
+export function shotSprite(meta) {
+  return (skinById(meta.skin) ?? M.skins[0]).shot;
+}
+
 /** Купівля скіна. Купленого одразу вдягаємо. Повертає { meta, ok, reason } (reason: 'owned' | 'poor' | 'unknown'). */
 export function buySkin(meta, id) {
   const skin = skinById(id);

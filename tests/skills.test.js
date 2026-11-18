@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import {
   activateInvis, applyDot, breakArmor, cardLoot, createArmor, createInvis, hatStats, hitEffects, invisCharge,
-  invisReady, invisStats, isInvisible, jumpMul, LOOT_IDS, lootCard, maxLivesFor, rollLoot, stepArmor, stepDot,
+  invisReady, invisStats, isInvisible, jumpMul, LOOT_IDS, lootCard, maxLivesFor, playerShotTexture, rollLoot, stepArmor, stepDot,
 } from '../src/systems/Skills.js';
 import { applyCard, availableCards, createProgression } from '../src/systems/Progression.js';
 import { BALANCE } from '../src/config/balance.js';
@@ -111,4 +111,12 @@ test('ice + venom: stronger slow, dps add up, boss slowed only by bossFactor', (
   expect(fx.slow).toMatchObject({ factor: 0.6, bossFactor: 0.95, ice: true });
   expect(fx.dot).toEqual({ dps: 1.5, durationMs: 3000 });
   expect(hitEffects(ice, []).dot).toEqual({ dps: 0.5, durationMs: 3000 });
+});
+
+describe('постріл за скіном і трофеями (фідбек-7)', () => {
+  test('playerShotTexture: скін, але «Павутина» головніша, відтінок отрути не міняє текстуру', () => {
+    expect(playerShotTexture('shotMurzik', [])).toBe('shotMurzik');
+    expect(playerShotTexture('shotMurzik', ['web'])).toBe('webShot');
+    expect(playerShotTexture('projectile', ['venom'])).toBe('projectile');
+  });
 });

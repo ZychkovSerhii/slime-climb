@@ -3,6 +3,9 @@ import { BALANCE } from '../config/balance.js';
 import { browserStorage } from '../systems/HighScore.js';
 import { buySkin, equipSkin, loadMeta, saveMeta } from '../systems/Meta.js';
 import { sfx } from '../systems/Audio.js';
+import { AD_MODE, REWARD_STEPS } from '../config/ads.js';
+import { grantReward } from '../systems/Ads.js';
+import { showRewarded } from '../ads/AdService.js';
 import { backButton, button, rebuildOnResize, textStyle } from './ui.js';
 
 const ROW_H = 170;
@@ -17,6 +20,7 @@ export default class ShopScene extends Phaser.Scene {
   create() {
     rebuildOnResize(this, Phaser);
     this.storage = browserStorage();
+    this.adBusy = false;
     this.meta = loadMeta(this.storage);
     this.draw();
   }
@@ -50,7 +54,26 @@ export default class ShopScene extends Phaser.Scene {
         button(this, bx, y, 'Купити', () => this.buy(skin.id), can ? '#ffd84a' : '#6a6a6a', 30);
       }
     });
+    if (AD_MODE !== 'off') this.drawAdButton(cx, height * 0.84);
     backButton(this);
+  }
+
+  /** Кнопка «Реклама: +50 Шагів» (фідбек-7). Без ліміту частоти. */
+  drawAdButton(x, y) {
+    button(this, x, y, `Реклама: +${REWARD_STEPS} Шагів`, () => this.watchAd(), '#ffd84a', 30);
+  }
+
+  watchAd() {
+    if (this.adBusy) return; // під час ролика повторний тап ігноруємо
+    this.adBusy = true;
+    showRewarded(this).then((ok) => {
+      this.adBusy = false;
+      // перебудова екрана посеред ролика дає false — нагороди немає; активна сцена й ok — нараховуємо раз
+      if (ok && this.sys.isActive()) {
+        sfx('levelUp');
+        this.update_(grantReward(this.meta));
+      }
+    });
   }
 
   buy(id) {

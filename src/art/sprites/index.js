@@ -25,6 +25,10 @@ import skinAssassin from './skinAssassin.js';
 import skinCommander from './skinCommander.js';
 import skinRaccoon from './skinRaccoon.js';
 import skinMurzik from './skinMurzik.js';
+import shotAssassin from './shotAssassin.js';
+import shotCommander from './shotCommander.js';
+import shotRaccoon from './shotRaccoon.js';
+import shotMurzik from './shotMurzik.js';
 import wallIce from './wallIce.js';
 import icicle from './icicle.js';
 import elf from './elf.js';
@@ -69,7 +73,7 @@ import ember from './ember.js';
 import orbitShuriken from './orbitShuriken.js';
 import snowball from './snowball.js';
 
-export const SPRITES = [slime, wall, spike, projectile, plantBullet, heart, heartArmor, bat, plant, lion, spider, smallSpider, shadow, axe, shotgun, chakraVeins, webBall, hat, webShot, slimeSpider, frost, skinAssassin, skinCommander, skinRaccoon, skinMurzik,
+export const SPRITES = [slime, wall, spike, projectile, plantBullet, heart, heartArmor, bat, plant, lion, spider, smallSpider, shadow, axe, shotgun, chakraVeins, webBall, hat, webShot, slimeSpider, frost, skinAssassin, skinCommander, skinRaccoon, skinMurzik, shotAssassin, shotCommander, shotRaccoon, shotMurzik,
   wallIce, icicle, elf, candy, bear, penguin, santa, gift, snowflake,
   shkodko, giftBomb, wagon, loco,
   slimeShkodko, sack,
