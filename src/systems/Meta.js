@@ -7,7 +7,7 @@ const M = BALANCE.meta;
 
 /** Порожній стан нового гравця. */
 export function emptyMeta() {
-  return { steps: 0, owned: ['slime'], skin: 'slime', kills: {}, achievements: {} };
+  return { steps: 0, owned: ['slime'], skin: 'slime', kills: {}, achievements: {}, adAt: 0 };
 }
 
 const isCount = (n) => Number.isInteger(n) && n >= 0;
@@ -17,6 +17,7 @@ export function normalizeMeta(raw) {
   const m = emptyMeta();
   if (!raw || typeof raw !== 'object') return m;
   if (isCount(raw.steps)) m.steps = raw.steps;
+  if (isCount(raw.adAt)) m.adAt = raw.adAt; // час останнього перегляду реклами (мс епохи)
   const skinIds = new Set(M.skins.map((s) => s.id));
   if (Array.isArray(raw.owned)) m.owned = [...new Set(['slime', ...raw.owned.filter((id) => skinIds.has(id))])];
   if (m.owned.includes(raw.skin)) m.skin = raw.skin;
