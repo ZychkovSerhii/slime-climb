@@ -68,6 +68,10 @@ export const SOUNDS = {
   ],
   // ельф кидає льодяник
   throw: [{ wave: 'triangle', from: 600, to: 900, ms: 70, vol: 0.06 }],
+  // етап 14: нова зброя
+  zap: [{ noise: true, ms: 60, vol: 0.06 }, { wave: 'sawtooth', from: 1800, to: 400, ms: 90, vol: 0.04 }],
+  fireball: [{ wave: 'triangle', from: 220, to: 120, ms: 110, vol: 0.07 }, { noise: true, ms: 80, vol: 0.03 }],
+  whoosh: [{ wave: 'triangle', from: 300, to: 520, ms: 120, vol: 0.05 }],
   // подарунок підібрано
   gift: [76, 83].map((n, i) => ({ wave: 'square', from: midiToHz(n), to: midiToHz(n), ms: 70, vol: 0.08, at: i * 70 })),
   // Санта летить: дзвіночки

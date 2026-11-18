@@ -5,7 +5,10 @@ const HOLD_DX = 22; // наскільки зброя в руках зсунут�
 const HOLD_DY = 6;
 const ORBIT = 0.72; // сокира під час розмаху летить по колу на цій частці радіуса
 const VEIN_PULSE_MS = 420;
-const HOLD_SCALE = { axe: 1.3, shotgun: 1.15 }; // у руках трохи більші за полотно, щоб їх було видно на телефоні
+const HOLD_SCALE = { axe: 1.3, shotgun: 1.15, staffFire: 1.1, staffBolt: 1.1, boomerang: 1.2 }; // у руках трохи більші за полотно, щоб їх було видно на телефоні
+// що в руках (етап 14 — жезли й бумеранг); чакра — вени на тілі, стандартна атака — нічого
+const HELD = { axe: 'axe', shotgun: 'shotgun', fire: 'staffFire', lightning: 'staffBolt', boomerang: 'boomerang' };
+const AIMED = new Set(['shotgun', 'fire', 'lightning']); // повертаються стволом / навершям у ціль
 
 /**
  * Як виглядає основна зброя на слизакові: сокира чи дробовик у руках, вени чакри на тілі,
@@ -24,9 +27,9 @@ export default class WeaponView {
 
   setMain(main) {
     this.main = main;
-    const tex = main === 'axe' ? 'axe' : main === 'shotgun' ? 'shotgun' : null;
+    const tex = HELD[main] ?? null;
     this.held.setVisible(Boolean(tex));
-    if (tex) this.held.setTexture(tex).setScale(HOLD_SCALE[tex]);
+    if (tex) this.held.setTexture(tex, 0).setScale(HOLD_SCALE[tex]);
     this.veins.setVisible(main === 'chakra');
     this.tier = 0;
     this.scene.tweens.killTweensOf(this.veins);
@@ -59,9 +62,9 @@ export default class WeaponView {
       .setRotation(this.main === 'axe' ? this.dir * 0.35 : 0);
   }
 
-  /** Постріл дробовика: ствол дивиться в ціль. */
+  /** Постріл дробовика чи жезла: ствол / навершя дивиться в ціль. */
   aim(angle) {
-    if (this.main !== 'shotgun') return;
+    if (!AIMED.has(this.main)) return;
     // текстура дивиться вправо; ліворуч — віддзеркалюємо, щоб приклад не був догори
     const left = Math.cos(angle) < 0;
     this.held.setFlipX(left).setRotation(left ? angle - Math.PI : angle);

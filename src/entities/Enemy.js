@@ -49,6 +49,10 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
     this.baseTint = null;
     this.rootUntil = 0;
     this.dot = null;
+    // етап 14: горіння вогняного жезла — окремо від отрути, не перебивають одне одного; burnFx { spread, explode }
+    this.burn = null;
+    this.burnFx = null;
+    this.flame = null;
     this.iceUntil = 0;
     this.frost = null;
     // зима: перехід за край (wrapEdges), harmless — дотик не шкодить (Санта)
@@ -105,6 +109,17 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
       if (r.damage > 0) this.takeHit(r.damage, null, now);
       if (!this.active) return;
     }
+    if (this.burn) {
+      const r = stepDot(this.burn, now);
+      this.burn = r.state;
+      if (r.damage > 0) {
+        this.scene.events.emit('burn:tick', this); // перекидання вогню (Combat)
+        this.takeHit(r.damage, null, now);
+        if (!this.active) return;
+      }
+      if (!this.burn) this.burnFx = null;
+    }
+    this.syncFlame();
     // під сповільненням ворог тонується синім, приклеєний павутиною — білим
     const rooted = now < this.rootUntil;
     const iced = now < this.iceUntil;
@@ -145,7 +160,22 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
     }
   }
 
+  /** Вогник над ворогом, поки він горить (етап 14). */
+  syncFlame() {
+    if (this.burn && !this.flame) this.flame = this.scene.add.image(this.x, this.y, 'fireball').setDepth(this.depth + 1).setAlpha(0.85);
+    else if (!this.burn && this.flame) {
+      this.flame.destroy();
+      this.flame = null;
+    }
+    if (this.flame) {
+      const flick = 1 + 0.15 * Math.sin(this.scene.nowMs / 60);
+      this.flame.setPosition(this.x, this.y - this.displayHeight * 0.35).setScale(2.2 * flick);
+    }
+  }
+
   destroy(fromScene) {
+    this.flame?.destroy();
+    this.flame = null;
     this.frost?.destroy();
     this.frost = null;
     this.outline?.destroy();
@@ -176,8 +206,14 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
       if (fx.slow.ice && !this.isBoss) this.iceUntil = this.slowUntil;
     }
     if (fx?.dot) this.dot = applyDot(this.dot, fx.dot, nowMs);
+    if (fx?.burn) {
+      this.burn = applyDot(this.burn, fx.burn, nowMs);
+      this.burnFx = fx.burn;
+    }
     if (fx?.root && nowMs >= this.rootUntil) this.rootUntil = nowMs + (this.isBoss ? fx.root.bossMs : fx.root.ms);
     if (this.hp <= 0) {
+      // етап 14: згорів з прокачаним вогнем — вибух (шкоду рахує Combat)
+      if (this.burn && this.burnFx?.explode) this.scene.events.emit('burn:explode', { x: this.x, y: this.y, dps: this.burn.dps });
       this.scene.events.emit('enemy:killed', { type: this.type, x: this.x, y: this.y });
       this.destroy();
     }

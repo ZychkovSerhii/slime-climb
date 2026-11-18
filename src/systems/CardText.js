@@ -8,6 +8,10 @@ export const WEAPON_DESC = {
   axe: (w) => `розмах навколо: ×${w.damageMul} шкоди всім поруч,\nзокрема босу; лише ближній бій`,
   chakra: (w) => `черга з ${w.burst} пострілів, перезарядка ×${w.reloadMul}\nстрибки на ${Math.round((w.jumpSpeedMul - 1) * 100)}% швидші`,
   shotgun: (w) => `3 кулі віялом ±${w.spreadDeg}°,\nкожна ×${String(w.damageMul).replace('.', ',')} шкоди`,
+  // етап 14
+  lightning: (w) => `розряд перескакує на ${w.targets} ворогів,\nкожен перескок слабший — проти натовпу`,
+  fire: (w) => `вогняна куля: ворог горить ${w.burnMs / 1000} с —\nпроти товстих і босів`,
+  boomerang: (w) => `летить і повертається, пробиває\nвсіх на лінії туди й назад`,
 };
 
 /** Картка зброї: назва з прогресом, опис і що станеться після взяття. */
@@ -33,8 +37,23 @@ const UPGRADE_DESC = {
   },
   shotgun: (n, U) => {
     const a = U.shotgun;
-    const extra = n === a.extraAt ? '\n+ ще 2 кулі ширшим віялом!' : '';
+    const extra = n === a.extraAt ? '\n+ ще 2 кулі ширшим віялом!' : n === a.ricochetAt ? '\n+ рикошет від стін!' : '';
     return `+${num(a.damageAdd ?? U.damageAdd)} шкоди кожній кулі,\nшвидкість атаки +${pct(a.speedStep - 1)}%${extra}`;
+  },
+  lightning: (n, U) => {
+    const a = U.lightning;
+    const extra = a.moreAt.includes(n) ? '\n+ ще один перескок!' : n === a.stunAt ? '\n+ вражені застигають!' : n === a.blastAt ? '\n+ вибух у кінці ланцюга!' : '';
+    return `+${num(a.damageAdd)} шкоди розряду,\nшвидкість атаки +${pct(a.speedStep - 1)}%${extra}`;
+  },
+  fire: (n, U) => {
+    const a = U.fire;
+    const extra = n === a.spreadAt ? '\n+ вогонь перекидається на сусіда!' : n === a.explodeAt ? '\n+ згорілі вибухають!' : '';
+    return `+${num(a.damageAdd)} шкоди, горіння +${pct(a.burnStep)}%\nі на ${num(a.burnMsStep / 1000)} с довше${extra}`;
+  },
+  boomerang: (n, U) => {
+    const a = U.boomerang;
+    const extra = n === a.twinAt ? '\n+ два бумеранги!' : n === a.shieldAt ? '\n+ щит над слизаком!' : '';
+    return `+${num(a.damageAdd)} шкоди, далі на ${pct(a.rangeStep - 1)}%,\nшвидкість атаки +${pct(a.speedStep - 1)}%${extra}`;
   },
   chakra: (n, U) => {
     const a = U.chakra;

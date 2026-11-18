@@ -210,10 +210,9 @@ describe('weapon cards (stage 4a)', () => {
 
   test('a single remaining weapon is offered even twice in a row', () => {
     let p = createProgression();
-    for (const id of ['axe', 'shotgun']) {
-      for (let i = 0; i < BALANCE.weapons[id].steps; i++) p = applyCard(p, weaponCard(id));
-    }
-    p = { ...p, arsenal: { ...p.arsenal, lastOffered: 'chakra' } };
+    // етап 14: зброї шість, тож «лишилась одна» — коли решта вкачані (прогрес повний)
+    const progress = Object.fromEntries(WEAPON_IDS.filter((id) => id !== 'chakra').map((id) => [id, BALANCE.weapons[id].steps]));
+    p = { ...p, arsenal: { ...p.arsenal, progress, lastOffered: 'chakra' } };
     expect(rollWeapon(p, Math.random)).toBe('chakra');
   });
 

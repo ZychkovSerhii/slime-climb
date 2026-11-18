@@ -399,6 +399,15 @@ export const BALANCE = deepFreeze({
     // 3 кулі: у ціль і дві під ±spreadDeg від неї
     // фідбек-6: «занадто імбовий» — кожна куля ×1 (було ×1,25)
     shotgun: { name: 'Дробовик Хулігана', short: 'Дробовик', steps: 2, damageMul: 1, spreadDeg: 25 },
+    // Етап 14 (рішення користувача: три окремі зброї, поведінка міняється з рівнем). Числа — припущення.
+    // Оцінка шкоди/с на базовій шкоді d: дробовик по босу ~3d (усі 3 кулі), вогонь ~3d по босу (горіння),
+    // блискавка ~1,8d по натовпу з 3 і ~0,75d по одному, бумеранг ~1,1d на кожного ворога на лінії.
+    // Блискавка — проти натовпу: миттєвий розряд у ціль і перескоки на targets ворогів до chainPx, кожен ×falloff.
+    lightning: { name: 'Жезл блискавки', short: 'Блискавка', steps: 2, damageMul: 0.9, intervalMul: 1.2, targets: 3, chainPx: 240, falloff: 0.8 },
+    // Вогонь — проти товстих і босів: слабкий прямий удар, ворог горить burnMs (шкода раз на 1 с = удар × burnMul).
+    fire: { name: 'Вогняний жезл', short: 'Вогонь', steps: 2, damageMul: 0.6, intervalMul: 1.1, burnMul: 2.5, burnMs: 3000 },
+    // Бумеранг — пробиває все на лінії: летить rangePx і назад до слизака, кожного ворога б'є раз туди й раз назад.
+    boomerang: { name: 'Бумеранг', short: 'Бумеранг', steps: 2, damageMul: 0.8, intervalMul: 1.4, rangePx: 380, speed: 700, hitPx: 26 },
   },
 
   // Прокачка основної зброї (фідбек-2). Коли зброя стала основною, інші зброї більше не пропонуються,
@@ -415,7 +424,17 @@ export const BALANCE = deepFreeze({
     // дробовик: +5% швидкості атаки; на extraAt — ще 2 кулі під ±extraDeg («нижче» від бічних).
     // фідбек-6 (нерф): своя damageAdd на кулю (куль 3–5, тож спільні +0,35 давали до +1,75 за прокачку),
     // швидкість +5% (було +8%), додаткові кулі з 6-ї прокачки (було з 3-ї)
-    shotgun: { speedStep: 1.05, extraAt: 6, extraDeg: 50, damageAdd: 0.15 },
+    // етап 14: з ricochetAt дробинки раз відскакують від стіни, рикошет — ×ricochetMul шкоди (менше за пряме влучання)
+    shotgun: { speedStep: 1.05, extraAt: 6, extraDeg: 50, damageAdd: 0.15, ricochetAt: 10, ricochetMul: 0.5 },
+    // етап 14 (припущення): блискавка +1 перескок на moreAt; з stunAt вражені застигають на stunMs (боси — ні);
+    // з blastAt у кінці ланцюга вибух радіусом blastPx на ×blastMul шкоди
+    lightning: { speedStep: 1.04, damageAdd: 0.25, moreAt: [3, 6], stunAt: 5, stunMs: 350, blastAt: 9, blastPx: 110, blastMul: 0.6 },
+    // вогонь: горіння сильніше на burnStep і довше на burnMsStep за прокачку; з spreadAt раз на тик вогонь
+    // перекидається на найближчого ворога до spreadPx; з explodeAt ворог, що згорів, вибухає (explodePx, ×explodeMul тику)
+    fire: { speedStep: 1.04, damageAdd: 0.2, burnStep: 0.08, burnMsStep: 250, spreadAt: 4, spreadPx: 130, explodeAt: 8, explodePx: 110, explodeMul: 2 },
+    // бумеранг: далі на rangeStep за прокачку (до rangeMaxPx); з twinAt — два під ±twinDeg; з shieldAt, повернувшись,
+    // крутиться над слизаком shieldMs радіусом shieldPx і б'є кожного не частіше shieldCdMs
+    boomerang: { speedStep: 1.04, damageAdd: 0.25, rangeStep: 1.04, rangeMaxPx: 560, twinAt: 4, twinDeg: 14, shieldAt: 8, shieldMs: 1500, shieldPx: 64, shieldCdMs: 400 },
     // ворота чакри: +10% швидкості атаки; на extraAt — черга довша на extraBurst
     chakra: { speedStep: 1.1, extraAt: 3, extraBurst: 4 },
   },
