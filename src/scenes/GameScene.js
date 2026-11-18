@@ -251,7 +251,7 @@ export default class GameScene extends Phaser.Scene {
     if (main !== mainBefore) this.combat.onMainWeapon(main);
     if (id === 'extraLife') {
       this.maxLives = maxLivesFor(this.progression.picks.extraLife);
-      this.health = heal(this.health, 1, this.maxLives);
+      this.health = heal(this.health, 2, this.maxLives); // фідбек-7: нове серце одразу активне (+1 макс, +2 життя)
     }
     this.combat.onSkill(id); // шляпи, сюрикени
     const up = cardUpgrade(id);

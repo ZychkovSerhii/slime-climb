@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { BALANCE } from '../src/config/balance.js';
-import { lanternShouldArm, ninjaDodgeWindow, ninjaVulnerable, ninjaY } from '../src/systems/Bamboo.js';
+import { lanternShouldArm, squareBlastHits, ninjaDodgeWindow, ninjaVulnerable, ninjaY } from '../src/systems/Bamboo.js';
 import { ninjaInterval } from '../src/systems/WallWalkers.js';
 import { spikeBand } from '../src/systems/SpikePlanner.js';
 
@@ -36,10 +36,25 @@ describe('ніндзя', () => {
 
 describe('ліхтарик', () => {
   test('займається ближче за armPx', () => {
-    expect(lanternShouldArm(129)).toBe(true);
-    expect(lanternShouldArm(131)).toBe(false);
+    expect(lanternShouldArm(143)).toBe(true);
+    expect(lanternShouldArm(145)).toBe(false);
   });
   test('радіус вибуху менший за ширину коридору: від нього рятує стрибок', () => {
     expect(BALANCE.enemies.lantern.radiusPx * 2).toBeLessThan(720 - 2 * BALANCE.wallWidth - BALANCE.playerSize);
+  });
+});
+
+describe('фідбек-7: квадратний вибух ліхтарика', () => {
+  test('влучає в межах half + пів слимака по обох осях і не влучає далі', () => {
+    const half = BALANCE.enemies.lantern.radiusPx;
+    const reach = half + BALANCE.playerSize / 2;
+    const lantern = { x: 300, y: 300 };
+    expect(squareBlastHits(lantern, { x: 300 + reach, y: 300 - reach }, half)).toBe(true); // кут квадрата теж влучає
+    expect(squareBlastHits(lantern, { x: 300 + reach + 1, y: 300 }, half)).toBe(false);
+    expect(squareBlastHits(lantern, { x: 300, y: 300 - reach - 1 }, half)).toBe(false);
+  });
+  test('площа вибуху — 10 слимаків', () => {
+    const side = BALANCE.enemies.lantern.radiusPx * 2;
+    expect(Math.round((side * side) / BALANCE.playerSize ** 2)).toBe(10);
   });
 });

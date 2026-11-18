@@ -1,7 +1,7 @@
 import * as Phaser from 'phaser';
 import { BALANCE } from '../config/balance.js';
 import { lanternShouldArm } from '../systems/Bamboo.js';
-import { blastHits } from '../systems/ShkodkoPlanner.js';
+import { squareBlastHits } from '../systems/Bamboo.js';
 import { sfx } from '../systems/Audio.js';
 import { animKey } from '../art/sprites/index.js';
 import Enemy from './Enemy.js';
@@ -11,8 +11,8 @@ const BLAST_COLOR = 0xffb347;
 
 /**
  * Ліхтарик-дух (бамбук, §9.1): з'являється згори і повільно пливе до гравця (відносно екрана).
- * Ближче за armPx — займається: blinkMs блимає і вибухає радіусом radiusPx (гравець у радіусі — мінус життя).
- * Убитий раніше — вибуху немає. Сам вибух нагороди не дає.
+ * Ближче за armPx (3 слимаки) — зупиняється, стає невразливим, blinkMs блимає і вибухає квадратом зі стороною 2×radius
+ * (площа 10 слимаків; гравець у квадраті — мінус життя). Убити можна лише до того, як він зупинився. Вибух нагороди не дає.
  */
 export default class Lantern extends Enemy {
   constructor(scene) {
@@ -38,6 +38,8 @@ export default class Lantern extends Enemy {
     if (this.armedAt === null) {
       if (lanternShouldArm(Phaser.Math.Distance.Between(this.x, this.y, p.x, p.y))) {
         this.armedAt = now;
+        this.body.setVelocity(0, 0); // фідбек-7: зупиняється й невразливий, поки блимає
+        this.invulnerable = true;
         this.play(animKey('lantern', 'blink'));
         sfx('fuse');
       }
@@ -49,9 +51,9 @@ export default class Lantern extends Enemy {
   explode() {
     const scene = this.scene;
     sfx('boom');
-    const ring = scene.add.circle(this.x, this.y, this.radius, BLAST_COLOR, 0.45).setDepth(this.depth + 1);
+    const ring = scene.add.rectangle(this.x, this.y, this.radius * 2, this.radius * 2, BLAST_COLOR, 0.45).setDepth(this.depth + 1);
     scene.tweens.add({ targets: ring, alpha: 0, scale: 1.15, duration: 280, onComplete: () => ring.destroy() });
-    if (!scene.dead && blastHits(this, scene.player, this.radius)) scene.hurtPlayer();
+    if (!scene.dead && squareBlastHits(this, scene.player, this.radius)) scene.hurtPlayer();
     this.destroy();
   }
 }

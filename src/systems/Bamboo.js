@@ -24,6 +24,12 @@ export function ninjaVulnerable(sinceSpawnMs) {
   return sinceSpawnMs >= N.smokeMs / 2;
 }
 
+/** Вибух ліхтарика — квадрат зі стороною 2×half; гравець влучений, якщо його центр ближче за half + половина слимака. */
+export function squareBlastHits(lantern, player, half, playerHalf = BALANCE.playerSize / 2) {
+  const reach = half + playerHalf;
+  return Math.abs(lantern.x - player.x) <= reach && Math.abs(lantern.y - player.y) <= reach;
+}
+
 /** Ліхтарик «займається» (блимає, потім вибухає), коли гравець ближче за armPx. */
 export function lanternShouldArm(dist) {
   return dist <= L.armPx;
