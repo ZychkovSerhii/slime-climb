@@ -186,6 +186,18 @@ describe('етап 14: нова зброя', async () => {
     expect(W.chainTargets(a, [a, b, c], 2, 240)).toEqual([a, b]);
   });
 
+  test('правка 2026-11-18: основна ціль нової зброї ×1, як дробовик; додаткові — слабше', () => {
+    for (const id of ['lightning', 'fire', 'boomerang']) expect(W.attackDamage(id, 10, 0)).toBe(W.attackDamage('shotgun', 10, 0));
+    expect(B.weapons.lightning.falloff).toBeLessThan(1);
+    expect(W.pierceDamage(10, 0)).toBe(10);
+    expect(W.pierceDamage(10, 1)).toBeLessThan(10);
+    const burn = W.burnStats(10, U.fire.spreadAt);
+    expect(W.spreadBurn(burn).dps).toBeLessThan(burn.dps);
+    expect(W.spreadBurn(burn).spread).toBe(true);
+    // горіння за секунду лишилось як до правки (×0,6 удару × 2,5)
+    expect(W.burnStats(W.attackDamage('fire', 1, 0), 0).dps).toBeCloseTo(0.6 * 2.5, 6);
+  });
+
   test('кожен перескок слабший', () => {
     expect(W.chainDamage(10, 0)).toBe(10);
     expect(W.chainDamage(10, 2)).toBeCloseTo(10 * B.weapons.lightning.falloff ** 2, 6);

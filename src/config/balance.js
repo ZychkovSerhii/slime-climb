@@ -401,13 +401,18 @@ export const BALANCE = deepFreeze({
     shotgun: { name: 'Дробовик Хулігана', short: 'Дробовик', steps: 2, damageMul: 1, spreadDeg: 25 },
     // Етап 14 (рішення користувача: три окремі зброї, поведінка міняється з рівнем). Числа — припущення.
     // Оцінка шкоди/с на базовій шкоді d: дробовик по босу ~3d (усі 3 кулі), вогонь ~3d по босу (горіння),
-    // блискавка ~1,8d по натовпу з 3 і ~0,75d по одному, бумеранг ~1,1d на кожного ворога на лінії.
+    // блискавка ~1,8d по натовпу з 3 і ~0,75d по одному (після правки 2026-11-18 по одному ~0,83d),
+    // бумеранг ~1,1d на кожного ворога на лінії (після правки: ~1,4d по першому, ~1d по решті).
     // Блискавка — проти натовпу: миттєвий розряд у ціль і перескоки на targets ворогів до chainPx, кожен ×falloff.
-    lightning: { name: 'Жезл блискавки', short: 'Блискавка', steps: 2, damageMul: 0.9, intervalMul: 1.2, targets: 3, chainPx: 240, falloff: 0.8 },
+    // Правка 2026-11-18 (користувач): основна ціль ×1, як у дробовика; перескоки слабші (falloff 0,7 — по натовпу з 3
+    // сумарно ~2,19 удару, як було з ×0,9 і 0,8).
+    lightning: { name: 'Жезл блискавки', short: 'Блискавка', steps: 2, damageMul: 1, intervalMul: 1.2, targets: 3, chainPx: 240, falloff: 0.7 },
     // Вогонь — проти товстих і босів: слабкий прямий удар, ворог горить burnMs (шкода раз на 1 с = удар × burnMul).
-    fire: { name: 'Вогняний жезл', short: 'Вогонь', steps: 2, damageMul: 0.6, intervalMul: 1.1, burnMul: 2.5, burnMs: 3000 },
+    // Правка 2026-11-18: прямий удар ×1 (було ×0,6); burnMul 1,5 (було 2,5) — горіння за секунду те саме (0,6 × 2,5).
+    fire: { name: 'Вогняний жезл', short: 'Вогонь', steps: 2, damageMul: 1, intervalMul: 1.1, burnMul: 1.5, burnMs: 3000 },
     // Бумеранг — пробиває все на лінії: летить rangePx і назад до слизака, кожного ворога б'є раз туди й раз назад.
-    boomerang: { name: 'Бумеранг', short: 'Бумеранг', steps: 2, damageMul: 0.8, intervalMul: 1.4, rangePx: 380, speed: 700, hitPx: 26 },
+    // Правка 2026-11-18: перший ворог за прохід (туди / назад) ×1 (було всі ×0,8), решта на лінії — ×pierceMul.
+    boomerang: { name: 'Бумеранг', short: 'Бумеранг', steps: 2, damageMul: 1, pierceMul: 0.7, intervalMul: 1.4, rangePx: 380, speed: 700, hitPx: 26 },
   },
 
   // Прокачка основної зброї (фідбек-2). Коли зброя стала основною, інші зброї більше не пропонуються,
@@ -431,7 +436,8 @@ export const BALANCE = deepFreeze({
     lightning: { speedStep: 1.04, damageAdd: 0.25, moreAt: [3, 6], stunAt: 5, stunMs: 350, blastAt: 9, blastPx: 110, blastMul: 0.6 },
     // вогонь: горіння сильніше на burnStep і довше на burnMsStep за прокачку; з spreadAt раз на тик вогонь
     // перекидається на найближчого ворога до spreadPx; з explodeAt ворог, що згорів, вибухає (explodePx, ×explodeMul тику)
-    fire: { speedStep: 1.04, damageAdd: 0.2, burnStep: 0.08, burnMsStep: 250, spreadAt: 4, spreadPx: 130, explodeAt: 8, explodePx: 110, explodeMul: 2 },
+    // правка 2026-11-18: перекинутий вогонь горить слабше — ×spreadMul від джерела (і далі по ланцюгу)
+    fire: { speedStep: 1.04, damageAdd: 0.2, burnStep: 0.08, burnMsStep: 250, spreadAt: 4, spreadPx: 130, spreadMul: 0.6, explodeAt: 8, explodePx: 110, explodeMul: 2 },
     // бумеранг: далі на rangeStep за прокачку (до rangeMaxPx); з twinAt — два під ±twinDeg; з shieldAt, повернувшись,
     // крутиться над слизаком shieldMs радіусом shieldPx і б'є кожного не частіше shieldCdMs
     boomerang: { speedStep: 1.04, damageAdd: 0.25, rangeStep: 1.04, rangeMaxPx: 560, twinAt: 4, twinDeg: 14, shieldAt: 8, shieldMs: 1500, shieldPx: 64, shieldCdMs: 400 },
