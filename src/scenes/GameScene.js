@@ -9,11 +9,9 @@ import { addXp, applyCard, cardUpgrade, createProgression, killXp, rollLevelUp, 
 import { weaponJumpMul } from '../systems/Weapons.js';
 import { clampDelta } from '../systems/Time.js';
 import { applyDamage, createHealth, heal, healForLevels } from '../systems/Health.js';
-import {
-  activateInvis, breakArmor, cardLoot, createInvis, invisCharge, invisStats,
-  isInvisible, jumpMul, maxLivesFor, stepArmor,
-} from '../systems/Skills.js';
-import { inInvisButton, inPauseButton } from '../systems/Layout.js';
+import { breakArmor, cardLoot, createInvis, isInvisible, jumpMul, maxLivesFor, stepArmor } from '../systems/Skills.js';
+import { cardSlot } from '../systems/Arsenal.js';
+import { inPauseButton } from '../systems/Layout.js';
 import { heightPoints, killPoints } from '../systems/Score.js';
 import { loadMeta, recordKill, saveMeta, skinSprite } from '../systems/Meta.js';
 import { browserStorage } from '../systems/HighScore.js';
@@ -25,6 +23,7 @@ import Combat from '../game/Combat.js';
 import LootEffects from '../game/LootEffects.js';
 import PauseController from '../game/PauseController.js';
 import SpawnDirector from '../game/SpawnDirector.js';
+import SkillButtons from '../game/SkillButtons.js';
 import { activeForm } from '../systems/ShkodkoLoot.js';
 import { loadTuning, setTuning, tuning } from '../systems/Tuning.js';
 import { isEligibleRun } from '../systems/LeaderboardRules.js';
@@ -117,6 +116,7 @@ export default class GameScene extends Phaser.Scene {
     this.player = new Player(this);
     this.player.setSkin(skinSprite(this.meta));
     this.combat = new Combat(this); // автоатака, вигляд зброї, влучання, шляпи, міні-сокира
+    this.buttons = new SkillButtons(this);
     if (BALANCE.weapons[this.debugWeapon]) {
       for (let i = 0; i < BALANCE.weapons[this.debugWeapon].steps; i++) this.progression = applyCard(this.progression, weaponCard(this.debugWeapon));
       this.combat.weaponView.setMain(this.debugWeapon);
@@ -156,10 +156,9 @@ export default class GameScene extends Phaser.Scene {
     };
     const onPicked = (id) => this.onCardPicked(id);
     const onRage = () => playMusic('rage');
-    const onInvis = () => this.useInvisibility();
     const onIntroClosed = () => this.bosses.onIntroClosed();
     this.events.on('intro:closed', onIntroClosed);
-    this.events.on('skill:invis', onInvis);
+    this.buttons.bind(Phaser.Scenes.Events.SHUTDOWN); // невидимість і перемикання зброї
     this.events.on('enemy:killed', onKilled);
     this.events.on('levelup:picked', onPicked);
     this.events.on('boss:rage', onRage);
@@ -167,7 +166,6 @@ export default class GameScene extends Phaser.Scene {
       this.events.off('enemy:killed', onKilled);
       this.events.off('levelup:picked', onPicked);
       this.events.off('boss:rage', onRage);
-      this.events.off('skill:invis', onInvis);
       this.events.off('intro:closed', onIntroClosed);
       this.scene.stop('LevelUp');
       this.scene.stop('BossIntro');
@@ -183,8 +181,8 @@ export default class GameScene extends Phaser.Scene {
         this.pauseWithOverlay();
         return;
       }
-      // тап по кнопці невидимості не стрибок (кнопку малює і ловить HUD)
-      if (this.invisStats() && inInvisButton(pointer.x, pointer.y, this.scale.width, this.scale.height)) return;
+      // тап по кнопці невидимості чи зброї не стрибок (кнопки малює і ловить HUD)
+      if (this.buttons.blocksTap(pointer.x, pointer.y)) return;
       this.player.press();
     });
     // відпускання рахуємо завжди: інакше утримання «застрягне», якщо палець підняли під час паузи
@@ -232,6 +230,11 @@ export default class GameScene extends Phaser.Scene {
    * 2 звичайні картки + зброя (rollLevelUp запам'ятовує, яку зброю запропонували).
    */
   launchLevelUp() {
+    const slotPick = this.buttons.slotWindow(); // етап 14: вкачана зброя чекає слота — спершу це
+    if (slotPick) {
+      this.scene.launch('LevelUp', slotPick);
+      return;
+    }
     if (this.lootCards) {
       this.scene.launch('LevelUp', { cards: this.lootCards, title: this.lootTitle ?? `Трофей: ${BALANCE.boss.name}` });
       return;
@@ -262,10 +265,10 @@ export default class GameScene extends Phaser.Scene {
 
   onCardPicked(id) {
     if (cardLoot(id)) this.lootCards = null;
-    else this.levelUpQueue = Math.max(this.levelUpQueue - 1, 0);
+    else if (cardSlot(id) === null) this.levelUpQueue = Math.max(this.levelUpQueue - 1, 0);
     this.applyPicked(id);
     this.emitHud();
-    if (this.levelUpQueue > 0 || this.lootCards) {
+    if (this.levelUpQueue > 0 || this.lootCards || this.progression.arsenal.pending) {
       this.launchLevelUp();
       return;
     }
@@ -533,14 +536,15 @@ export default class GameScene extends Phaser.Scene {
       lives: this.health.lives,
       maxLives: this.maxLives,
       armor: this.armor ? (this.armor.on ? 'on' : 'off') : null,
-      invis: this.invisHud(),
+      invis: this.buttons.invisHud(),
+      slots: this.buttons.switchHud(),
       level: this.progression.level,
       xp: this.progression.xp,
       xpToNext: xpToNext(this.progression.level),
       steps: this.runSteps,
     };
     const inv = s.invis ? `${s.invis.active}|${Math.floor(s.invis.charge * 40)}` : '';
-    const key = `${Math.floor(s.timeSec)}|${s.score}|${s.lives}|${s.maxLives}|${s.armor}|${inv}|${s.level}|${s.xp}|${s.steps}`;
+    const key = `${Math.floor(s.timeSec)}|${s.score}|${s.lives}|${s.maxLives}|${s.armor}|${inv}|${s.level}|${s.xp}|${s.steps}|${s.slots?.active}`;
     if (key === this.lastHud) return;
     this.lastHud = key;
     this.events.emit('hud:update', s);
@@ -584,26 +588,6 @@ export default class GameScene extends Phaser.Scene {
   }
 
   // ---------- Скіли етапу 4b і трофеї павучихи ----------
-
-  invisStats() {
-    return invisStats(this.progression.picks.invisibility ?? 0);
-  }
-
-  /** Стан кнопки невидимості для HUD або null, якщо скіла немає. */
-  invisHud() {
-    const st = this.invisStats();
-    if (!st) return null;
-    return { active: isInvisible(this.invis, this.nowMs), charge: invisCharge(this.invis, st, this.nowMs) };
-  }
-
-  /** Кнопка невидимості (подія 'skill:invis' від HUD). */
-  useInvisibility() {
-    if (this.paused || this.dead) return;
-    const before = this.invis;
-    this.invis = activateInvis(this.invis, this.invisStats(), this.nowMs);
-    if (this.invis !== before) sfx('weaponReady');
-    this.emitHud();
-  }
 
   /** Короткий напис над слизаком, що спливає й тане. */
   floatText(text, color) {

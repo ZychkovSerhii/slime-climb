@@ -2,6 +2,7 @@
 import { BALANCE } from '../config/balance.js';
 import { cardUpgrade, cardWeapon, damageCardBonus, iceStats } from './Progression.js';
 import { cardLoot, hatStats, invisStats, maxLivesFor, shurikenStats } from './Skills.js';
+import { KEEP_SLOTS, cardSlot, slotName } from './Arsenal.js';
 
 export const WEAPON_DESC = {
   axe: (w) => `розмах навколо: ×${w.damageMul} шкоди всім поруч,\nзокрема босу; лише ближній бій`,
@@ -15,9 +16,8 @@ function weaponText(weaponId, arsenal) {
   const done = arsenal?.progress?.[weaponId] ?? 0;
   const next = done + 1;
   const pips = '■'.repeat(next) + '□'.repeat(w.steps - next);
-  const main = arsenal?.main;
-  const outcome =
-    next >= w.steps ? `стане основною${main ? ` замість «${BALANCE.weapons[main].name}»` : ''}` : `${pips} ${next}/${w.steps}`;
+  const full = arsenal?.slots?.every(Boolean);
+  const outcome = next >= w.steps ? (full ? 'готова — обереш, який слот замінити' : 'готова — стане в другий слот') : `${pips} ${next}/${w.steps}`;
   return { title: `${w.name}  ${done}/${w.steps}`, desc: `${WEAPON_DESC[weaponId](w)}\n${outcome}` };
 }
 
@@ -98,7 +98,19 @@ export const LOOT_TEXT = {
   },
 };
 
+/** Етап 14: картки вікна «Куди поставити?» — заміна слота або «Не брати». */
+function slotText(slot, arsenal) {
+  const w = arsenal?.pending;
+  const name = w ? BALANCE.weapons[w].name : '';
+  if (slot === KEEP_SLOTS) return { title: 'Не брати', desc: `слоти лишаються як є,\n«${name}» можна знайти знову` };
+  const old = arsenal?.slots?.[slot];
+  const up = old && arsenal?.upgrades?.[old] ? `\nрівень прокачки +${arsenal.upgrades[old]} збережеться` : '';
+  return { title: `Замість: ${slotName(old)}`, desc: `слот ${slot + 1} → «${name}»${up}` };
+}
+
 export function cardText(id, picks, arsenal) {
+  const slot = cardSlot(id);
+  if (slot !== null) return slotText(slot, arsenal);
   const weaponId = cardWeapon(id);
   if (weaponId) return weaponText(weaponId, arsenal);
   const upId = cardUpgrade(id);

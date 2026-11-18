@@ -40,6 +40,22 @@ export function inInvisButton(x, y, width, height) {
 }
 
 /**
+ * Етап 14: кнопка перемикання зброї — над кнопкою невидимості, справа (вибір користувача).
+ * Трохи менша, щоб менше закривати слизака біля правої стіни.
+ */
+export function switchButton(width, height) {
+  const inv = invisButton(width, height);
+  const r = 52;
+  return { x: inv.x, y: inv.y - inv.r - 24 - r, r };
+}
+
+/** Чи потрапляє точка в кнопку зброї (з невеликим запасом для пальця). */
+export function inSwitchButton(x, y, width, height) {
+  const b = switchButton(width, height);
+  return (x - b.x) ** 2 + (y - b.y) ** 2 <= (b.r + 12) ** 2;
+}
+
+/**
  * Зона банера реклами: смуга знизу екрана на всю ширину (центр x, y; розміри w, h). null — реклама вимкнена (mode 'off').
  */
 export function adBannerRect(width, height, mode = AD_MODE) {

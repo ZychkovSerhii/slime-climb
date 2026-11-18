@@ -60,6 +60,14 @@ export default class Combat {
     this.scene.events.emit('hud:banner', { text: `Нова зброя:\n${BALANCE.weapons[main].name}`, ms: 1800 });
   }
 
+  /** Етап 14: перемкнули слот — вигляд зброї, коротка затримка пострілу (перемиканням не скинути перезарядку). */
+  onSwitch(main, delayMs) {
+    this.weaponView.setMain(main);
+    this.fireState = { ...createFireState(), cooldownMs: Math.max(this.fireState.cooldownMs, delayMs) };
+    sfx('reverse');
+    this.scene.floatText(main ? BALANCE.weapons[main].name : 'Стандартна атака', '#ffd84a');
+  }
+
   /** Прокачка основної зброї: банер; на miniAxeAt у сокири — міні-сокира-помічниця. */
   onWeaponUpgrade(weaponId) {
     const scene = this.scene;

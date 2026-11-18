@@ -153,7 +153,7 @@ describe('weapon cards (stage 4a)', () => {
     }
   });
 
-  test('progress is kept, full progress makes the weapon main; replaced by the next full one', () => {
+  test('етап 14: перша вкачана зброя — у вільний слот 2 і в руки; друга чекає вибору слота', () => {
     const steps = (id) => BALANCE.weapons[id].steps;
     let p = createProgression();
     p = applyCard(p, weaponCard('chakra'));
@@ -161,12 +161,12 @@ describe('weapon cards (stage 4a)', () => {
     expect(weaponProgress(p, 'chakra')).toBe(1);
     expect(p.arsenal.main).toBeNull();
     for (let i = 1; i < steps('chakra'); i++) p = applyCard(p, weaponCard('chakra'));
+    expect(p.arsenal.slots).toEqual(['start', 'chakra']);
     expect(p.arsenal.main).toBe('chakra');
     for (let i = 1; i < steps('shotgun'); i++) p = applyCard(p, weaponCard('shotgun'));
-    expect(p.arsenal.main).toBe('shotgun');
-    expect(weaponProgress(p, 'chakra')).toBe(steps('chakra'));
+    expect(p.arsenal.pending).toBe('shotgun');
+    expect(p.arsenal.main).toBe('chakra'); // до вибору нічого не змінилось
   });
-
   test('a taken, not finished weapon is offered again in the next window', () => {
     let p = createProgression();
     let r = rollLevelUp(p, Math.random);
@@ -231,32 +231,32 @@ describe('weapon upgrades (feedback-2)', () => {
   };
   const seq = (...xs) => () => (xs.length ? xs.shift() : 0);
 
-  test('once a weapon is main, the 3rd card is its upgrade and other weapons are never offered', () => {
+  test('етап 14: зі зброєю в слоті 3-тя картка — то прокачка, то нова зброя (не та, що в слотах)', () => {
     const p = maxed('axe');
-    for (let i = 0; i < 20; i++) {
-      const { cards } = rollLevelUp(p, Math.random);
-      expect(cards[2]).toBe(upgradeCard('axe'));
-      expect(cards.filter((c) => c.startsWith('weapon:'))).toHaveLength(0);
-    }
+    const thirds = [];
+    for (let i = 0; i < 200; i++) thirds.push(rollLevelUp(p, Math.random).cards[2]);
+    const ups = thirds.filter((c) => c === upgradeCard('axe')).length;
+    const weapons = thirds.filter((c) => cardWeapon(c));
+    expect(ups).toBeGreaterThan(80);
+    expect(weapons.length).toBeGreaterThan(40);
+    expect(weapons).not.toContain(weaponCard('axe'));
   });
-
-  test('етап 10: прокачка без межі — після 30 прокачок 3-тя картка все ще прокачка', () => {
+  test('етап 10: прокачка без межі — після 30 прокачок 3-тя картка все ще може бути прокачкою', () => {
     let p = maxed('shotgun');
     for (let i = 0; i < 30; i++) p = applyCard(p, upgradeCard('shotgun'));
     expect(weaponUpgrades(p, 'shotgun')).toBe(30);
-    const { cards } = rollLevelUp(p, seq(0, 0, 0));
+    const { cards } = rollLevelUp(p, seq(0.99, 0, 0, 0));
     expect(cards[2]).toBe(upgradeCard('shotgun'));
   });
-
   test('етап 10: сокира відкривається за 1 прокачку', () => {
     const p = applyCard(createProgression(), weaponCard('axe'));
     expect(p.arsenal.main).toBe('axe');
   });
 
-  test('a partly upgraded other weapon is not offered once a main exists', () => {
-    let p = applyCard(createProgression(), weaponCard('chakra'));
-    p = { ...p, arsenal: { ...p.arsenal, progress: { ...p.arsenal.progress, axe: 2 }, main: 'axe' } };
-    expect(rollLevelUp(p, Math.random).cards[2]).toBe(upgradeCard('axe'));
+  test('етап 14: взята й не довкачана зброя пропонується далі, навіть коли в слоті вже є зброя', () => {
+    let p = maxed('axe');
+    p = applyCard(p, weaponCard('chakra'));
+    for (let i = 0; i < 10; i++) expect(rollLevelUp(p, Math.random).cards[2]).toBe(weaponCard('chakra'));
   });
 });
 
@@ -294,4 +294,64 @@ test('етап 11: Казан — досвід 120, очки й Шаги з BALA
   expect(killXp('kazan')).toBe(120);
   expect(killPoints('kazan')).toBe(BALANCE.kazan.points);
   expect(BALANCE.meta.stepsPerKill.kazan).toBe(150);
+});
+
+describe('два слоти (етап 14)', () => {
+  const maxed = (p, id) => {
+    for (let i = 0; i < BALANCE.weapons[id].steps; i++) p = applyCard(p, weaponCard(id));
+    return p;
+  };
+  const both = () => maxed(maxed(createProgression(), 'axe'), 'shotgun');
+
+  test('на старті: стандартна атака й порожній слот, перемикатись нема на що', async () => {
+    const { canSwitch } = await import('../src/systems/Arsenal.js');
+    const a = createProgression().arsenal;
+    expect(a.slots).toEqual(['start', null]);
+    expect(canSwitch(a)).toBe(false);
+  });
+
+  test('перемикання між стандартною атакою й зброєю', async () => {
+    const { switchSlot } = await import('../src/systems/Arsenal.js');
+    let a = maxed(createProgression(), 'axe').arsenal;
+    expect(a.main).toBe('axe');
+    a = switchSlot(a);
+    expect(a.main).toBeNull();
+    a = switchSlot(a);
+    expect(a.main).toBe('axe');
+  });
+
+  test('гравець сам обирає слот: можна замінити стандартну атаку', async () => {
+    const { slotCard } = await import('../src/systems/Arsenal.js');
+    const p = applyCard(both(), slotCard(0));
+    expect(p.arsenal.slots).toEqual(['shotgun', 'axe']);
+    expect(p.arsenal.main).toBe('shotgun');
+    expect(p.arsenal.pending).toBeNull();
+  });
+
+  test('викинута зброя губить прогрес відкриття, але не рівень прокачки', async () => {
+    const { slotCard } = await import('../src/systems/Arsenal.js');
+    let p = maxed(createProgression(), 'axe');
+    p = applyCard(p, upgradeCard('axe'));
+    p = applyCard(maxed(p, 'shotgun'), slotCard(1));
+    expect(p.arsenal.slots).toEqual(['start', 'shotgun']);
+    expect(weaponProgress(p, 'axe')).toBe(0);
+    expect(weaponUpgrades(p, 'axe')).toBe(1);
+    expect(rollWeapon({ ...p, arsenal: { ...p.arsenal, lastOffered: null } }, () => 0)).not.toBe('shotgun');
+  });
+
+  test('«Не брати»: слоти ті самі, прогрес цієї зброї скинуто', async () => {
+    const { slotCard, KEEP_SLOTS } = await import('../src/systems/Arsenal.js');
+    const p = applyCard(both(), slotCard(KEEP_SLOTS));
+    expect(p.arsenal.slots).toEqual(['start', 'axe']);
+    expect(p.arsenal.pending).toBeNull();
+    expect(weaponProgress(p, 'shotgun')).toBe(0);
+  });
+
+  test('прокачка — лише зброї зі слотів', () => {
+    const p = maxed(createProgression(), 'axe');
+    for (let i = 0; i < 50; i++) {
+      const c = rollLevelUp(p, Math.random).cards[2];
+      if (c.startsWith('upgrade:')) expect(c).toBe(upgradeCard('axe'));
+    }
+  });
 });

@@ -393,12 +393,12 @@ export const BALANCE = deepFreeze({
     // triggerFrac — [рішення] розмах, коли ціль ближче за цю частку радіуса: б'є по всьому радіусу,
     // тож зграя рою потрапляє під удар майже вся, а не лише передній павучок
     // етап 10: сокира відкривається за 1 прокачку (було 2)
-    axe: { name: 'Сокира Рагнара', steps: 1, damageMul: 4, radiusFrac: 1 / 3, triggerFrac: 0.55, intervalMul: 1.5, swingMs: 240 },
+    axe: { name: 'Сокира Рагнара', short: 'Сокира', steps: 1, damageMul: 4, radiusFrac: 1 / 3, triggerFrac: 0.55, intervalMul: 1.5, swingMs: 240 },
     // черга з burst пострілів через burstGapMs, потім перезарядка ×reloadMul; стрибки швидші
-    chakra: { name: 'Ворота чакри', steps: 3, burst: 8, burstGapMs: 70, reloadMul: 2, jumpSpeedMul: 1.5 },
+    chakra: { name: 'Ворота чакри', short: 'Чакра', steps: 3, burst: 8, burstGapMs: 70, reloadMul: 2, jumpSpeedMul: 1.5 },
     // 3 кулі: у ціль і дві під ±spreadDeg від неї
     // фідбек-6: «занадто імбовий» — кожна куля ×1 (було ×1,25)
-    shotgun: { name: 'Дробовик Хулігана', steps: 2, damageMul: 1, spreadDeg: 25 },
+    shotgun: { name: 'Дробовик Хулігана', short: 'Дробовик', steps: 2, damageMul: 1, spreadDeg: 25 },
   },
 
   // Прокачка основної зброї (фідбек-2). Коли зброя стала основною, інші зброї більше не пропонуються,
@@ -419,6 +419,10 @@ export const BALANCE = deepFreeze({
     // ворота чакри: +10% швидкості атаки; на extraAt — черга довша на extraBurst
     chakra: { speedStep: 1.1, extraAt: 3, extraBurst: 4 },
   },
+
+  // Етап 14: два слоти зброї. newWeaponChance — частка вікон, де 3-тя картка нова зброя, а не прокачка зброї в слоті;
+  // switchDelayMs — затримка пострілу після перемикання (щоб перемиканням не скидати перезарядку). Припущення.
+  slots: { newWeaponChance: 0.4, switchDelayMs: 300 },
 
   // Скіли (етап 4b) — звичайні картки вікна рівня
   skills: {
