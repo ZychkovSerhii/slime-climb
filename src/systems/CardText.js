@@ -125,7 +125,7 @@ export function cardText(id, picks, arsenal) {
       return { title: `${BALANCE.skills.shuriken.name}${n > 1 ? ` ${n}` : ''}`, desc: `${more}${st.count} крутяться довкола тебе й ріжуть\nкожного, хто зачепить: ${st.damage} шкоди` };
     }
     case 'extraLife':
-      return { title: 'Додаткове життя', desc: `+1 серце (до ${maxLivesFor(n)} з ${BALANCE.skills.extraLife.maxLives})` };
+      return { title: 'Додаткове життя', desc: `+1 серце і +2 життя (до ${maxLivesFor(n)} з ${BALANCE.skills.extraLife.maxLives})` };
     case 'attackSpeed':
       return { title: 'Швидкість атаки', desc: `постріл частіше на ${Math.round((1 - c.attackSpeedFactor) * 100)}%` };
     case 'damage':

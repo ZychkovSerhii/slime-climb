@@ -71,14 +71,14 @@ export const BALANCE = deepFreeze({
     // Фідбек після 6b: «зима складна через ельфів і цукерки». Було throwMs 2600, firstThrowMs 700, windupMs 300,
     // candySpeed 300, wraps 2: ельф проходив екран до 3 разів і кидав ~4 льодяники за життя.
     // етап 10: ельф ×1,4 (scale, хітбокс теж), льодяник ×2 (candyScale)
-    elf: { scale: 1.4, candyScale: 2, hp: 2, xp: 3, points: 30, speed: 250, homingStopPx: 240, throwMs: 3600, firstThrowMs: 1300, windupMs: 450, candySpeed: 240, wraps: 1 },
+    elf: { scale: 1.4, candyScale: 2, hp: 9, xp: 3, points: 30, speed: 250, homingStopPx: 240, throwMs: 3600, firstThrowMs: 1300, windupMs: 450, candySpeed: 240, wraps: 1 },
     // Білий ведмідь — тепер міні-бос: див. bearBoss нижче (етап 10, §10.2).
     // Пінгвін (етап 10, §10.3, рішення користувача: діагональ). Було у фідбеку-3: ходок по стіні — «надто безполезні».
     // З'являється вгорі біля стіни, де тебе немає (edgeY), блимає warnMs і ковзає по прямій у точку гравця на slideSpeed.
     // Вилетів за край — раз (wraps) з'являється згори біля протилежної стіни і знову атакує.
     // Снігова куля (фідбек-6 п.15): котиться по стіні, де гравця немає, донизу на speed px/с (швидше за світ), росте
     // від startScale до maxScale за growMs. 20 HP — слово користувача (×множник біому, як усім). Решта — припущення.
-    snowball: { hp: 20, xp: 6, points: 60, speed: 150, startScale: 0.8, maxScale: 2.2, growMs: 3500, spinPerSec: 5 },
+    snowball: { hp: 40, xp: 6, points: 60, speed: 150, startScale: 0.8, maxScale: 2.2, growMs: 3500, spinPerSec: 5 },
     penguin: { hp: 3, hpMax: 4, xp: 3, points: 30, warnMs: 400, slideSpeed: 420, edgeY: 70, wraps: 1 },
     // Ельф лишається в повітрі; фідбек-3: на спрайті крильця, щоб політ мав пояснення.
     // Санта: шанс chancePerMin щохвилини в зимі, пролітає поперек екрана на висоті y, гравця не б'є.
@@ -96,7 +96,7 @@ export const BALANCE = deepFreeze({
     // Ліхтарик-дух: пливе на гравця, за armPx блимає blinkMs і вибухає радіусом radiusPx. Убитий раніше — вибуху немає.
     // фідбек-6: «літають по приколу» — були 70 px/с і 2 HP: гинули, не долетівши. Тепер швидші, міцніші, вибух ширший і раніше
     lantern: { hp: 5, xp: 3, // фідбек-6 п.4: було 3
-      points: 30, speed: 150, armPx: 130, blinkMs: 600, radiusPx: 100 },
+      points: 30, speed: 150, armPx: 144, blinkMs: 600, radiusPx: 76 }, // фідбек-7: зупиняється за armPx (3 слимаки), невразливий, вибух — квадрат зі стороною 2×radiusPx (площа 10 слимаків)
     // Малі слимаки Колі (фаза 80%). Кусака повзе на гравця; личинка-стрілець тримається на keepPx і плює раз на spitMs,
     // завжди вище за гравця щонайменше на minAbovePx (крута траєкторія — від неї рятує стрибок, як від квітки).
     slugBiter: { hp: 6, xp: 3, points: 40, speed: 120 },
@@ -223,7 +223,7 @@ export const BALANCE = deepFreeze({
     // фідбек-6 п.17: подарунки вдвічі швидші (було 260), під час дощу кидає цукерки раз на candyEveryMs,
     // ціль не виконано — +healFail від maxHp (було по 5% за кожен незібраний, ≈15%), не вище healCap
     rush: { count: 10, durationMs: 8000, goal: 6, xp: 3, healFail: 0.25, healCap: 0.75, // healCap було 0,65 — з'їдало +25% до +15%
-      fallSpeed: 520, candyEveryMs: 1500 },
+      fallSpeed: 468, candyEveryMs: 1500, minGapX: 110, stackGapPx: 150, failBuff: 1.1 },
     candy: { everyMs: 1600, count: 3, spreadDeg: 16, speed: 320, scale: 3 }, // scale — фідбек-6 п.17: льодяники втричі більші
     // Фідбек-6 п.18: потяг утричі довший (було 5 вагонів) і утричі більший, їде змійкою (systems/Snake.js): ряди
     // від rowTop до (висота гравця − rowBottomGap) — гравця не зачіпають; раз на diveEveryMs на кінці ряду пірнає вздовж
@@ -233,8 +233,8 @@ export const BALANCE = deepFreeze({
       sitMs: 1000, // поки сідає — невразливий
       wagons: 15,
       carScale: 3,
-      speed: 300, // px/s уздовж шляху
-      snake: { rowTop: 200, rowBottomGap: 280, rowGap: 150, laneGapPx: 24, gapPx: 14, warnPx: 750, lookaheadPx: 400,
+      speed: 390, // px/s уздовж шляху (фідбек-7: +30%, було 300)
+      snake: { rowTop: 200, rowBottomGap: 280, rowGap: 150, laneGapPx: 24, gapPx: 14, warnPx: 975, lookaheadPx: 400,
         firstDiveMs: 4000, diveEveryMs: 7000, diveClearPx: 200 },
       peekEveryMs: 3500, peekMs: 1200, // Шкодько визирає з паровоза — тоді вразливий
       peekFloor: 0.15, // нижче цієї частки HP визирання не збиває
@@ -265,11 +265,11 @@ export const BALANCE = deepFreeze({
     // Серія: присів (warnMs, блимає, стрілка в точку гравця на момент присідання) → стрибок у неї на speed →
     // вилетів за край → через reenterMs з'являється на протилежній стіні → знову попередження і стрибок.
     // jumps — стрибків у серії; посилений (коло 1+) — +enhancedJumps.
-    jump: { warnMs: 600, speed: 900, reenterMs: 400, jumps: 2, enhancedJumps: 1 },
+    jump: { attackRangePx: 520, attackMinCrawlMs: 700, warnMs: 600, speed: 900, reenterMs: 400, jumps: 2, enhancedJumps: 1 },
     // Ричання: раз на rearEveryMs стає на задні лапи (rearWarnMs) і ричить — довкола аура з власним HP.
     // Поки аура ціла, ведмідь невразливий (кулі б'ють у неї). Зникає, коли розбита або через ms. Дотик — сповільнення (roar).
     rearFirstMs: 2500, rearEveryMs: 9000, rearWarnMs: 800,
-    aura: { hp: 32, ms: 6000, radiusPx: 150 }, // фідбек-6: +300% (було 8)
+    aura: { hp: 48, ms: 6000, radiusPx: 150 }, // фідбек-6: +300% (було 8)
     // Сповільнення від аури (як колишнє ричання). Інваріант (тест): durationMs < rearEveryMs.
     roar: { durationMs: 2500, speedMul: 0.6, fireMul: 0.85 },
     batsAt: 0.2, bats: 2, // на 20% HP раз прилітають 2 зимові летючі миші
@@ -426,7 +426,7 @@ export const BALANCE = deepFreeze({
     // (counts / damageSteps, шкода ще ×biomeHpMul^біом, як в Оксанки — щоб скіл тягнув і на дальніх колах).
     // Один ворог отримує удар від кільця не частіше, ніж раз на hitCdMs; боса — ×bossMul. Числа — припущення.
     shuriken: { name: 'Сюрикени', counts: [1, 2, 3, 3, 4], damageSteps: [1, 1, 1, 1, 1], maxPicks: 5,
-      radiusPx: 62, radiusStep: 6, turnsPerSec: 0.55, hitPx: 20, hitCdMs: 450, bossMul: 0.5, scale: 1.7 },
+      radiusPx: 124, radiusStep: 6, turnsPerSec: 0.55, hitPx: 20, hitCdMs: 450, bossMul: 0.5, scale: 1.7 },
     extraLife: { maxLives: 5 },
   },
 

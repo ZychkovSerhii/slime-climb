@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { BALANCE } from '../src/config/balance.js';
-import { bearBatsDue, bearJumps, bearZone, crawlMs, rearDue, reenterSide } from '../src/systems/BearPlanner.js';
+import { attackNow, bearBatsDue, bearJumps, bearZone, crawlMs, rearDue, reenterSide } from '../src/systems/BearPlanner.js';
 import { firstSegment, nextSegment, runStage } from '../src/systems/Cycle.js';
 import { killXp } from '../src/systems/Progression.js';
 import { stepsForKill } from '../src/systems/Meta.js';
@@ -69,5 +69,14 @@ describe('етап 10: ведмідь-міні-бос', () => {
     expect(killXp('bear')).toBe(BB.xp);
     expect(BB.roar.durationMs).toBeLessThan(BB.rearEveryMs);
     expect(BB.aura.ms).toBeLessThan(BB.rearEveryMs);
+  });
+});
+
+describe('фідбек-7: ведмідь атакує одразу, коли гравець у зоні', () => {
+  test('attackNow: близько і повзає достатньо — так; далеко чи щойно з\'явився — ні', () => {
+    const J = BALANCE.bearBoss.jump;
+    expect(attackNow(J.attackRangePx, J.attackMinCrawlMs)).toBe(true);
+    expect(attackNow(J.attackRangePx + 1, J.attackMinCrawlMs)).toBe(false);
+    expect(attackNow(100, J.attackMinCrawlMs - 1)).toBe(false);
   });
 });

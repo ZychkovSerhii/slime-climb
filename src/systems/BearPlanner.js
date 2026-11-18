@@ -23,6 +23,11 @@ export function bearZone(playerY, sameWall = false) {
   return { minY, maxY };
 }
 
+/** Чи час атакувати, не чекаючи таймера повзання: гравець ближче за attackRangePx і ведмідь повзає не менше attackMinCrawlMs. */
+export function attackNow(dist, crawledMs) {
+  return dist <= BB.jump.attackRangePx && crawledMs >= BB.jump.attackMinCrawlMs;
+}
+
 /** Миші на допомогу — раз, коли HP упало до batsAt. */
 export function bearBatsDue(hpFrac, done) {
   return !done && hpFrac <= BB.batsAt;

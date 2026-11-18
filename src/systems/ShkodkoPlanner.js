@@ -88,6 +88,23 @@ export function rushDueCount(rush, nowMs) {
   return Math.min(Math.max(k, 0), R.count);
 }
 
+/**
+ * x нового подарунка в [laneMin, laneMax] (як giftX: по 20% відступу з країв), не ближче minGap до prevXs.
+ * 12 спроб; якщо вільного місця нема — бере найвіддаленіший від решти кандидат.
+ */
+export function pickGiftX(rng, laneMin, laneMax, prevXs, minGap) {
+  const pad = (laneMax - laneMin) * 0.2;
+  let best = null;
+  let bestDist = -1;
+  for (let i = 0; i < 12; i++) {
+    const x = laneMin + pad + rng() * (laneMax - laneMin - 2 * pad);
+    const d = prevXs.length ? Math.min(...prevXs.map((p) => Math.abs(p - x))) : Infinity;
+    if (d >= minGap) return x;
+    if (d > bestDist) { best = x; bestDist = d; }
+  }
+  return best;
+}
+
 /** Дощ скінчився: час вийшов (плюс час падіння останнього — його ще можна зловити). */
 export function rushOver(rush, nowMs, fallMs) {
   return nowMs >= rush.startMs + S.rush.durationMs + fallMs;

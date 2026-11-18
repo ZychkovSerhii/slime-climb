@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { BALANCE } from '../src/config/balance.js';
 import {
   afterTrainHp, blastHits, bombFuseMs, bombTargets, candyAngles, createRush, danceBounds, danceTarget, peekDamage,
-  phaseFor, rushDueCount, rushHeal, rushOver,
+  phaseFor, pickGiftX, rushDueCount, rushHeal, rushOver,
 } from '../src/systems/ShkodkoPlanner.js';
 
 const S = BALANCE.shkodko;
@@ -95,4 +95,23 @@ test('віяло цукерок симетричне', () => {
   const a = candyAngles(0);
   expect(a.length).toBe(S.candy.count);
   expect(a[0]).toBeCloseTo(-a[a.length - 1]);
+});
+
+describe('фідбек-7: подарунки дощу не накладаються', () => {
+  test('pickGiftX тримає minGap від попередніх, коли є місце', () => {
+    const gap = BALANCE.shkodko.rush.minGapX;
+    let seed = 7;
+    const rng = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    const xs = [];
+    for (let i = 0; i < 3; i++) xs.push(pickGiftX(rng, 60, 660, xs, gap));
+    for (let i = 1; i < xs.length; i++) expect(Math.min(...xs.slice(0, i).map((p) => Math.abs(p - xs[i])))).toBeGreaterThanOrEqual(gap);
+  });
+  test('x лишається в смузі з відступом 20%', () => {
+    const x = pickGiftX(() => 0, 60, 660, [], 110);
+    expect(x).toBeGreaterThanOrEqual(60 + 120);
+  });
+  test('швидкість дощу −10% від колишніх 520, бафф при провалі +10%', () => {
+    expect(BALANCE.shkodko.rush.fallSpeed).toBe(468);
+    expect(BALANCE.shkodko.rush.failBuff).toBe(1.1);
+  });
 });

@@ -1,9 +1,8 @@
 import { BALANCE } from '../config/balance.js';
 import {
-  afterTrainHp, bombTargets, candyAngles, createRush, danceBounds, danceCfg, danceTarget, peekDamage, phaseFor,
+  afterTrainHp, bombTargets, candyAngles, createRush, danceBounds, danceCfg, danceTarget, peekDamage, pickGiftX, phaseFor,
   rushDueCount, rushHeal, rushOver,
 } from '../systems/ShkodkoPlanner.js';
-import { giftX } from '../systems/Biome.js';
 import { sfx } from '../systems/Audio.js';
 import { animKey } from '../art/sprites/index.js';
 import Enemy from './Enemy.js';
@@ -48,6 +47,7 @@ export default class ShkodkoBoss extends Enemy {
     this.nextVolleyAt = Infinity;
     this.nextCandyAt = Infinity;
     this.rushGifts = [];
+    this.speedBuff = 1; // фідбек-7: ×failBuff, якщо дощ не виконано
     this.setDepth(4);
     this.setState('enter');
     this.play(animKey('shkodko', 'dance'));
@@ -112,12 +112,15 @@ export default class ShkodkoBoss extends Enemy {
     if (!this.body || !this.active) return;
     const scene = this.scene;
     const now = scene.nowMs;
-    const mul = this.speedMul(now);
+    const mul = this.speedMul(now) * this.speedBuff;
     const D = this.danceCfg;
 
     switch (this.state) {
       case 'enter':
-        if (this.moveTo(this.x, S.zone.top, D.speed * mul)) this.nextStop();
+        if (this.moveTo(this.x, S.zone.top, D.speed * mul)) {
+          this.nextCandyAt = now + S.candy.everyMs; // фідбек-7: льодяники вже з фази 1
+          this.nextStop();
+        }
         break;
       case 'windup':
         if (now >= this.stateUntil) this.lunge();
@@ -281,10 +284,14 @@ export default class ShkodkoBoss extends Enemy {
       this.rushCandyAt = now + S.rush.candyEveryMs;
     }
     const due = rushDueCount(this.rush, now);
+    this.rushStack = 0;
     while (this.rush.spawned < due) {
       this.rush.spawned += 1;
       const w = BALANCE.wallWidth;
-      const g = new Gift(scene, giftX(Math.random, w, scene.scale.width - w), -20);
+      // фідбек-7: подарунки не лягають один на одного — рознесені по x від попередніх і по y, якщо з'явились в одному кадрі
+      const x = pickGiftX(Math.random, w, scene.scale.width - w, this.rushGifts.filter((q) => q.active).map((q) => q.x), S.rush.minGapX);
+      const g = new Gift(scene, x, -20 - this.rushStack * S.rush.stackGapPx);
+      this.rushStack += 1;
       g.scrollsWithWorld = false;
       g.xp = S.rush.xp;
       g.onCollect = () => {
@@ -305,7 +312,12 @@ export default class ShkodkoBoss extends Enemy {
     const before = this.hp;
     this.hp = rushHeal(this.hp, this.maxHp, this.rush.collected);
     const ok = this.rush.collected >= S.rush.goal;
-    this.scene.events.emit('hud:banner', { text: ok ? 'Ціль виконано!' : `Шкодько підлікувався (+${Math.round(((this.hp - before) / this.maxHp) * 100)}%)`, ms: 1500 });
+    if (!ok) {
+      this.maxHp *= S.rush.failBuff; // фідбек-7: не зібрав — Шкодько сильніший: HP і швидкість +10%
+      this.hp *= S.rush.failBuff;
+      this.speedBuff = S.rush.failBuff;
+    }
+    this.scene.events.emit('hud:banner', { text: ok ? 'Ціль виконано!' : `Шкодько підлікувався і став сильнішим (+${Math.round(((this.hp - before) / this.maxHp) * 100)}%)`, ms: 1500 });
     this.nextCandyAt = this.scene.nowMs + S.candy.everyMs;
     this.phase = Math.max(this.phase, 3);
     this.endInvulnerable(() => this.nextStop());

@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser';
 import { BALANCE } from '../config/balance.js';
-import { bearBatsDue, bearJumps, bearZone, crawlMs, rearDue, reenterSide } from '../systems/BearPlanner.js';
+import { attackNow, bearBatsDue, bearJumps, bearZone, crawlMs, rearDue, reenterSide } from '../systems/BearPlanner.js';
 import { otherSide } from '../systems/WallWalkers.js';
 import { sfx } from '../systems/Audio.js';
 import { animKey } from '../art/sprites/index.js';
@@ -106,7 +106,7 @@ export default class BearBoss extends Enemy {
         this.body.setVelocity(0, this.crawlDir * BB.climbSpeed * mul);
         this.setFlipX(this.crawlDir > 0); // голова туди, куди повзе
         if (rearDue(now, this.nextRearAt, Boolean(this.aura?.active))) this.startRear(now);
-        else if (now >= this.actUntil) this.startSeries();
+        else if (now >= this.actUntil || attackNow(Phaser.Math.Distance.Between(this.x, this.y, this.scene.player.x, this.scene.player.y), now - this.crawlStartAt)) this.startSeries();
         break;
       }
       case 'rear':
@@ -138,6 +138,7 @@ export default class BearBoss extends Enemy {
     this.crawlDir = 1;
     this.placeOnWall(this.side, this.y);
     this.setAct('crawl', crawlMs(Math.random));
+    this.crawlStartAt = this.scene.nowMs;
   }
 
   startSeries() {
