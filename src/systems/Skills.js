@@ -5,6 +5,11 @@ import { BALANCE } from '../config/balance.js';
 const S = BALANCE.skills;
 const L = BALANCE.bossLoot;
 
+/** Текстура пострілу гравця: скіновий постріл, але «Павутина» (трофей) головніша. Відтінок отрути текстуру не міняє. */
+export function playerShotTexture(shot, relics) {
+  return relics.includes('web') ? 'webShot' : shot;
+}
+
 /** Невидимість після n взять: { durationMs, cooldownMs }; n = 0 — скіла немає (null). */
 export function invisStats(n) {
   if (!n) return null;

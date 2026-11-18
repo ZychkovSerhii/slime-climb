@@ -2,7 +2,8 @@ import { BALANCE } from '../config/balance.js';
 import { fireIntervalMul } from '../systems/Status.js';
 import { attackDamage, axeRadius, axeTier, createFireState, hasMiniAxe, inRadius, shotgunAngles, stepFire } from '../systems/Weapons.js';
 import { weaponUpgrades } from '../systems/Progression.js';
-import { hatStats, hitEffects } from '../systems/Skills.js';
+import { hatStats, hitEffects, playerShotTexture } from '../systems/Skills.js';
+import { shotSprite } from '../systems/Meta.js';
 import { interceptPoint, pickNearest } from '../systems/Targeting.js';
 import { sfx } from '../systems/Audio.js';
 import Familiar from '../entities/Familiar.js';
@@ -112,7 +113,7 @@ export default class Combat {
     const angles = main === 'shotgun' ? shotgunAngles(angle, upgrades) : [angle];
     const relics = scene.progression.relics;
     const fx = hitEffects(scene.weapon.slow, relics);
-    const texture = relics.includes('web') ? 'webShot' : 'projectile';
+    const texture = playerShotTexture(shotSprite(scene.meta), relics); // фідбек-7: постріл за скіном
     for (const a of angles) {
       const proj = new Projectile(scene, scene.player.x, scene.player.y, texture, { damage, fx });
       if (relics.includes('venom')) proj.setTint(VENOM_SHOT_TINT);

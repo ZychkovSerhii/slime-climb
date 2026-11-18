@@ -492,11 +492,11 @@ export const BALANCE = deepFreeze({
       salamander: 2, spark: 1, sparkling: 0, bubble: 0, kazan: 150 },
     // Скіни лише візуальні. sprite — ключ спрайта в src/art/sprites (однаковий розмір полотна → хітбокс той самий)
     skins: [
-      { id: 'slime', name: 'Слизак', price: 0, sprite: 'slime' },
-      { id: 'assassin', name: 'Асасин', price: 300, sprite: 'skinAssassin' },
-      { id: 'commander', name: 'Жінка Главнокомандувач', price: 300, sprite: 'skinCommander' },
-      { id: 'raccoon', name: 'Єнот', price: 500, sprite: 'skinRaccoon' },
-      { id: 'murzik', name: 'Мурзик', price: 1000, sprite: 'skinMurzik' },
+      { id: 'slime', name: 'Слизак', price: 0, sprite: 'slime', shot: 'projectile' },
+      { id: 'assassin', name: 'Асасин', price: 300, sprite: 'skinAssassin', shot: 'shotAssassin' },
+      { id: 'commander', name: 'Жінка Главнокомандувач', price: 300, sprite: 'skinCommander', shot: 'shotCommander' },
+      { id: 'raccoon', name: 'Єнот', price: 500, sprite: 'skinRaccoon', shot: 'shotRaccoon' },
+      { id: 'murzik', name: 'Мурзик', price: 1000, sprite: 'skinMurzik', shot: 'shotMurzik' },
     ],
     // Досягнення: поки не отримане — «???». stat — тип ворога ('boss' — павучиха), count — скільки вбити.
     // Нагорода в Шагах [рішення: у специфікації сум немає] забирається в меню досягнень.

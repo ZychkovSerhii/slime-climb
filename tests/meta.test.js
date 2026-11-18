@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { BALANCE } from '../src/config/balance.js';
+import { SPRITES } from '../src/art/sprites/index.js';
 import {
   achievementList,
   buySkin,
@@ -9,6 +10,7 @@ import {
   loadMeta,
   normalizeMeta,
   recordKill,
+  shotSprite,
   saveMeta,
   skinSprite,
   stepsForKill,
@@ -205,4 +207,17 @@ test('етап 11: Казан — 150 Шагів, досягнення 250 і 60
   let k = emptyMeta();
   for (let i = 0; i < 49; i++) k = recordKill(k, 'spark').meta;
   expect(recordKill(k, 'spark').unlocked.map((a) => a.id)).toEqual(['spark50']);
+});
+
+describe('постріл за скіном (фідбек-7)', () => {
+  test('у кожного скіна є постріл, зареєстрований серед спрайтів', () => {
+    for (const skin of BALANCE.meta.skins) {
+      expect(skin.shot, skin.id).toBeTruthy();
+      expect(SPRITES.some((sp) => sp.key === skin.shot), skin.id).toBe(true);
+    }
+  });
+  test('shotSprite: стандартний слиз — projectile, Мурзик — shotMurzik', () => {
+    expect(shotSprite(emptyMeta())).toBe('projectile');
+    expect(shotSprite({ ...emptyMeta(), owned: ['slime', 'murzik'], skin: 'murzik' })).toBe('shotMurzik');
+  });
 });
