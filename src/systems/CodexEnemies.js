@@ -75,8 +75,8 @@ export const ENEMIES = {
     name: 'Ліхтарик-дух',
     biome: 'bamboo',
     speed: E.lantern.speed,
-    desc: `Паперовий ліхтар з вогником. Повільно пливе до тебе, за ${E.lantern.armPx} px блимає ${sec(E.lantern.blinkMs)} с і вибухає.`,
-    facts: [`Вибух: радіус ${E.lantern.radiusPx} px — стрибни на іншу стіну`, 'Збив раніше — вибуху немає'],
+    desc: `Паперовий ліхтар з вогником. Пливе до тебе, за ${E.lantern.armPx} px зупиняється, стає невразливим, блимає ${sec(E.lantern.blinkMs)} с і вибухає.`,
+    facts: [`Вибух: квадрат ${E.lantern.radiusPx * 2}×${E.lantern.radiusPx * 2} px — стрибни на іншу стіну`, 'Збив до зупинки — вибуху немає'],
   }),
   slugBiter: () => ({
     name: 'Слимак-кусака',

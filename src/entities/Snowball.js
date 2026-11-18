@@ -39,8 +39,8 @@ export default class Snowball extends Enemy {
     this.setScale(snowballScale(now - this.bornAt));
     this.place(this.y);
     this.body.setVelocity(0, CFG.speed * mul);
-    // котиться вниз: ліва стіна — за годинниковою, права — проти
-    this.rotation += ((this.side === 'left' ? -1 : 1) * CFG.spinPerSec * mul * delta) / 1000;
+    // котиться вниз: ліва стіна — за годинниковою (у Phaser +), права — проти
+    this.rotation += ((this.side === 'left' ? 1 : -1) * CFG.spinPerSec * mul * delta) / 1000;
     if (this.y - this.displayHeight / 2 > this.scene.scale.height) this.destroy();
   }
 }
