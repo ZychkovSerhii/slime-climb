@@ -6,7 +6,7 @@ import { BALANCE } from '../config/balance.js';
  * Утримання: поки holding і holdMs < holdMaxMs, політ подовжується і дуга росте.
  * Розворот: один за стрибок, слизак повертається на from.
  */
-export function createJump(fromSide, { holding = false } = {}) {
+export function createJump(fromSide, { holding = false, charged = false, startLift = 0 } = {}) {
   return {
     from: fromSide,
     to: fromSide === 'left' ? 'right' : 'left',
@@ -15,7 +15,32 @@ export function createJump(fromSide, { holding = false } = {}) {
     holding,
     holdMs: 0,
     reversed: false,
+    // етап 14: заряджений стрибок сідає вище; startLift — на скільки слизак був над baseY на старті (ще сповзав)
+    charged,
+    startLift,
   };
+}
+
+/** Етап 14: на скільки px над baseY сяде заряджений стрибок (росте з утриманням; без заряду — 0). */
+export function landingLift(j) {
+  return j.charged ? BALANCE.charge.liftPx * holdFraction(j) : 0;
+}
+
+/** Чи вмикає цей стрибок кулдаун заряду (утримання не менше minFrac і сів на іншу стіну). */
+export function usedCharge(j) {
+  return j.charged && !j.reversed && holdFraction(j) >= BALANCE.charge.minFrac;
+}
+
+/** Сповзання після зарядженого стрибку: підйом зменшується на liftPx за slideMs. */
+export function slideLift(lift, dt) {
+  const C = BALANCE.charge;
+  return Math.max(lift - (C.liftPx * dt) / C.slideMs, 0);
+}
+
+/** Частка готовності заряду 0…1 (1 — готовий): readyAt — коли кулдаун скінчиться. */
+export function chargeReadiness(readyAt, nowMs) {
+  if (nowMs >= readyAt) return 1;
+  return Math.max(1 - (readyAt - nowMs) / BALANCE.charge.cooldownMs, 0);
 }
 
 /** Частка повного утримання 0…1. */
@@ -45,8 +70,8 @@ export function reverseJump(j) {
 }
 
 /**
- * Крок на dt мс. Повертає { jump, landedSide }: landedSide — стіна, на яку слизак приземлився
- * (тоді jump = null), інакше null.
+ * Крок на dt мс. Повертає { jump, landedSide, lift, charged }: landedSide — стіна, на яку слизак приземлився
+ * (тоді jump = null), інакше null; lift — на скільки px над baseY він сів; charged — чи витрачено заряд.
  */
 export function stepJump(j, dt, speedMul = 1) {
   let holdMs = j.holdMs;
@@ -57,12 +82,16 @@ export function stepJump(j, dt, speedMul = 1) {
   }
   const next = { ...j, holdMs, holding };
   const k = j.k + (j.dir * dt) / jumpDurationMs(next, speedMul);
-  if (k >= 1) return { jump: null, landedSide: j.to };
-  if (k <= 0 && j.dir < 0) return { jump: null, landedSide: j.from };
+  if (k >= 1) return { jump: null, landedSide: j.to, lift: landingLift(next), charged: usedCharge(next) };
+  if (k <= 0 && j.dir < 0) return { jump: null, landedSide: j.from, lift: j.startLift, charged: false };
   return { jump: { ...next, k }, landedSide: null };
 }
 
-/** Позиція слизака: x — лінійно між стінами, y — дуга вгору від baseY. */
+/**
+ * Позиція слизака: x — лінійно між стінами, y — дуга вгору від baseY.
+ * Етап 14: висота старту (startLift) плавно переходить у висоту приземлення (landingLift).
+ */
 export function jumpPosition(j, fromX, toX, baseY) {
-  return { x: fromX + (toX - fromX) * j.k, y: baseY - jumpArcPx(j) * Math.sin(Math.PI * j.k) };
+  const lift = (j.startLift ?? 0) * (1 - j.k) + landingLift(j) * j.k;
+  return { x: fromX + (toX - fromX) * j.k, y: baseY - lift - jumpArcPx(j) * Math.sin(Math.PI * j.k) };
 }

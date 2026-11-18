@@ -63,6 +63,7 @@ function character() {
         `Після удару невразливий ${sec(BALANCE.invulnerableMs)} с`,
         `До ${BALANCE.healLateFrom} рівня кожен новий рівень повертає ${BALANCE.healPerLevel} життя, далі — кожен другий`,
         `Стрибок: ${sec(BALANCE.jumpDurationMs)} с, з утриманням ×${num(BALANCE.holdDurationMul)} довше`,
+        `Заряджений стрибок (утримання): сідає на ${BALANCE.charge.liftPx} px вище й сповзає на місце; раз на ${sec(BALANCE.charge.cooldownMs)} с — шкала під слизаком`,
       ],
     }),
     entry({
