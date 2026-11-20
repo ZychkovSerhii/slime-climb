@@ -36,8 +36,8 @@ describe('ніндзя', () => {
 
 describe('ліхтарик', () => {
   test('займається ближче за armPx', () => {
-    expect(lanternShouldArm(143)).toBe(true);
-    expect(lanternShouldArm(145)).toBe(false);
+    expect(lanternShouldArm(59)).toBe(true); // фідбек-8: летить упритул (armPx 60)
+    expect(lanternShouldArm(61)).toBe(false);
   });
   test('радіус вибуху менший за ширину коридору: від нього рятує стрибок', () => {
     expect(BALANCE.enemies.lantern.radiusPx * 2).toBeLessThan(720 - 2 * BALANCE.wallWidth - BALANCE.playerSize);

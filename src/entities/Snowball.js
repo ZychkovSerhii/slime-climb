@@ -6,7 +6,7 @@ const CFG = BALANCE.enemies.snowball;
 
 /**
  * Снігова куля (зима, фідбек-6 п.15): з'являється над верхнім краєм на стіні side (де гравця немає) і котиться по ній
- * донизу швидше за світ, крутиться й росте від startScale до maxScale за growMs. Б'є дотиком; HP — CFG.hp × біом.
+ * донизу швидше за світ (їде зі світом + своя швидкість), крутиться й росте від startScale до maxScale за growMs. Б'є дотиком; HP — CFG.hp × біом.
  * Скотилась за нижній край — зникає без нагороди.
  */
 export default class Snowball extends Enemy {
@@ -14,7 +14,7 @@ export default class Snowball extends Enemy {
     super(scene, 0, 0, 'snowball', 'snowball');
     this.side = side;
     this.snowball = true;
-    this.scrollsWithWorld = false;
+    this.scrollsWithWorld = true; // фідбек-8: їде зі світом і ще котиться донизу — на гравця, а не «вгору» відносно стіни
     this.bornAt = scene.nowMs;
     this.setScale(CFG.startScale);
     this.place(-this.displayHeight / 2);

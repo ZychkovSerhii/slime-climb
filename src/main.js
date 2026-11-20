@@ -6,6 +6,7 @@ import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
 import { codex, codexOpen } from './codex/index.js';
 import { leaderboard, leaderboardOpen } from './leaderboard/index.js';
+import { patchNotes, patchNotesOpen } from './patchnotes/index.js';
 import { backAction } from './systems/Navigation.js';
 import BootScene from './scenes/BootScene.js';
 import MenuScene from './scenes/MenuScene.js';
@@ -72,8 +73,9 @@ if (Capacitor.isNativePlatform()) {
   App.addListener('backButton', () => {
     const active = game.scene.getScenes(true).map((s) => s.sys.settings.key);
     const gameScene = game.scene.getScene('Game');
-    const action = backAction(active, Boolean(gameScene?.paused), codexOpen(), leaderboardOpen());
-    if (action === 'closeCodex') codex().close();
+    const action = backAction(active, Boolean(gameScene?.paused), codexOpen(), leaderboardOpen(), patchNotesOpen());
+    if (action === 'closePatchNotes') patchNotes().close();
+    else if (action === 'closeCodex') codex().close();
     else if (action === 'closeLeaderboard') leaderboard().close();
     else if (action === 'pause') gameScene.pauseWithOverlay();
     else if (action === 'menu') {

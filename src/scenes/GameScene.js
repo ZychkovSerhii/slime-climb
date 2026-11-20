@@ -514,8 +514,9 @@ export default class GameScene extends Phaser.Scene {
     const from = this.biome;
     this.biome = biome;
     // після боса — тиша calmSec; перші появи біому рахуються від її кінця
-    const startSec = this.elapsedSec < 0.5 ? 0 : this.elapsedSec + BALANCE.boss.calmSec;
-    this.spawner.onBiome(biome, startSec);
+    const afterBoss = this.elapsedSec >= 0.5;
+    const startSec = afterBoss ? this.elapsedSec + BALANCE.boss.calmSec : 0;
+    this.spawner.onBiome(biome, startSec, afterBoss ? BALANCE.boss.afterFromMul : 1); // фідбек-8: перші вороги на 30% раніше
     const instant = from === biome || this.elapsedSec < 0.5;
     this.biomes.enter(biome, instant);
   }

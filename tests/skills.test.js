@@ -30,12 +30,13 @@ describe('invisibility', () => {
   });
 });
 
-test('straw hat: +1 damage per pick (feedback-2); 5th pick adds a second hat', () => {
+test('straw hat (фідбек-8): +2 damage per next pick; 4th pick adds a second hat', () => {
   expect(hatStats(0)).toEqual({ count: 0, damage: 0 });
   expect(hatStats(1)).toEqual({ count: 1, damage: 1 });
-  expect(hatStats(2)).toEqual({ count: 1, damage: 2 });
-  expect(hatStats(4)).toEqual({ count: 1, damage: 4 });
-  expect(hatStats(5)).toEqual({ count: 2, damage: 4 });
+  expect(hatStats(2)).toEqual({ count: 1, damage: 3 });
+  expect(hatStats(3)).toEqual({ count: 1, damage: 5 });
+  expect(hatStats(4)).toEqual({ count: 2, damage: 7 });
+  expect(hatStats(5)).toEqual({ count: 2, damage: 9 });
 });
 
 test('extra life: +1 max heart each, up to 5; then the card disappears', () => {
@@ -83,10 +84,10 @@ describe('spider loot', () => {
   test('hit effects: venom gives the stronger slow and a dot; web roots', () => {
     const card = { factor: 0.6, durationMs: 2000 };
     expect(hitEffects(card, ['venom']).slow).toMatchObject(card); // картка сильніша — лишається вона
-    expect(hitEffects(null, ['venom']).slow.factor).toBe(0.9);
-    expect(hitEffects(null, ['venom']).dot).toEqual({ dps: 1, durationMs: 3000 });
+    expect(hitEffects(null, ['venom']).slow.factor).toBe(0.83); // фідбек-8
+    expect(hitEffects(null, ['venom']).dot).toEqual({ dps: 1.2, durationMs: 3000 });
     expect(hitEffects(null, []).root).toBeNull();
-    expect(hitEffects(null, ['web']).root).toEqual({ ms: 900, bossMs: 150 });
+    expect(hitEffects(null, ['web']).root).toEqual({ ms: 500, bossMs: 100, tickMs: 500, damage: 0.5 });
   });
   test('dot: 1 damage per second for 3 s, refresh does not stack', () => {
     let d = applyDot(null, { dps: 1, durationMs: 3000 }, 0);
@@ -109,7 +110,8 @@ test('ice + venom: stronger slow, dps add up, boss slowed only by bossFactor', (
   const ice = { factor: 0.6, durationMs: 3000, dps: 0.5, bossFactor: 0.95, ice: true };
   const fx = hitEffects(ice, ['venom']);
   expect(fx.slow).toMatchObject({ factor: 0.6, bossFactor: 0.95, ice: true });
-  expect(fx.dot).toEqual({ dps: 1.5, durationMs: 3000 });
+  expect(fx.dot.dps).toBeCloseTo(1.7); // 0,5 + отрута 1,2 (фідбек-8)
+  expect(fx.dot.durationMs).toBe(3000);
   expect(hitEffects(ice, []).dot).toEqual({ dps: 0.5, durationMs: 3000 });
 });
 

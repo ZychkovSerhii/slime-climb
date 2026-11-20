@@ -92,9 +92,9 @@ describe('cards', () => {
     expect(cards).not.toContain('attackSpeed');
   });
 
-  test('attackSpeed: ×0.85, never below minFireIntervalMs', () => {
+  test('attackSpeed: ×0.86 (фідбек-8), never below minFireIntervalMs', () => {
     const p = applyCard(createProgression(), 'attackSpeed');
-    expect(p.weapon.fireIntervalMs).toBe(850);
+    expect(p.weapon.fireIntervalMs).toBe(860);
     const near = { ...p, weapon: { ...p.weapon, fireIntervalMs: 260 } };
     expect(applyCard(near, 'attackSpeed').weapon.fireIntervalMs).toBe(250);
   });
@@ -107,16 +107,18 @@ describe('cards', () => {
     expect(applyCard(p2, 'damage').weapon.damage).toBe(4);
   });
 
-  test('ice attack: 40% slow + 0.5 dps for 3 s; each pick +5% slow (max 60%) and +0.5 dps', () => {
+  test('ice attack (фідбек-8): 35% slow + 0.5 dps for 3 s; each pick +5% slow (max 60%), boss +1%, +0.15 dps, +0.2 s', () => {
     const once = applyCard(createProgression(), 'slow');
-    expect(once.weapon.slow).toMatchObject({ factor: 0.6, durationMs: 3000, dps: 0.5, bossFactor: 0.95, ice: true });
+    expect(once.weapon.slow).toMatchObject({ factor: 0.65, durationMs: 3000, dps: 0.5, bossFactor: 0.95, ice: true });
     const twice = applyCard(once, 'slow');
-    expect(twice.weapon.slow.factor).toBeCloseTo(0.55);
-    expect(twice.weapon.slow.dps).toBe(1);
+    expect(twice.weapon.slow.factor).toBeCloseTo(0.6);
+    expect(twice.weapon.slow.dps).toBeCloseTo(0.65);
+    expect(twice.weapon.slow.durationMs).toBe(3200);
+    expect(twice.weapon.slow.bossFactor).toBeCloseTo(0.94);
     let p = twice;
     for (let i = 0; i < 6; i++) p = applyCard(p, 'slow');
     expect(p.weapon.slow.factor).toBe(0.4);
-    expect(p.weapon.slow.dps).toBe(4);
+    expect(p.weapon.slow.dps).toBeCloseTo(1.55); // 8 взять: 0,5 + 7 × 0,15
   });
 
   test('picks are counted', () => {
