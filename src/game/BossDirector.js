@@ -3,11 +3,12 @@ import { bannerVisible } from '../systems/BossPlanner.js';
 import { nextSegment, runStage } from '../systems/Cycle.js';
 import { rollLoot } from '../systems/Skills.js';
 import { saveMeta, stepsForKill } from '../systems/Meta.js';
-import { playMusic, sfx, stopMusic } from '../systems/Audio.js';
+import { playMusic, sfx } from '../systems/Audio.js';
 import { SHKODKO_LOOT_IDS } from '../systems/ShkodkoLoot.js';
 import { KOLYA_LOOT_IDS, lootStepsBonus } from '../systems/KolyaLoot.js';
 import { KAZAN_LOOT_IDS } from '../systems/KazanLoot.js';
 import { bossIntroInfo } from '../systems/BossIntro.js';
+import { biomeMusic, bossMusic, rageMusic } from '../systems/Music.js';
 import Bat from '../entities/Bat.js';
 import SpiderBoss from '../entities/SpiderBoss.js';
 import ShkodkoBoss from '../entities/ShkodkoBoss.js';
@@ -72,13 +73,18 @@ export default class BossDirector {
     scene.introOpen = false;
     scene.health = { ...scene.health, invulnerableUntil: Math.max(scene.health.invulnerableUntil, scene.nowMs + BALANCE.bossIntro.graceMs) };
     scene.inputBlockedUntil = scene.game.loop.time + BALANCE.tapGuardMs; // дотик, що закрив представлення, — не стрибок
-    if (this.introMusic) playMusic('boss');
-    else stopMusic();
+    if (this.introMusic) playMusic(bossMusic(scene.seg.boss)); // звук v2: у кожного боса своя тема
+    else playMusic(biomeMusic(scene.biome)); // ?intro=1: боса немає — грає біом
     if (scene.levelUpQueue > 0 || scene.lootCards) {
       scene.openLevelUp();
       return;
     }
     if (!scene.pause.overlayOpen) scene.setPaused(false);
+  }
+
+  /** Лють боса (подія 'boss:rage'): та сама тема швидше; у павучихи — своя. */
+  onRage() {
+    playMusic(rageMusic(this.scene.seg.boss));
   }
 
   /** Перехід між етапами забігу навколо боса. */
@@ -144,7 +150,7 @@ export default class BossDirector {
       }
     }
     scene.events.emit('hud:boss', null);
-    playMusic('victory');
+    playMusic('victory', { next: biomeMusic(scene.seg.biome) }); // після фанфари — музика біому наступного відрізка
   }
 
   /**

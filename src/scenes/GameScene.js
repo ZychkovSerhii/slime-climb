@@ -15,7 +15,7 @@ import { inPauseButton } from '../systems/Layout.js';
 import { heightPoints, killPoints } from '../systems/Score.js';
 import { loadMeta, recordKill, saveMeta, skinSprite } from '../systems/Meta.js';
 import { browserStorage } from '../systems/HighScore.js';
-import { playMusic, sfx, stopMusic } from '../systems/Audio.js';
+import { sfx, stopMusic } from '../systems/Audio.js';
 import Player from '../entities/Player.js';
 import BiomeDirector from '../game/BiomeDirector.js';
 import BossDirector, { BOSS_OF_KILL } from '../game/BossDirector.js';
@@ -155,7 +155,7 @@ export default class GameScene extends Phaser.Scene {
       this.gainXp(xp);
     };
     const onPicked = (id) => this.onCardPicked(id);
-    const onRage = () => playMusic('rage');
+    const onRage = () => this.bosses.onRage();
     const onIntroClosed = () => this.bosses.onIntroClosed();
     this.events.on('intro:closed', onIntroClosed);
     this.buttons.bind(Phaser.Scenes.Events.SHUTDOWN); // невидимість і перемикання зброї

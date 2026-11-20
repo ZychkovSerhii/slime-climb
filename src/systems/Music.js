@@ -1,6 +1,10 @@
 // Музика без файлів: короткі чіптюн-петлі, написані тут нотами й програні WebAudio (див. Audio.js).
 // Нотація патерну — токени через пробіл, один токен = одна 1/16:
-//   'A2', 'C#4', 'Bb3' — нота; '.' — тягнути попередню; '-' — пауза; 'x' — удар шуму (барабан).
+//   'A2', 'C#4', 'Bb3' — нота; '.' — тягнути попередню; '-' — пауза; 'x' — удар шуму (малий барабан),
+//   'k' — бочка (синус з падінням висоти), 'h' — хет (дуже короткий тихий шум).
+
+import { BIOME_TRACKS } from './tracks/biomeTracks.js';
+import { BOSS_TRACKS } from './tracks/bossTracks.js';
 
 const NOTE_INDEX = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
 
@@ -28,7 +32,10 @@ export function parsePattern(pattern) {
         last = null;
         return;
       }
-      last = tok === 'x' ? { step, noise: true, len: 1 } : { step, midi: noteToMidi(tok), len: 1 };
+      if (tok === 'x') last = { step, noise: true, len: 1 };
+      else if (tok === 'k') last = { step, kick: true, len: 1 };
+      else if (tok === 'h') last = { step, hat: true, len: 1 };
+      else last = { step, midi: noteToMidi(tok), len: 1 };
       events.push(last);
     });
   return events;
@@ -47,25 +54,43 @@ const bars = (...parts) => parts.join(' ');
  */
 export const TRACKS = {
   // Бій з павучихою: ля мінор, напружений бас і проста тема
-  boss: {
+  bossSpider: {
     bpm: 140,
     loop: true,
     voices: [
       {
         wave: 'square',
         vol: 0.05,
-        pattern: bars('A2 - A2 - A3 - A2 - G2 - G2 - G3 - G2 -', 'F2 - F2 - F3 - F2 - E2 - E2 - E3 - E2 -'),
+        pattern: bars(
+          'A2 - A2 - A3 - A2 - G2 - G2 - G3 - G2 -',
+          'F2 - F2 - F3 - F2 - E2 - E2 - E3 - E2 -',
+          'A2 - A2 - A3 - A2 - G2 - G2 - G3 - G2 -',
+          'F2 - F2 - F3 - F2 - E2 - E2 - E3 - E2 -',
+          'D2 - D2 - D3 - D2 - C2 - C2 - C3 - C2 -',
+          'F2 - F2 - F3 - F2 - E2 - E2 - E3 - E2 -',
+          'D2 - D2 - D3 - D2 - C2 - C2 - C3 - C2 -',
+          'E2 - E2 - E3 - E2 - E2 - E2 - G#2 - B2 -',
+        ),
       },
       {
         wave: 'triangle',
         vol: 0.09,
-        pattern: bars('A4 . . . C5 . B4 . A4 . . . E4 . . .', 'F4 . . . A4 . G4 . E4 . . . . . - -'),
+        pattern: bars(
+          'A4 . . . C5 . B4 . A4 . . . E4 . . .',
+          'F4 . . . A4 . G4 . E4 . . . . . - -',
+          'A4 . . . C5 . E5 . D5 . C5 . B4 . . .',
+          'C5 . . . A4 . F4 . E4 . . . . . - -',
+          'F5 . . . E5 . D5 . E5 . . . C5 . . .',
+          'A4 . . . C5 . B4 . G#4 . . . . . - -',
+          'F5 . E5 . D5 . . . E5 . D5 . C5 . . .',
+          'B4 . . . . . . . G#4 . . . E4 . . .',
+        ),
       },
-      { wave: 'noise', vol: 0.025, pattern: bars('x - - - x - - - x - - - x - x -', 'x - - - x - - - x - - - x - x -') },
+      { wave: 'noise', vol: 0.025, pattern: Array(8).fill('k - - - x - - - k - k - x - x -').join(' ') },
     ],
   },
-  // Лють: та сама тональність, швидше і щільніше
-  rage: {
+  // Лють павучихи: та сама тональність, швидше і щільніше
+  rageSpider: {
     bpm: 190,
     loop: true,
     voices: [
@@ -85,41 +110,13 @@ export const TRACKS = {
       { wave: 'noise', vol: 0.03, pattern: bars('x - x - x - x x x - x - x - x x', 'x - x - x - x x x - x - x x x x') },
     ],
   },
-  // Перемога: коротка фанфара, далі — тема після боса
+  // Перемога: коротка фанфара; далі — музика біому (next передає BossDirector: після ведмедя це та сама зима)
   victory: {
     bpm: 150,
     loop: false,
-    next: 'after',
     voices: [
       { wave: 'square', vol: 0.07, pattern: 'C5 - E5 - G5 - C6 . . . . . - - - -' },
       { wave: 'triangle', vol: 0.09, pattern: 'C3 . . . G2 . . . C3 . . . . . - -' },
-    ],
-  },
-  // Після боса: спокійніша мажорна петля, тихіше за бій
-  after: {
-    bpm: 115,
-    loop: true,
-    voices: [
-      {
-        wave: 'triangle',
-        vol: 0.08,
-        pattern: bars(
-          'C3 - - - G2 - - - A2 - - - E2 - - -',
-          'F2 - - - C3 - - - F2 - - - G2 - - -',
-          'C3 - - - G2 - - - A2 - - - E2 - - -',
-          'F2 - - - G2 - - - C3 . . . - - - -',
-        ),
-      },
-      {
-        wave: 'square',
-        vol: 0.035,
-        pattern: bars(
-          'E4 . G4 . C5 . . . B4 . G4 . E4 . . .',
-          'A4 . C5 . E5 . . . D5 . C5 . A4 . . .',
-          'F4 . A4 . C5 . . . A4 . F4 . C4 . . .',
-          'D4 . G4 . B4 . . . C5 . . . - - - -',
-        ),
-      },
     ],
   },
   // ---- Представлення босів (етап 9, §9.3): по ~2 с (16 кроків при 120 bpm), своя тема для кожного
@@ -173,4 +170,25 @@ export const TRACKS = {
       { wave: 'noise', vol: 0.03, pattern: 'x - - x - - x - x - - x - - x -' },
     ],
   },
+  ...BIOME_TRACKS,
+  ...BOSS_TRACKS,
 };
+
+const BIOME_MUSIC = { cave: 'cave', winter: 'winter', bamboo: 'bamboo', lava: 'lava' };
+const BOSS_MUSIC = { spider: 'bossSpider', bear: 'bossBear', shkodko: 'bossShkodko', kolya: 'bossKolya', kazan: 'bossKazan' };
+const RAGE_MUSIC = { spider: 'rageSpider', shkodko: 'rageShkodko', kolya: 'rageKolya', kazan: 'rageKazan' };
+
+/** Трек біому (невідомий біом — печера). */
+export function biomeMusic(biome) {
+  return BIOME_MUSIC[biome] ?? 'cave';
+}
+
+/** Бойовий трек боса (ключ відрізка: spider, bear…). */
+export function bossMusic(boss) {
+  return BOSS_MUSIC[boss] ?? 'bossSpider';
+}
+
+/** Трек люті боса; у боса без люті (ведмідь) — його ж бойовий. */
+export function rageMusic(boss) {
+  return RAGE_MUSIC[boss] ?? bossMusic(boss);
+}
