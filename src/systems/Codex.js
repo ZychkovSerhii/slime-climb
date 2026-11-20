@@ -124,7 +124,7 @@ function weapons() {
   return [start, ...list];
 }
 
-const SKILL_SPRITES = { slow: 'frost', hat: 'hat', shuriken: 'orbitShuriken', extraLife: 'heart', invisibility: 'slime' };
+const SKILL_SPRITES = { slow: 'frost', hat: 'hat', shuriken: 'orbitShuriken', extraLife: 'heart', invisibility: 'slime', halfblood: 'slimeSpider' };
 
 function skills() {
   return CARD_IDS.map((id) => {
@@ -134,7 +134,7 @@ function skills() {
     if (id === 'hat') {
       const H = BALANCE.skills.hat;
       damage = H.damageSteps[0];
-      facts.push(`До ${H.maxPicks} взять, на ${H.maxPicks}-му — друга шляпа`);
+      facts.push(`До ${H.maxPicks} взять, з ${H.secondAt}-го — друга шляпа`);
       facts.push(`Шкода росте: ${H.damageSteps.map((_, i) => H.damageSteps.slice(0, i + 1).reduce((a, b) => a + b, 0)).join(' → ')}`);
     }
     if (id === 'shuriken') {
@@ -142,7 +142,7 @@ function skills() {
       damage = R.damageSteps[0];
       facts.push(`До ${R.maxPicks} взять: сюрикенів ${R.counts.join(' → ')}, шкода ${R.damageSteps.map((_, i) => R.damageSteps.slice(0, i + 1).reduce((a, b) => a + b, 0)).join(' → ')}`);
       facts.push(`Шкода росте з біомом, як HP ворогів; «Урон» її не посилює`);
-      facts.push(`Одного ворога ріже не частіше, ніж раз на ${sec(R.hitCdMs)} с; боса — вполовину`);
+      facts.push(`Одного ворога ріже не частіше, ніж раз на ${sec(R.hitCdMs)} с${R.bossMul < 1 ? '; боса — слабше' : ', боса — так само'}`);
     }
     if (id === 'damage') {
       damage = BALANCE.cards.damageFirst;
@@ -156,6 +156,7 @@ function skills() {
       const best = invisStats(99);
       facts.push(`Перезарядка з кожним взяттям коротша, до ${sec(best.cooldownMs)} с`);
     }
+    if (id === 'halfblood') facts.push('Раз за забіг; з\'являється, коли вже є хоч одна трансформація');
     if (id === 'attackSpeed') facts.push(`Не частіше, ніж раз на ${sec(BALANCE.minFireIntervalMs)} с`);
     return entry({ id, category: 'skill', name: t.title, sprite: SKILL_SPRITES[id] ?? null, damage, desc: oneLine(t.desc), facts });
   });
@@ -169,9 +170,9 @@ function loot() {
     let damage = null;
     if (id === 'oksana') damage = BALANCE.bossLoot.oksana.damage;
     if (id === 'venom') damage = BALANCE.bossLoot.venom.dps;
-    if (id === 'sack' || id === 'iam') damage = BALANCE.shkodkoLoot.bomb.damage;
+    if (id === 'sack') damage = BALANCE.shkodkoLoot.bomb.damage;
+    if (id === 'iam') damage = BALANCE.shkodkoLoot.iam.bombDamage;
     if (id === 'larva') damage = BALANCE.kolyaLoot.larva.damage;
-    if (id === 'iamkolya') damage = BALANCE.kolyaLoot.iam.copyDamage;
     if (id === 'ladle') damage = BALANCE.kazanLoot.ladle.damage;
     if (id === 'iamkazan') damage = BALANCE.kazanLoot.iam.damage;
     return entry({

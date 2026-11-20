@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { BALANCE } from '../src/config/balance.js';
-import { canSplit, KOLYA_LOOT_IDS, lootShotDamage, lootStepsBonus, useSplit } from '../src/systems/KolyaLoot.js';
+import { KOLYA_LOOT_IDS, lootShotDamage, lootStepsBonus } from '../src/systems/KolyaLoot.js';
 import { activeForm, formSkin } from '../src/systems/ShkodkoLoot.js';
 import { rollLoot } from '../src/systems/Skills.js';
 
@@ -15,13 +15,6 @@ describe('трофеї Колі', () => {
     expect(activeForm(['form', 'iamkolya'])).toBe('iamkolya');
     expect(activeForm(['iamkolya', 'iam'])).toBe('iam');
     expect(formSkin(['iam', 'iamkolya'])).toBe('slimeKolya');
-  });
-
-  test('поділ — раз за рівень', () => {
-    expect(canSplit(null, 3)).toBe(true);
-    const s = useSplit(null, 3);
-    expect(canSplit(s, 3)).toBe(false);
-    expect(canSplit(s, 4)).toBe(true);
   });
 
   test('шкода личинки росте з «Уроном»', () => {

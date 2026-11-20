@@ -482,6 +482,8 @@ export const BALANCE = deepFreeze({
     shuriken: { name: 'Сюрикени', counts: [2, 3, 4, 5, 6], damageSteps: [1.5, 1.5, 1.5, 1.5, 1.5], maxPicks: 5,
       radiusPx: 155, radiusStep: 6, turnsPerSec: 0.55, hitPx: 20, hitCdMs: 450, bossMul: 1, scale: 1.7 },
     extraLife: { maxLives: 5 },
+    // фідбек-8: «Полукровка» — раз за забіг, з'являється, коли вже є хоч одна трансформація
+    halfblood: { name: 'Полукровка', maxPicks: 1 },
   },
 
   // Унікальні картки павучихи (специфікація §3.6): після смерті боса 2 випадкові з 5, кожна раз за забіг
@@ -504,7 +506,8 @@ export const BALANCE = deepFreeze({
     // skill — +1 до випадкової вже взятої картки-навички (не зброї); якщо такої нема, випадає досвід.
     sack: { everyMs: 7000, weights: { bombs: 40, xp: 30, steps: 25, skill: 5 }, bombs: 2, xp: 4, steps: 3 },
     // «Я ШКОДЬКО»: скін-трансформація, скасовує «Ти став павуком» і його стрибок (діє остання взята трансформація).
-    iam: { xpEveryMs: 1500, xp: 1, bombEveryMs: 4000, bombs: 1 },
+    // фідбек-8: потоку досвіду більше немає, бомби «Я ШКОДЬКО» — по bombDamage (+ бонус «Урону»); кнопка паровоза — forms.train
+    iam: { bombEveryMs: 4000, bombs: 1, bombDamage: 7 },
     // Свої подарунки-бомби: летять у найближчих ворогів, вибухають швидко (ворог рухається), гравцю не шкодять.
     // Шкода: damage + бонус карток «Урон» (як у Оксанки).
     bomb: { flightMs: 450, fuseMs: 450, radiusPx: 75, damage: 3 },
@@ -523,9 +526,7 @@ export const BALANCE = deepFreeze({
     // «Личинка-помічник»: раз на everyMs плює в найближчого ворога, шкода damage + бонус «Урону»
     larva: { everyMs: 1000, // фідбек-8: було 1200
       damage: 1, speed: 700 },
-    // «Я КОЛЯ»: раз за рівень замість втрати життя — invulnMs невразливості і copies мінікопій на copyMs,
-    // кожна стріляє раз на copyEveryMs на copyDamage + бонус «Урону» [рішення плану: частоти в специфікації немає]
-    iam: { invulnMs: 2000, copies: 2, copyMs: 4000, copyEveryMs: 600, copyDamage: 1 },
+    // «Я КОЛЯ» — фідбек-8: замість поділу при ударі тепер кнопка клонів (forms.clones)
   },
   // Унікальні картки Казана (етап 11, §11.4). Вибір 1 з 2. Числа — припущення.
   kazanLoot: {
@@ -535,6 +536,20 @@ export const BALANCE = deepFreeze({
     // «Я КАЗАН»: раз за рівень замість втрати життя — invulnMs невразливості і кільце лави radiusPx на damage
     iam: { invulnMs: 2000, radiusPx: 120, damage: 10 },
   },
+  // Фідбек-8: кнопки трансформацій (одна перезарядка cdMs на кожну). «Полукровка» (skills.halfblood) — трансформації
+  // не скасовують одна одну, тож кнопок може бути кілька (зліва внизу, стовпчиком).
+  forms: {
+    cdMs: 60000,
+    // «Ти став павуком»: рій count павучків по hp — летять до найближчого ворога, кусають раз на damage і зникають;
+    // гинуть від будь-якої атаки (ворожа куля чи дотик). Без цілей ждуть біля слизака до lifeMs (рішення Claude)
+    swarm: { count: 12, hp: 1, damage: 2, speed: 420, hitPx: 26, lifeMs: 30000 },
+    // «Я ШКОДЬКО»: слизак сідає в паровоз на ms — автопілот змійкою по екрану (рішення користувача), невразливий;
+    // дрібних ворогів ваншотить, босу — bossDamage за дотик не частіше bossHitCdMs
+    train: { ms: 10000, speed: 620, cars: 4, carScale: 2, top: 200, rowGap: 150, bossDamage: 7, bossHitCdMs: 600 },
+    // «Я КОЛЯ»: 2 клони на ms над і під тобою (±dyPx), атакують як ти, невразливі, на 30% прозоріші
+    clones: { ms: 8000, dyPx: 90, alpha: 0.7 },
+  },
+
   // §0: якщо всі унікальні картки боса вже взяті — бос дає +lootStepsBonus до своїх Шагів
   lootStepsBonus: 0.5,
 
@@ -551,6 +566,8 @@ export const BALANCE = deepFreeze({
       { id: 'assassin', name: 'Асасин', price: 300, sprite: 'skinAssassin', shot: 'shotAssassin' },
       { id: 'commander', name: 'Жінка Главнокомандувач', price: 300, sprite: 'skinCommander', shot: 'shotCommander' },
       { id: 'raccoon', name: 'Єнот', price: 500, sprite: 'skinRaccoon', shot: 'shotRaccoon' },
+      // фідбек-8: власний пес у синьо-жовтій хустці (не реальний пес-знаменитість — правило «без чужих персонажів»)
+      { id: 'dog', name: 'Пес-патріот', price: 500, sprite: 'skinDog', shot: 'shotDog' },
       { id: 'murzik', name: 'Мурзик', price: 1000, sprite: 'skinMurzik', shot: 'shotMurzik' },
     ],
     // Досягнення: поки не отримане — «???». stat — тип ворога ('boss' — павучиха), count — скільки вбити.

@@ -34,12 +34,14 @@ export default class ShopScene extends Phaser.Scene {
     this.add.text(cx, height * 0.06, 'Магазин', textStyle(64, '#9cff57')).setOrigin(0.5);
     this.add.text(cx, height * 0.12, `Шаги: ${meta.steps}`, textStyle(40, '#ffd84a')).setOrigin(0.5);
 
-    const top = height * 0.2;
+    // фідбек-8: шостий скін — ряди стискаються, щоб не налазити на кнопку реклами (0,84 висоти) на коротких екранах
+    const top = height * 0.17;
+    const rowH = Math.min(ROW_H, (height * 0.8 - top) / BALANCE.meta.skins.length);
     BALANCE.meta.skins.forEach((skin, i) => {
-      const y = top + i * ROW_H;
+      const y = top + rowH / 2 + i * rowH;
       const owned = meta.owned.includes(skin.id);
       const worn = meta.skin === skin.id;
-      this.add.rectangle(cx, y, width - 60, ROW_H - 16, worn ? 0x2a4a2a : 0x000000, worn ? 0.7 : 0.35);
+      this.add.rectangle(cx, y, width - 60, rowH - 16, worn ? 0x2a4a2a : 0x000000, worn ? 0.7 : 0.35);
       this.add.image(ICON_X, y, skin.sprite).setScale(2.2);
       this.add.text(ICON_X + 80, y - 30, skin.name, { ...textStyle(32), align: 'left', wordWrap: { width: width - 470 } }).setOrigin(0, 0.5);
       if (!owned) this.add.text(ICON_X + 80, y + 26, `${skin.price} Шагів`, { ...textStyle(28, '#ffd84a'), align: 'left' }).setOrigin(0, 0.5);

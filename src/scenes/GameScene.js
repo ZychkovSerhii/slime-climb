@@ -24,11 +24,11 @@ import LootEffects from '../game/LootEffects.js';
 import PauseController from '../game/PauseController.js';
 import SpawnDirector from '../game/SpawnDirector.js';
 import SkillButtons from '../game/SkillButtons.js';
-import { activeForm } from '../systems/ShkodkoLoot.js';
+import FormSkills from '../game/FormSkills.js';
+import { hasForm } from '../systems/Forms.js';
 import { loadTuning, setTuning, tuning } from '../systems/Tuning.js';
 import { isEligibleRun } from '../systems/LeaderboardRules.js';
 
-import { canSplit, useSplit } from '../systems/KolyaLoot.js';
 import { canBoil, useBoil } from '../systems/KazanLoot.js';
 
 const POISON_TINT = 0xb0d040; // слизак і так зелений — під отрутою він темніший, болотний
@@ -60,7 +60,6 @@ export default class GameScene extends Phaser.Scene {
     this.loot = new LootEffects(this); // ефекти трофеїв босів (Оксанка, мішок, личинка, черпачок…)
     this.lootCards = null; // картки трофеїв, що чекають на вікно (після смерті боса)
     this.lootTitle = null; // заголовок вікна трофеїв: чий трофей
-    this.kolyaSplit = null; // «Я КОЛЯ»: { usedAtLevel }
     this.kazanBoil = null; // «Я КАЗАН»: { usedAtLevel } (етап 11)
     this.killScore = 0;
     // мета-прогрес (етап 5): Шаги й лічильники пишуться в сховище одразу при вбивстві — закритий посеред забігу застосунок їх не губить
@@ -117,6 +116,7 @@ export default class GameScene extends Phaser.Scene {
     this.player.setSkin(skinSprite(this.meta));
     this.combat = new Combat(this); // автоатака, вигляд зброї, влучання, шляпи, міні-сокира
     this.buttons = new SkillButtons(this);
+    this.forms = new FormSkills(this); // фідбек-8: кнопки трансформацій
     if (BALANCE.weapons[this.debugWeapon]) {
       for (let i = 0; i < BALANCE.weapons[this.debugWeapon].steps; i++) this.progression = applyCard(this.progression, weaponCard(this.debugWeapon));
       this.combat.weaponView.setMain(this.debugWeapon);
@@ -159,6 +159,7 @@ export default class GameScene extends Phaser.Scene {
     const onIntroClosed = () => this.bosses.onIntroClosed();
     this.events.on('intro:closed', onIntroClosed);
     this.buttons.bind(Phaser.Scenes.Events.SHUTDOWN); // невидимість і перемикання зброї
+    this.forms.bind(Phaser.Scenes.Events.SHUTDOWN);
     this.events.on('enemy:killed', onKilled);
     this.events.on('levelup:picked', onPicked);
     this.events.on('boss:rage', onRage);
@@ -182,7 +183,7 @@ export default class GameScene extends Phaser.Scene {
         return;
       }
       // тап по кнопці невидимості чи зброї не стрибок (кнопки малює і ловить HUD)
-      if (this.buttons.blocksTap(pointer.x, pointer.y)) return;
+      if (this.buttons.blocksTap(pointer.x, pointer.y) || this.forms.blocksTap(pointer.x, pointer.y)) return;
       this.player.press();
     });
     // відпускання рахуємо завжди: інакше утримання «застрягне», якщо палець підняли під час паузи
@@ -334,14 +335,8 @@ export default class GameScene extends Phaser.Scene {
       this.blink();
       return true;
     }
-    // «Я КОЛЯ» (етап 9): раз за рівень замість втрати життя — поділ (після броні: вона не життя)
-    if (activeForm(this.progression.relics) === 'iamkolya' && this.nowMs >= this.health.invulnerableUntil && canSplit(this.kolyaSplit, this.progression.level)) {
-      this.kolyaSplit = useSplit(this.kolyaSplit, this.progression.level);
-      this.loot.splitIntoCopies();
-      return false;
-    }
     // «Я КАЗАН» (етап 11): раз за рівень замість втрати життя — щит і кільце лави
-    if (activeForm(this.progression.relics) === 'iamkazan' && this.nowMs >= this.health.invulnerableUntil && canBoil(this.kazanBoil, this.progression.level)) {
+    if (hasForm(this.progression, 'iamkazan') && this.nowMs >= this.health.invulnerableUntil && canBoil(this.kazanBoil, this.progression.level)) {
       this.kazanBoil = useBoil(this.kazanBoil, this.progression.level);
       this.loot.lavaRing();
       return false;
@@ -377,7 +372,7 @@ export default class GameScene extends Phaser.Scene {
   /** Швидкість і колір слизака за станами (щокадру). */
   applyStatus() {
     const now = this.nowMs;
-    const form = activeForm(this.progression.relics) === 'form'; // «Я ШКОДЬКО» скасовує стрибок павука
+    const form = hasForm(this.progression, 'form'); // без «Полукровки» інша трансформація скасовує стрибок павука
     this.player.speedMul = playerSpeedMul(this.status, now) * jumpMul(weaponJumpMul(this.progression.arsenal.main), form);
     this.armor = stepArmor(this.armor, now);
     // невидимість: напівпрозорий; після неї — звичайна прозорість (блимання невразливості керує нею саме)
@@ -539,13 +534,14 @@ export default class GameScene extends Phaser.Scene {
       armor: this.armor ? (this.armor.on ? 'on' : 'off') : null,
       invis: this.buttons.invisHud(),
       slots: this.buttons.switchHud(),
+      forms: this.forms.hud(),
       level: this.progression.level,
       xp: this.progression.xp,
       xpToNext: xpToNext(this.progression.level),
       steps: this.runSteps,
     };
     const inv = s.invis ? `${s.invis.active}|${Math.floor(s.invis.charge * 40)}` : '';
-    const key = `${Math.floor(s.timeSec)}|${s.score}|${s.lives}|${s.maxLives}|${s.armor}|${inv}|${s.level}|${s.xp}|${s.steps}|${s.slots?.active}`;
+    const key = `${Math.floor(s.timeSec)}|${s.score}|${s.lives}|${s.maxLives}|${s.armor}|${inv}|${s.level}|${s.xp}|${s.steps}|${s.slots?.active}|${s.forms?.map((f) => `${f.active}${Math.floor(f.charge * 40)}`).join()}`;
     if (key === this.lastHud) return;
     this.lastHud = key;
     this.events.emit('hud:update', s);
@@ -573,6 +569,7 @@ export default class GameScene extends Phaser.Scene {
     const dy = (this.currentScroll * dt) / 1000;
     this.distancePx += dy;
     this.applyStatus();
+    this.forms.step(dt);
     this.player.step(dt);
     this.combat.weaponView.update();
     this.scrollObjects(dy);

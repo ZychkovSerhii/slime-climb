@@ -266,6 +266,7 @@ export default class SpawnDirector {
     if (s.spawn) {
       scene.spawnEnemy(new Santa(scene));
       sfx('jingle');
+      sfx('hohoho'); // фідбек-8: Санта з'явився — «йо-хо-хо»
       scene.events.emit('hud:banner', { text: 'Санта!', ms: 1200 });
     }
     const g = giftDue(this.giftState, scene.nowMs, Math.random, suppressed);

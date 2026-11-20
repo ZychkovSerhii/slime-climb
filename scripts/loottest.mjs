@@ -1,10 +1,9 @@
 // Страховка трофеїв (рефакторинг LootEffects): усі трофеї з першої секунди, удар по слизаку —
-// «Я КОЛЯ» має поділитися на копії, «Я КАЗАН» — дати щит; життя не знімається, кадри йдуть, помилок немає.
+// «Я КАЗАН» має дати щит (фідбек-8: «Я КОЛЯ» більше не ділиться при ударі — у нього кнопка клонів, formtest); життя не знімається, кадри йдуть, помилок немає.
 // deathtest цього не ловить (вмирає без трофеїв), бот playtest — лише якщо випадково отримає удар.
 // Використання: node scripts/loottest.mjs
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
-import { BALANCE } from '../src/config/balance.js';
 
 const CARDS = 'loot:armor,loot:venom,loot:oksana,loot:web,loot:sack,loot:larva,loot:ladle';
 const server = await createServer({ server: { port: 5400 + Math.floor(Math.random() * 100) }, logLevel: 'error' });
@@ -47,7 +46,7 @@ for (const form of ['iam', 'iamkolya', 'iamkazan']) {
       s.hurtPlayer();
       const a = {
         lost: lives0 - s.health.lives,
-        copies: s.loot.kolyaCopies.length,
+        copies: s.forms.shooters().length,
         shield: s.health.invulnerableUntil > s.nowMs,
         helpers: ['oksana', 'sack', 'larva', 'ladle'].filter((k) => !s.loot[k]),
       };
@@ -58,7 +57,7 @@ for (const form of ['iam', 'iamkolya', 'iamkazan']) {
       a.crash = /Гра зламалась/.test(document.body.innerText);
       return a;
     });
-    const want = form === 'iam' ? { lost: 1, copies: 0 } : form === 'iamkolya' ? { lost: 0, copies: BALANCE.kolyaLoot.iam.copies } : { lost: 0, copies: 0 };
+    const want = form === 'iamkazan' ? { lost: 0, copies: 0 } : { lost: 1, copies: 0 };
     const bad = [];
     if (r.lost !== want.lost) bad.push(`життів знято ${r.lost}, чекали ${want.lost}`);
     if (r.copies !== want.copies) bad.push(`копій ${r.copies}, чекали ${want.copies}`);

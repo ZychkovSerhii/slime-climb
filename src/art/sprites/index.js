@@ -28,6 +28,8 @@ import skinMurzik from './skinMurzik.js';
 import shotAssassin from './shotAssassin.js';
 import shotCommander from './shotCommander.js';
 import shotRaccoon from './shotRaccoon.js';
+import skinDog from './skinDog.js';
+import shotDog from './shotDog.js';
 import shotMurzik from './shotMurzik.js';
 import wallIce from './wallIce.js';
 import icicle from './icicle.js';
@@ -77,7 +79,7 @@ import staffBolt from './staffBolt.js';
 import fireball from './fireball.js';
 import boomerang from './boomerang.js';
 
-export const SPRITES = [slime, wall, spike, projectile, plantBullet, heart, heartArmor, bat, plant, lion, spider, smallSpider, shadow, axe, shotgun, chakraVeins, webBall, hat, webShot, slimeSpider, frost, skinAssassin, skinCommander, skinRaccoon, skinMurzik, shotAssassin, shotCommander, shotRaccoon, shotMurzik,
+export const SPRITES = [slime, wall, spike, projectile, plantBullet, heart, heartArmor, bat, plant, lion, spider, smallSpider, shadow, axe, shotgun, chakraVeins, webBall, hat, webShot, slimeSpider, frost, skinAssassin, skinCommander, skinRaccoon, skinMurzik, skinDog, shotAssassin, shotCommander, shotRaccoon, shotMurzik, shotDog,
   wallIce, icicle, elf, candy, bear, penguin, santa, gift, snowflake,
   shkodko, giftBomb, wagon, loco,
   slimeShkodko, sack,

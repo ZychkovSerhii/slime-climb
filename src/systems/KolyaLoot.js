@@ -3,16 +3,7 @@ import { BALANCE } from '../config/balance.js';
 
 export const KOLYA_LOOT_IDS = ['larva', 'iamkolya'];
 
-/** «Я КОЛЯ»: поділ замість втрати життя — раз за рівень. state { usedAtLevel } або null. */
-export function canSplit(state, level) {
-  return !state || state.usedAtLevel !== level;
-}
-
-export function useSplit(state, level) {
-  return { usedAtLevel: level };
-}
-
-/** Шкода плювка личинки / пострілу мінікопії: база + те, що дали картки «Урон». */
+/** Шкода плювка личинки: база + те, що дали картки «Урон». (Фідбек-8: поділ «Я КОЛЯ» замінено кнопкою клонів.) */
 export function lootShotDamage(base, weaponDamage) {
   return base + (weaponDamage - BALANCE.projectileDamage);
 }

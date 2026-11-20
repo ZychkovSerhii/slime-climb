@@ -62,3 +62,18 @@ export function adBannerRect(width, height, mode = AD_MODE) {
   if (mode === 'off') return null;
   return { x: width / 2, y: height - BANNER_HEIGHT_PX / 2, w: width, h: BANNER_HEIGHT_PX };
 }
+
+/**
+ * Фідбек-8: кнопки трансформацій (рій, паровоз, клони) — рядком унизу зліва, на висоті невидимості (з «Полукровкою»
+ * їх до трьох). Стовпчиком угору не можна: третя кнопка лягала б на слизака біля лівої стіни (скриншот formtest).
+ */
+export function formButton(i, width, height) {
+  const inv = invisButton(width, height);
+  const r = 52;
+  return { x: 110 + i * (2 * r + 24), y: inv.y, r };
+}
+
+export function inFormButton(i, x, y, width, height) {
+  const b = formButton(i, width, height);
+  return (x - b.x) ** 2 + (y - b.y) ** 2 <= (b.r + 12) ** 2;
+}

@@ -4,7 +4,8 @@ import { sfx } from '../systems/Audio.js';
 import { familiarDamage } from '../systems/Cycle.js';
 import { saveMeta } from '../systems/Meta.js';
 import { createArmor } from '../systems/Skills.js';
-import { activeForm, bombTargets, formSkin, friendlyBombDamage, rollSack, sackSkillCard, stepTicker } from '../systems/ShkodkoLoot.js';
+import { bombTargets, formSkin, friendlyBombDamage, rollSack, sackSkillCard, stepTicker } from '../systems/ShkodkoLoot.js';
+import { hasForm } from '../systems/Forms.js';
 import { lootShotDamage } from '../systems/KolyaLoot.js';
 import { ladleDamage, ringVictims } from '../systems/KazanLoot.js';
 import { pickNearest } from '../systems/Targeting.js';
@@ -16,8 +17,9 @@ const OKSANA_TINT = 0xffa8d8; // Оксанка — рожевувата, щоб
 const LARVA_SHOT_TINT = 0xb4ff8a; // плювок «Личинки-помічника» — зелений, як постріли слизака, а не рожевий ворожий
 
 /**
- * Ефекти трофеїв босів: Оксанка, мішок і «Я ШКОДЬКО», личинка й мінікопії «Я КОЛЯ», черпачок і кільце «Я КАЗАН».
- * Кожух (scene.armor) і лічильники «раз за рівень» (kolyaSplit, kazanBoil) лишились у сцені — їх читає hurtPlayer і HUD.
+ * Ефекти трофеїв босів: Оксанка, мішок і бомби «Я ШКОДЬКО», личинка, черпачок і кільце «Я КАЗАН».
+ * Кнопки трансформацій (рій, паровоз, клони) — game/FormSkills.js (фідбек-8).
+ * Кожух (scene.armor) і лічильник «раз за рівень» kazanBoil лишились у сцені — їх читає hurtPlayer і HUD.
  * Від сцени бере: player, progression, weapon, biomeIdx, nowMs, health, meta, runSteps, storage, групи playerProjectiles і
  * friendlyBombs, методи gainXp, applyPicked, floatText, showShield, visibleEnemies, а також add, tweens, events.
  */
@@ -26,9 +28,8 @@ export default class LootEffects {
     this.scene = scene;
     this.oksana = null;
     this.sack = null; // «Мішок Шкодька»: спрайт за спиною слизака
-    this.lootTicks = { sack: null, iamXp: null, iamBomb: null, larva: null }; // таймери карток Шкодька й Колі (stepTicker)
+    this.lootTicks = { sack: null, iamBomb: null, larva: null }; // таймери карток Шкодька й Колі (stepTicker)
     this.larva = null; // «Личинка-помічник» (етап 9)
-    this.kolyaCopies = []; // мінікопії після поділу
     this.ladle = null; // «Черпачок» (етап 11)
     this.ladleTick = null;
   }
@@ -72,11 +73,10 @@ export default class LootEffects {
 
   // ---------- Картки Шкодька (етап 6c) ----------
 
-  /** Крок карток Шкодька: мішок (раз на sack.everyMs) і «Я ШКОДЬКО» (потік досвіду й бомб). Лише поза паузою. */
+  /** Крок карток Шкодька: мішок (раз на sack.everyMs) і бомби «Я ШКОДЬКО» (фідбек-8: без потоку досвіду). Лише поза паузою. */
   stepShkodkoLoot() {
     const s = this.scene;
     const K = BALANCE.shkodkoLoot;
-    const relics = s.progression.relics;
     const now = s.nowMs;
     const tick = (key, everyMs) => {
       const r = stepTicker(this.lootTicks[key], now, everyMs);
@@ -88,14 +88,9 @@ export default class LootEffects {
       this.sack.setPosition(p.x + (p.side === 'left' ? 14 : -14), p.y + 8).setFlipX(p.side !== 'left');
       for (let i = tick('sack', K.sack.everyMs); i > 0; i--) this.openSack();
     }
-    if (activeForm(relics) === 'iam') {
-      const xp = tick('iamXp', K.iam.xpEveryMs);
-      if (xp) s.gainXp(xp * K.iam.xp);
-      for (let i = tick('iamBomb', K.iam.bombEveryMs); i > 0; i--) this.throwFriendlyBombs(K.iam.bombs);
-    } else {
-      this.lootTicks.iamXp = null;
-      this.lootTicks.iamBomb = null;
-    }
+    if (hasForm(s.progression, 'iam')) {
+      for (let i = tick('iamBomb', K.iam.bombEveryMs); i > 0; i--) this.throwFriendlyBombs(K.iam.bombs, K.iam.bombDamage);
+    } else this.lootTicks.iamBomb = null;
   }
 
   /** Що випало з мішка. Немає цілей для бомб чи навички для прокачки — випадає досвід. */
@@ -125,12 +120,12 @@ export default class LootEffects {
     }
   }
 
-  /** Свої бомби в n найближчих видимих ворогів. Повертає false, якщо цілей немає. */
-  throwFriendlyBombs(n) {
+  /** Свої бомби в n найближчих видимих ворогів (base — шкода без «Урону»). Повертає false, якщо цілей немає. */
+  throwFriendlyBombs(n, base = BALANCE.shkodkoLoot.bomb.damage) {
     const s = this.scene;
     const targets = bombTargets(s.player, s.visibleEnemies(), n);
     if (!targets.length) return false;
-    const damage = friendlyBombDamage(s.weapon.damage);
+    const damage = friendlyBombDamage(s.weapon.damage, base);
     const from = this.sack ?? s.player;
     for (const t of targets) s.friendlyBombs.add(new GiftBomb(s, from.x, from.y, t.x, t.y, { friendly: true, damage }));
     sfx('throw');
@@ -139,7 +134,7 @@ export default class LootEffects {
 
   // ---------- Картки Колі (етап 9) ----------
 
-  /** «Личинка-помічник» плює раз на everyMs; мінікопії «Я КОЛЯ» стріляють, поки живі. */
+  /** «Личинка-помічник» плює раз на everyMs. */
   stepKolyaLoot() {
     const s = this.scene;
     const now = s.nowMs;
@@ -150,19 +145,6 @@ export default class LootEffects {
       const r = stepTicker(this.lootTicks.larva, now, L.everyMs);
       this.lootTicks.larva = r.state;
       if (r.count && this.lootShot(this.larva, lootShotDamage(L.damage, s.weapon.damage), L.speed)) this.larva.play(animKey('larva', 'spit'));
-    }
-    if (!this.kolyaCopies.length) return;
-    const I = BALANCE.kolyaLoot.iam;
-    for (const c of this.kolyaCopies) {
-      c.sprite.setPosition(p.x + c.dx * (p.side === 'left' ? 1 : -1), p.y + c.dy);
-      if (now >= c.nextShotAt) {
-        c.nextShotAt = now + I.copyEveryMs;
-        this.lootShot(c.sprite, lootShotDamage(I.copyDamage, s.weapon.damage), BALANCE.projectileSpeed);
-      }
-    }
-    if (now >= this.kolyaCopies[0].until) {
-      for (const c of this.kolyaCopies) c.sprite.destroy();
-      this.kolyaCopies = [];
     }
   }
 
@@ -207,24 +189,5 @@ export default class LootEffects {
     s.playerProjectiles.add(proj);
     proj.launch(t.x, t.y, speed);
     return true;
-  }
-
-  /** «Я КОЛЯ»: замість втрати життя — невразливість і мінікопії, що стріляють. */
-  splitIntoCopies() {
-    const s = this.scene;
-    const I = BALANCE.kolyaLoot.iam;
-    const now = s.nowMs;
-    s.health = { ...s.health, invulnerableUntil: Math.max(s.health.invulnerableUntil, now + I.invulnMs) };
-    s.showShield(I.invulnMs);
-    for (const c of this.kolyaCopies) c.sprite.destroy();
-    const spots = [{ dx: 44, dy: -40 }, { dx: 44, dy: 36 }, { dx: 80, dy: 0 }];
-    this.kolyaCopies = spots.slice(0, I.copies).map((spot, i) => ({
-      ...spot,
-      sprite: s.add.sprite(s.player.x, s.player.y, 'slimeKolya').setScale(0.5).setDepth(s.player.depth + 1).play(animKey('slimeKolya', 'idle')),
-      nextShotAt: now + i * (I.copyEveryMs / 2),
-      until: now + I.copyMs,
-    }));
-    sfx('squelch');
-    s.floatText('Я КОЛЯ: ділюся!', '#ffb0c8');
   }
 }
