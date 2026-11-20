@@ -158,16 +158,16 @@ export function damageCardBonus(p) {
 
 /**
  * «Крижана атака» після n взять (картка з id 'slow'): { factor, durationMs, dps, bossFactor }.
- * Сповільнення 40% і +5% за взяття, але не більше 60%; заморозка 0,5 шкоди/с і +0,5 за взяття.
+ * Фідбек-8: сповільнення 35% і +5% за взяття (не більше 60%), боса 5% і +1%; заморозка 0,5/с і +0,15; тривалість +0,2 с.
  */
 export function iceStats(n) {
   if (!n) return null;
   const I = BALANCE.ice;
   return {
     factor: Math.max(I.factor - I.factorStep * (n - 1), I.minFactor),
-    durationMs: I.durationMs,
+    durationMs: I.durationMs + (I.durStepMs ?? 0) * (n - 1),
     dps: I.dps + I.dpsStep * (n - 1),
-    bossFactor: I.bossFactor,
+    bossFactor: I.bossFactor - (I.bossStep ?? 0) * (n - 1),
     ice: true,
   };
 }

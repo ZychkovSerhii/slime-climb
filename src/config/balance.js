@@ -76,14 +76,16 @@ export const BALANCE = deepFreeze({
     // Фідбек після 6b: «зима складна через ельфів і цукерки». Було throwMs 2600, firstThrowMs 700, windupMs 300,
     // candySpeed 300, wraps 2: ельф проходив екран до 3 разів і кидав ~4 льодяники за життя.
     // етап 10: ельф ×1,4 (scale, хітбокс теж), льодяник ×2 (candyScale)
-    elf: { scale: 1.4, candyScale: 2, hp: 9, xp: 3, points: 30, speed: 250, homingStopPx: 240, throwMs: 3600, firstThrowMs: 1300, windupMs: 450, candySpeed: 240, wraps: 1 },
+    elf: { scale: 1.4, candyScale: 2, hp: 8, // фідбек-8: було 9
+      xp: 3, points: 30, speed: 250, homingStopPx: 240, throwMs: 3600, firstThrowMs: 1300, windupMs: 450, candySpeed: 240, wraps: 1 },
     // Білий ведмідь — тепер міні-бос: див. bearBoss нижче (етап 10, §10.2).
     // Пінгвін (етап 10, §10.3, рішення користувача: діагональ). Було у фідбеку-3: ходок по стіні — «надто безполезні».
     // З'являється вгорі біля стіни, де тебе немає (edgeY), блимає warnMs і ковзає по прямій у точку гравця на slideSpeed.
     // Вилетів за край — раз (wraps) з'являється згори біля протилежної стіни і знову атакує.
     // Снігова куля (фідбек-6 п.15): котиться по стіні, де гравця немає, донизу на speed px/с (швидше за світ), росте
     // від startScale до maxScale за growMs. 20 HP — слово користувача (×множник біому, як усім). Решта — припущення.
-    snowball: { hp: 40, xp: 6, points: 60, speed: 150, startScale: 0.8, maxScale: 2.2, growMs: 3500, spinPerSec: 5 },
+    snowball: { hp: 33, // фідбек-8: було 40
+      xp: 6, points: 60, speed: 150, startScale: 0.8, maxScale: 2.2, growMs: 3500, spinPerSec: 5 },
     penguin: { hp: 3, hpMax: 4, xp: 3, points: 30, warnMs: 400, slideSpeed: 420, edgeY: 70, wraps: 1 },
     // Ельф лишається в повітрі; фідбек-3: на спрайті крильця, щоб політ мав пояснення.
     // Санта: шанс chancePerMin щохвилини в зимі, пролітає поперек екрана на висоті y, гравця не б'є.
@@ -96,24 +98,31 @@ export const BALANCE = deepFreeze({
     // Ніндзя [рішення плану]: тримається за стіну на сталій висоті екрана (minYFrac…maxYFrac висоти), на стіні, де гравця немає.
     // smokeMs — дим-попередження (у диму невразливий і не шкодить), потім кидок 1 сюрикена, через stayMs — зникає в диму.
     // Стіна ніндзі вільна від шипів біля висоти гравця від (приліт − dodgeLeadSec) до (приліт + dodgeSec).
-    ninja: { hp: 6, xp: 4, // фідбек-6 п.4: було 3 — у бамбуку всі гинули з одного пострілу
+    ninja: { hp: 12, xp: 4, // фідбек-8: було 6
+      // фідбек-6 п.4: було 3 — у бамбуку всі гинули з одного пострілу
       points: 40, smokeMs: 600, teleportMs: 450, stayMs: 1200, shurikenSpeed: 260, minYFrac: 0.12, maxYFrac: 0.4, dodgeLeadSec: 1, dodgeSec: 0.6 }, // teleportMs — фідбек-6 п.10
     // Ліхтарик-дух: пливе на гравця, за armPx блимає blinkMs і вибухає радіусом radiusPx. Убитий раніше — вибуху немає.
     // фідбек-6: «літають по приколу» — були 70 px/с і 2 HP: гинули, не долетівши. Тепер швидші, міцніші, вибух ширший і раніше
-    lantern: { hp: 5, xp: 3, // фідбек-6 п.4: було 3
-      points: 30, speed: 150, armPx: 144, blinkMs: 600, radiusPx: 76 }, // фідбек-7: зупиняється за armPx (3 слимаки), невразливий, вибух — квадрат зі стороною 2×radiusPx (площа 10 слимаків)
+    // фідбек-8: hp 20 (було 5), speed 340 (було 150); летить упритул (armPx 60, було 144) і вибухає — блимання коротше, щоб стрибок рятував
+    lantern: { hp: 20, xp: 3,
+      points: 30, speed: 340, armPx: 60, blinkMs: 450, radiusPx: 76 }, // фідбек-7: зупиняється за armPx (3 слимаки), невразливий, вибух — квадрат зі стороною 2×radiusPx (площа 10 слимаків)
     // Малі слимаки Колі (фаза 80%). Кусака повзе на гравця; личинка-стрілець тримається на keepPx і плює раз на spitMs,
     // завжди вище за гравця щонайменше на minAbovePx (крута траєкторія — від неї рятує стрибок, як від квітки).
-    slugBiter: { hp: 6, xp: 3, points: 40, speed: 120 },
-    slugSpitter: { hp: 3, xp: 3, points: 40, speed: 160, keepPx: 220, minAbovePx: 160, spitMs: 2000, firstSpitMs: 900 },
+    slugBiter: { hp: 40, xp: 3, points: 40, speed: 200 }, // фідбек-8: було 6 HP і 120 px/с,
+    slugSpitter: { hp: 35, // фідбек-8: було 3
+      xp: 3, points: 40, speed: 160, keepPx: 220, minAbovePx: 160, spitMs: 2000, firstSpitMs: 900 },
     // Лава (етап 11, §11.2). Саламандра: вилазить із тріщини на протилежній стіні, лінія-попередження, горизонтальний струмінь.
-    salamander: { hp: 4, xp: 4, points: 40, emergeMs: 600, warnMs: 700, breathMs: 300, hideMs: 1000, landGraceMs: 300, beamHalfH: 18, // видих коротший за стрибок (380 мс)
+    salamander: { hp: 12, // фідбек-8: було 4
+      xp: 4, points: 40, emergeMs: 600, warnMs: 700, breathMs: 300, hideMs: 1000, landGraceMs: 300, beamHalfH: 18, // видих коротший за стрибок (380 мс)
       dodgeSec: 0.6, minYFrac: 0.15, maxYFrac: 0.45 }, // сидить вище гравця; струмінь — на висоті гравця (baseY)
     // Іскра: зигзагом до гравця; убита — розпадається на дрібні (sparkling), дрібних на екрані не більше maxSmall
-    spark: { hp: 3, xp: 3, points: 30, speed: 150, zigzagPx: 60, zigzagMs: 900, splits: 2, maxSmall: 6 },
-    sparkling: { hp: 1, xp: 1, points: 10, speed: 260, lifeMs: 3000 },
+    spark: { hp: 15, xp: 3, points: 30, speed: 300, // фідбек-8: було 3 HP і 150 px/с
+      zigzagPx: 60, zigzagMs: 900, splits: 2, maxSmall: 6 },
+    // фідбек-8: не гасне, 5 HP (було 1), летить на гравця; ближче homingStopPx перестає доворачувати — від неї можна відстрибнути
+    sparkling: { hp: 5, xp: 1, points: 10, speed: 260, homingStopPx: 200 },
     // Бульбашка Казана (кипіння): пливе до гравця, лопається від дотику або через lifeMs радіусом popPx
-    bubble: { hp: 2, xp: 1, points: 20, speed: 60, lifeMs: 4000, popPx: 50 },
+    bubble: { hp: 35, xp: 1, points: 20, speed: 240, // фідбек-8: було 2 HP і 60 px/с (+300%)
+      lifeMs: 4000, popPx: 50 },
   },
   // Біоми. Біом 1 (cave) — як був: його спавн — spawnBaseMs і enemies.<type>.from нижче.
   // Зима настає після смерті павучихи (у 6b — далі Шкодько і чергування). from — секунди від початку зими.
@@ -170,7 +179,8 @@ export const BALANCE = deepFreeze({
     // Підготовка: за prepSec до боса шипи й вороги зникають і не з'являються; плашка — останні bannerSec
     prepSec: 4,
     bannerSec: 2,
-    calmSec: 6, // після смерті боса стільки секунд нічого небезпечного
+    calmSec: 4.2, // після смерті боса стільки секунд нічого небезпечного (фідбек-8: −30%, було 6)
+    afterFromMul: 0.7, // фідбек-8: після боса перші вороги нового біому з'являються на 30% раніше (from × 0,7)
     // далі інтервали спавну ворогів ×rampMul і за rampSec плавно повертаються до звичайних
     afterRampMul: 2,
     afterRampSec: 20,
@@ -286,7 +296,7 @@ export const BALANCE = deepFreeze({
     name: 'Слимак Коля',
     scale: 1.5,
     afterSec: 180, // через стільки секунд після початку бамбука (= смерті Шкодька)
-    hp: 175, // етап 11 (фідбек-5, §11.1): було 110
+    hp: 400, // фідбек-8: +225 (рішення користувача — найтовстіший бос кола); етап 11 (фідбек-5, §11.1): було 110
     xp: 100,
     points: 2000,
     phases: { birth: 0.8, split: 0.4 },
@@ -308,7 +318,7 @@ export const BALANCE = deepFreeze({
     name: 'Пан Казан',
     scale: 1.6,
     afterSec: 180, // через стільки секунд після початку лави (= смерті Колі)
-    hp: 230,
+    hp: 300, // фідбек-8: було 230
     xp: 120,
     points: 2500,
     y: 430, // висить у верхній половині: вище — дробовик і кулі здебільшого мазали (бот: 12% влучань на y=290)
@@ -334,7 +344,8 @@ export const BALANCE = deepFreeze({
   // biomeIndex = пройдені біоми (печера кола 0 → 0, зима → 1, бамбук → 2, печера кола 1 → 3…).
   // Звичайні вороги: HP і досвід ×biomeHpMul^biomeIndex. Боси (і ведмідь): HP ×bossHpMul^коло.
   // Властивості (traits) і +1 атака босів — з кола enhancedFromLoop.
-  scaling: { biomeHpMul: 1.15, bossHpMul: 1.5, enhancedFromLoop: 1 },
+  scaling: { biomeHpMul: 1.15, bossHpMul: 2, // фідбек-8: було 1,5
+     enhancedFromLoop: 1 },
   // Властивості посилених ворогів (коло ≥ 1), по одній на ворога (§10.1). tint — холодний відтінок, позначка — контур (outline, етап 11).
   traits: {
     tint: 0xbfd8ff,
@@ -378,11 +389,13 @@ export const BALANCE = deepFreeze({
 
   // Картки поліпшень
   // damageFirst — перше взяття «Урону», damageNext — кожне наступне (фідбек-2: завжди +1, було +2)
-  cards: { attackSpeedFactor: 0.85, damageFirst: 1, damageNext: 1 },
+  cards: { attackSpeedFactor: 0.86, // фідбек-8: −14% інтервалу (було 15%)
+     damageFirst: 1, damageNext: 1 },
   // «Крижана атака» (фідбек-2, замість «Сповільнення»): влучання сповільнює на 1−factor і морозить dps шкоди/с
   // протягом durationMs. Кожне наступне взяття: −factorStep (≥ minFactor, тобто сповільнення ≤ 60%) і +dpsStep.
   // Боса лише сповільнює до bossFactor (−5%), заморозка шкодить як звичайно.
-  ice: { factor: 0.6, factorStep: 0.05, minFactor: 0.4, dps: 0.5, dpsStep: 0.5, durationMs: 3000, bossFactor: 0.95 },
+  // фідбек-8: перше взяття −35% (було −40%); кожне наступне: −5% руху, боса −bossStep, заморозка +0,15/с, тривалість +durStepMs
+  ice: { factor: 0.65, factorStep: 0.05, minFactor: 0.4, dps: 0.5, dpsStep: 0.15, durationMs: 3000, durStepMs: 200, bossFactor: 0.95, bossStep: 0.01 },
 
   // Зброя з прогресом (етап 4a). Кроки 2/3/2 (специфікація: 3/5/3) — інакше до боса вкачувалась хіба одна зброя.
   // Повністю вкачана зброя стає основною й замінює попередню.
@@ -395,7 +408,8 @@ export const BALANCE = deepFreeze({
     // етап 10: сокира відкривається за 1 прокачку (було 2)
     axe: { name: 'Сокира Рагнара', short: 'Сокира', steps: 1, damageMul: 4, radiusFrac: 1 / 3, triggerFrac: 0.55, intervalMul: 1.5, swingMs: 240 },
     // черга з burst пострілів через burstGapMs, потім перезарядка ×reloadMul; стрибки швидші
-    chakra: { name: 'Ворота чакри', short: 'Чакра', steps: 3, burst: 8, burstGapMs: 70, reloadMul: 2, jumpSpeedMul: 1.5 },
+    chakra: { name: 'Ворота чакри', short: 'Чакра', steps: 2, // фідбек-8: було 3
+      burst: 8, burstGapMs: 70, reloadMul: 2, jumpSpeedMul: 1.5 },
     // 3 кулі: у ціль і дві під ±spreadDeg від неї
     // фідбек-6: «занадто імбовий» — кожна куля ×1 (було ×1,25)
     shotgun: { name: 'Дробовик Хулігана', short: 'Дробовик', steps: 2, damageMul: 1, spreadDeg: 25 },
@@ -412,7 +426,8 @@ export const BALANCE = deepFreeze({
     fire: { name: 'Вогняний жезл', short: 'Вогонь', steps: 2, damageMul: 1, intervalMul: 1.1, burnMul: 1.5, burnMs: 3000 },
     // Бумеранг — пробиває все на лінії: летить rangePx і назад до слизака, кожного ворога б'є раз туди й раз назад.
     // Правка 2026-11-18: перший ворог за прохід (туди / назад) ×1 (було всі ×0,8), решта на лінії — ×pierceMul.
-    boomerang: { name: 'Бумеранг', short: 'Бумеранг', steps: 2, damageMul: 1, pierceMul: 0.7, intervalMul: 1.4, rangePx: 380, speed: 700, hitPx: 26 },
+    // фідбек-8: відкривається за 1 прокачку (було 2), дальність +5% (було 380)
+    boomerang: { name: 'Бумеранг', short: 'Бумеранг', steps: 1, damageMul: 1, pierceMul: 0.7, intervalMul: 1.4, rangePx: 399, speed: 700, hitPx: 26 },
   },
 
   // Прокачка основної зброї (фідбек-2). Коли зброя стала основною, інші зброї більше не пропонуються,
@@ -425,12 +440,14 @@ export const BALANCE = deepFreeze({
     damageAdd: 0.35,
     // сокира: радіус ×radiusStep і інтервал ×intervalStep за прокачку; на miniAxeAt — міні-сокира-помічниця,
     // слабша за шляпу (1 шкоди раз на restMs)
-    axe: { radiusStep: 1.05, radiusMaxFrac: 0.5, tiers: [0, 3, 6, 9, 12], intervalStep: 0.92, miniAxeAt: 5, miniAxe: { damage: 1, restMs: 1600, speed: 800 } },
+    axe: { damageAdd: 0.5, // фідбек-8: своя прокачка шкоди (було спільні 0,35)
+      radiusStep: 1.05, radiusMaxFrac: 0.5, tiers: [0, 3, 6, 9, 12], intervalStep: 0.92, miniAxeAt: 5, miniAxe: { damage: 1, restMs: 1600, speed: 800 } },
     // дробовик: +5% швидкості атаки; на extraAt — ще 2 кулі під ±extraDeg («нижче» від бічних).
     // фідбек-6 (нерф): своя damageAdd на кулю (куль 3–5, тож спільні +0,35 давали до +1,75 за прокачку),
     // швидкість +5% (було +8%), додаткові кулі з 6-ї прокачки (було з 3-ї)
     // етап 14: з ricochetAt дробинки раз відскакують від стіни, рикошет — ×ricochetMul шкоди (менше за пряме влучання)
-    shotgun: { speedStep: 1.05, extraAt: 6, extraDeg: 50, damageAdd: 0.15, ricochetAt: 10, ricochetMul: 0.5 },
+    shotgun: { speedStep: 1.05, extraAt: 6, extraDeg: 50, damageAdd: 0.2, // фідбек-8: було 0,15
+      ricochetAt: 10, ricochetMul: 0.5 },
     // етап 14 (припущення): блискавка +1 перескок на moreAt; з stunAt вражені застигають на stunMs (боси — ні);
     // з blastAt у кінці ланцюга вибух радіусом blastPx на ×blastMul шкоди
     lightning: { speedStep: 1.04, damageAdd: 0.25, moreAt: [3, 6], stunAt: 5, stunMs: 350, blastAt: 9, blastPx: 110, blastMul: 0.6 },
@@ -455,12 +472,15 @@ export const BALANCE = deepFreeze({
     invisibility: { durationMs: 8000, durStepMs: 2000, cooldownMs: 60000, cdStepMs: 5000, cdMinMs: 30000, alpha: 0.3 },
     // шляпа: летить на видимого ворога, влучає завжди, повертається; шкода за взяттями 1, +1, +1, +1
     // (фідбек-2, було +3/+5/+5 — надто сильна); 5-те — друга шляпа
-    hat: { name: "Солом'яна шляпа", damageSteps: [1, 1, 1, 1], maxPicks: 5, speed: 900, restMs: 1000 }, // restMs — [рішення]: з 250 мс 2 капелюхи по 14 вбивали боса за секунди
+    // фідбек-8: кожне наступне взяття +2 шкоди (було +1), друга шляпа з secondAt-го взяття (було 5-го)
+    hat: { name: "Солом'яна шляпа", damageSteps: [1, 2, 2, 2, 2], maxPicks: 5, secondAt: 4, speed: 900, restMs: 1000 }, // restMs — [рішення]: з 250 мс 2 капелюхи по 14 вбивали боса за секунди
     // фідбек-6 п.8: сюрикени крутяться довкола слизака й ріжуть усіх, кого зачеплять. Кількість і шкода — за взяттями
     // (counts / damageSteps, шкода ще ×biomeHpMul^біом, як в Оксанки — щоб скіл тягнув і на дальніх колах).
     // Один ворог отримує удар від кільця не частіше, ніж раз на hitCdMs; боса — ×bossMul. Числа — припущення.
-    shuriken: { name: 'Сюрикени', counts: [1, 2, 3, 3, 4], damageSteps: [1, 1, 1, 1, 1], maxPicks: 5,
-      radiusPx: 124, radiusStep: 6, turnsPerSec: 0.55, hitPx: 20, hitCdMs: 450, bossMul: 0.5, scale: 1.7 },
+    // фідбек-8: одразу 2 сюрикени по 1,5; кожне взяття +1 сюрикен і +1,5 шкоди (до 6 шт.); по босу — повна шкода;
+    // радіус 155 (було 124; «збільшити» без числа — +25%, рішення Claude)
+    shuriken: { name: 'Сюрикени', counts: [2, 3, 4, 5, 6], damageSteps: [1.5, 1.5, 1.5, 1.5, 1.5], maxPicks: 5,
+      radiusPx: 155, radiusStep: 6, turnsPerSec: 0.55, hitPx: 20, hitCdMs: 450, bossMul: 1, scale: 1.7 },
     extraLife: { maxLives: 5 },
   },
 
@@ -468,10 +488,10 @@ export const BALANCE = deepFreeze({
   bossLoot: {
     offer: 2,
     armor: { regenMs: 30000 }, // «Кожух з павучихи»: життя-броня; фідбек-6: було 22 с — «найімбовіший скіл»
-    venom: { slowFactor: 0.9, slowMs: 3000, dps: 1, durationMs: 3000 }, // «Ядовита морда»
+    venom: { slowFactor: 0.83, slowMs: 3000, dps: 1.2, durationMs: 3000 }, // фідбек-8: −17% (було −10%), 1,2/с (було 1) // «Ядовита морда»
     oksana: { intervalMs: 1200, speed: 1100, damage: 3 }, // фідбек-6: було 1 — у зимі вже нічого не важила; далі росте ще й з біомом (як HP ворогів)
     // «Дитинча павучихи Оксанка»; росте з картками «Урон»
-    web: { rootMs: 900, bossRootMs: 150 }, // «Дупа павучихи»: павутина приклеює ворога
+    web: { rootMs: 500, bossRootMs: 100, tickMs: 500, damage: 0.5 }, // фідбек-8: було 900/150 мс без шкоди; поки приклеєний — damage раз на tickMs (перший — одразу) // «Дупа павучихи»: павутина приклеює ворога
     form: { jumpSpeedMul: 1.8 }, // «Ти став павуком»
     maxJumpMul: 2.2, // [рішення] стеля множника стрибка (чакра ×1,5 × павук ×1,8 = ×2,7 — керувати вже неможливо)
   },
@@ -501,7 +521,8 @@ export const BALANCE = deepFreeze({
   kolyaLoot: {
     offer: 2,
     // «Личинка-помічник»: раз на everyMs плює в найближчого ворога, шкода damage + бонус «Урону»
-    larva: { everyMs: 1200, damage: 1, speed: 700 },
+    larva: { everyMs: 1000, // фідбек-8: було 1200
+      damage: 1, speed: 700 },
     // «Я КОЛЯ»: раз за рівень замість втрати життя — invulnMs невразливості і copies мінікопій на copyMs,
     // кожна стріляє раз на copyEveryMs на copyDamage + бонус «Урону» [рішення плану: частоти в специфікації немає]
     iam: { invulnMs: 2000, copies: 2, copyMs: 4000, copyEveryMs: 600, copyDamage: 1 },

@@ -45,12 +45,12 @@ export function invisCharge(inv, stats, nowMs) {
   return 1 - (inv.readyAt - nowMs) / stats.cooldownMs;
 }
 
-/** Шляпи після n взять: { count, damage }. Шкода — сума кроків damageSteps за перші min(n, 4) взять. */
+/** Шляпи після n взять: { count, damage }. Шкода — сума кроків damageSteps за перші n взять; друга шляпа — з secondAt-го. */
 export function hatStats(n) {
   if (!n) return { count: 0, damage: 0 };
   const steps = S.hat.damageSteps;
   const damage = steps.slice(0, Math.min(n, steps.length)).reduce((a, b) => a + b, 0);
-  return { count: n >= S.hat.maxPicks ? 2 : 1, damage };
+  return { count: n >= (S.hat.secondAt ?? S.hat.maxPicks) ? 2 : 1, damage };
 }
 
 /**
@@ -151,7 +151,7 @@ export function hitEffects(slowCard, relics) {
     dot = { dps: (dot?.dps ?? 0) + v.dps, durationMs: Math.max(dot?.durationMs ?? 0, v.durationMs) };
   }
   if (slow) slow.ice = ice;
-  const root = relics.includes('web') ? { ms: L.web.rootMs, bossMs: L.web.bossRootMs } : null;
+  const root = relics.includes('web') ? { ms: L.web.rootMs, bossMs: L.web.bossRootMs, tickMs: L.web.tickMs, damage: L.web.damage } : null;
   return { slow, dot, root };
 }
 

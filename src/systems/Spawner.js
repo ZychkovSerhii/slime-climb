@@ -8,11 +8,12 @@ export const BIOME_TYPES = { cave: ['lion', 'bat', 'plant'], winter: ['elf', 'ba
  * Стан розкладу: коли (секунда гри) наступна поява кожного типу.
  * biome — 'cave' | 'winter' | 'bamboo'; startSec — секунда гри, коли біом почався (перші появи рахуються від неї).
  */
-export function createSpawnState(biome = 'cave', startSec = 0) {
+/** fromMul — множник перших появ (фідбек-8: після боса × boss.afterFromMul). */
+export function createSpawnState(biome = 'cave', startSec = 0, fromMul = 1) {
   const nextAt = {};
   for (const t of BIOME_TYPES[biome]) {
     const from = biome === 'cave' ? BALANCE.enemies[t].from : BALANCE[biome].from[t];
-    nextAt[t] = startSec + from;
+    nextAt[t] = startSec + from * fromMul;
   }
   return { nextAt, biome };
 }

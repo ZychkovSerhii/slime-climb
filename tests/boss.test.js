@@ -34,7 +34,7 @@ describe('afterBossSpawnMul', () => {
     const end = k + B.calmSec;
     expect(afterBossSpawnMul(end, k)).toBeCloseTo(B.afterRampMul, 9);
     expect(afterBossSpawnMul(end + B.afterRampSec / 2, k)).toBeCloseTo((B.afterRampMul + 1) / 2, 9);
-    expect(afterBossSpawnMul(end + B.afterRampSec, k)).toBe(1);
+    expect(afterBossSpawnMul(end + B.afterRampSec, k)).toBeCloseTo(1, 9); // calmSec 4,2 — не точне в двійковому
     expect(afterBossSpawnMul(end + 999, k)).toBe(1);
   });
 });

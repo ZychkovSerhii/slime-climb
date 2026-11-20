@@ -187,7 +187,7 @@ export default class Combat {
     const st = lightningStats(upgrades);
     const A = BALANCE.weaponUpgrades.lightning;
     const chain = chainTargets(target, targets, st.targets);
-    const hitFx = st.stun ? { ...fx, root: { ms: Math.max(A.stunMs, fx.root?.ms ?? 0), bossMs: fx.root?.bossMs ?? 0 } } : fx;
+    const hitFx = st.stun ? { ...fx, root: { ...fx.root, ms: Math.max(A.stunMs, fx.root?.ms ?? 0), bossMs: fx.root?.bossMs ?? 0 } } : fx;
     const points = [{ x: scene.player.x, y: scene.player.y }, ...chain.map((t) => ({ x: t.x, y: t.y }))];
     chain.forEach((t, i) => t.takeHit(chainDamage(damage, i), hitFx, scene.nowMs));
     const end = points[points.length - 1];

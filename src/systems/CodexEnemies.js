@@ -75,7 +75,7 @@ export const ENEMIES = {
     name: 'Ліхтарик-дух',
     biome: 'bamboo',
     speed: E.lantern.speed,
-    desc: `Паперовий ліхтар з вогником. Пливе до тебе, за ${E.lantern.armPx} px зупиняється, стає невразливим, блимає ${sec(E.lantern.blinkMs)} с і вибухає.`,
+    desc: `Паперовий ліхтар з вогником. Летить на тебе впритул: за ${E.lantern.armPx} px зупиняється, стає невразливим, блимає ${sec(E.lantern.blinkMs)} с і вибухає.`,
     facts: [`Вибух: квадрат ${E.lantern.radiusPx * 2}×${E.lantern.radiusPx * 2} px — стрибни на іншу стіну`, 'Збив до зупинки — вибуху немає'],
   }),
   slugBiter: () => ({
@@ -108,7 +108,7 @@ export const ENEMIES = {
     name: 'Дрібна іскра',
     biome: 'lava',
     speed: E.sparkling.speed,
-    desc: `Уламок іскри. Летить по прямій і гасне за ${sec(E.sparkling.lifeMs)} с.`,
+    desc: `Уламок іскри. Не гасне й летить на тебе; зблизька перестає доворачувати — відстрибни.`,
   }),
   bubble: () => ({
     name: 'Бульбашка',

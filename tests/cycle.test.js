@@ -62,14 +62,14 @@ describe('коло біомів', () => {
     expect(biomeIndex({ loop: 1, biome: 'winter' })).toBe(5);
   });
 
-  test('етап 10: HP звичайних ворогів ×1,15 за біом, босів ×1,5 за коло', () => {
+  test('етап 10: HP звичайних ворогів ×1,15 за біом, босів ×2 за коло (фідбек-8)', () => {
     expect(BALANCE.scaling.biomeHpMul).toBe(1.15);
-    expect(BALANCE.scaling.bossHpMul).toBe(1.5);
+    expect(BALANCE.scaling.bossHpMul).toBe(2);
     expect(enemyHp(4, 0)).toBe(4);
     expect(enemyHp(4, 2)).toBe(5);
     expect(enemyHp(1, 0)).toBe(1);
     expect(bossHp(55, 0)).toBe(55);
-    expect(bossHp(55, 1)).toBe(83);
+    expect(bossHp(55, 1)).toBe(110);
     expect(loopMul(1).speed).toBeCloseTo(1.08);
   });
 

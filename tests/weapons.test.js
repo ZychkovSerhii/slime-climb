@@ -102,10 +102,10 @@ describe('geometry', () => {
 });
 
 describe('weapon upgrades (feedback-2)', () => {
-  test('+0.35 damage per upgrade on top of the weapon multiplier', () => {
+  test('per-weapon damage per upgrade on top of the weapon multiplier', () => {
     expect(W.attackDamage('axe', 1, 0)).toBe(4);
-    expect(W.attackDamage('axe', 1, 2)).toBeCloseTo(4.7);
-    expect(W.attackDamage('shotgun', 2, 1)).toBeCloseTo(2.15); // свій приріст 0,15 на кулю (фідбек-6)
+    expect(W.attackDamage('axe', 1, 2)).toBeCloseTo(5); // фідбек-8: сокира +0,5 за прокачку
+    expect(W.attackDamage('shotgun', 2, 1)).toBeCloseTo(2.2); // фідбек-8: дробовик +0,2 на кулю
     expect(W.attackDamage(null, 2, 3)).toBe(2); // стартовий постріл не прокачується
   });
   test('axe: bigger radius, faster swings, mini axe at 5', () => {

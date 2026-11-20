@@ -52,8 +52,8 @@ export default class SpawnDirector {
   }
 
   /** Новий біом: розклад ворогів з startSec, Санта й подарунки зими, перша лавова крапля (кличе GameScene.enterBiome). */
-  onBiome(biome, startSec) {
-    this.spawnState = createSpawnState(biome, startSec);
+  onBiome(biome, startSec, fromMul = 1) {
+    this.spawnState = createSpawnState(biome, startSec, fromMul);
     if (biome === 'winter') {
       this.santaState = createSantaState(startSec);
       this.giftState = createGiftState(startSec * 1000);
