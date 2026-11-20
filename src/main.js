@@ -8,6 +8,7 @@ import { codex, codexOpen } from './codex/index.js';
 import { leaderboard, leaderboardOpen } from './leaderboard/index.js';
 import { patchNotes, patchNotesOpen } from './patchnotes/index.js';
 import { backAction } from './systems/Navigation.js';
+import { setAppBackground } from './systems/Audio.js';
 import BootScene from './scenes/BootScene.js';
 import MenuScene from './scenes/MenuScene.js';
 import GameScene from './scenes/GameScene.js';
@@ -67,8 +68,16 @@ function pauseGame() {
   if (scene && scene.sys.isActive()) scene.pauseWithOverlay();
 }
 if (Capacitor.isNativePlatform()) {
-  App.addListener('pause', pauseGame);
-  App.addListener('resume', pauseGame);
+  // звук приспати на будь-якому екрані (меню, магазин, GAME OVER), а не лише в грі — баг «музика при вимкненому екрані».
+  // pauseGame іде першим: на resume він ставить паузу гри, і тоді setAppBackground(false) звук не будить до «Продовжити»
+  App.addListener('pause', () => {
+    pauseGame();
+    setAppBackground(true);
+  });
+  App.addListener('resume', () => {
+    pauseGame();
+    setAppBackground(false);
+  });
   // Без цього слухача «Назад» закриває застосунок і забіг губиться
   App.addListener('backButton', () => {
     const active = game.scene.getScenes(true).map((s) => s.sys.settings.key);

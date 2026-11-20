@@ -1,6 +1,7 @@
 // Страховка звуку v2 (~40 с): музика меню й перемикачі «Музика» / «Ефекти» (вибір зберігається, вимкнена музика
 // не планується, увімкнена — грає те, що мало б), музика кожного біому на старті, пауза з оверлеєм приспає звук,
-// а дотик повз «Продовжити» його не будить, вихід у меню — знову музика меню.
+// а дотик повз «Продовжити» його не будить, вихід у меню — знову музика меню; вимкнений екран (visibilitychange)
+// приспає звук і в меню, і в грі.
 // Боси (представлення, тема, лють, фанфара → біом) — у bosstest. Як воно звучить, скрипт НЕ перевіряє — лише що грає.
 // Використання: node scripts/musictest.mjs
 import { createServer } from 'vite';
@@ -133,6 +134,64 @@ await scenario('пауза приспає звук, дотик повз «Про
   await page.mouse.click(5, 5); // повз оверлей
   await page.waitForTimeout(300);
   if ((await page.evaluate(st)) !== 'suspended') bad.push('дотик повз «Продовжити» розбудив звук на паузі');
+  await page.evaluate(() => window.game.scene.getScene('Game').pause.overlay.emit('pointerdown', null, 0, 0, null));
+  await page.waitForTimeout(300);
+  if ((await page.evaluate(st)) !== 'running') bad.push('після «Продовжити» звук не повернувся');
+  return bad;
+});
+
+// Баг 2026-11-20: музика грала при вимкненому екрані — приспати звук уміла лише сцена гри, а в меню ніхто
+const hide = (hidden) => {
+  Object.defineProperty(document, 'hidden', { configurable: true, get: () => hidden });
+  document.dispatchEvent(new Event('visibilitychange'));
+};
+
+await scenario('екран вимкнено: у меню звук спить, повернення будить', async (page) => {
+  await page.goto(base);
+  if (!(await waitFor(page, () => window.game?.scene.isActive('Menu')))) return ['меню не відкрилось'];
+  await page.mouse.click(10, 630); // будить звук (і стартує гру — повертаємось у меню, як у першому сценарії)
+  await page.waitForTimeout(300);
+  return page.evaluate(async (hideSrc) => {
+    const hide = eval(hideSrc);
+    const wait = (ms) => new Promise((res) => setTimeout(res, ms));
+    const A = await import('/src/systems/Audio.js');
+    const bad = [];
+    const game = window.game;
+    if (game.scene.isActive('Game')) {
+      game.scene.getScene('Game').pause.quitToMenu();
+      await wait(800);
+    }
+    if (A.audioState() !== 'running') return [`до перевірки звук ${A.audioState()}`];
+    hide(true);
+    await wait(200);
+    if (A.audioState() !== 'suspended') bad.push(`у меню екран вимкнено, а звук ${A.audioState()}`);
+    document.dispatchEvent(new Event('pointerdown'));
+    await wait(100);
+    if (A.audioState() !== 'suspended') bad.push('у фоні дотик розбудив звук');
+    hide(false);
+    await wait(200);
+    if (A.audioState() !== 'running') bad.push(`після повернення в меню звук ${A.audioState()}`);
+    if (A.currentMusic() !== 'menu' || !A.musicPlaying()) bad.push(`після повернення музика ${A.currentMusic()} (грає: ${A.musicPlaying()})`);
+    return bad;
+  }, hide.toString());
+});
+
+await scenario('екран вимкнено в грі: після повернення звук спить до «Продовжити»', async (page) => {
+  await page.goto(base);
+  for (let i = 0; i < 40 && !(await page.evaluate(() => window.game?.scene.isActive('Game'))); i++) {
+    await page.mouse.click(180, 320);
+    await page.waitForTimeout(300);
+  }
+  if (!(await waitFor(page, () => window.game.scene.getScene('Game').elapsedSec > 1))) return ['гра не пішла'];
+  const st = () => import('/src/systems/Audio.js').then((A) => A.audioState());
+  const bad = [];
+  await page.evaluate((src) => eval(src)(true), hide.toString());
+  await page.waitForTimeout(300);
+  if ((await page.evaluate(st)) !== 'suspended') bad.push('екран вимкнено, а звук грає');
+  await page.evaluate((src) => eval(src)(false), hide.toString());
+  await page.waitForTimeout(300);
+  if (!(await page.evaluate(() => window.game.scene.getScene('Game').pause.overlayOpen))) bad.push('немає оверлею «Продовжити»');
+  if ((await page.evaluate(st)) !== 'suspended') bad.push('повернення розбудило звук до «Продовжити»');
   await page.evaluate(() => window.game.scene.getScene('Game').pause.overlay.emit('pointerdown', null, 0, 0, null));
   await page.waitForTimeout(300);
   if ((await page.evaluate(st)) !== 'running') bad.push('після «Продовжити» звук не повернувся');

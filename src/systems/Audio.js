@@ -271,7 +271,7 @@ export function sfx(name) {
   if (isSfxMuted() || !SOUNDS[name]) return;
   const c = ensureContext();
   if (!c) return;
-  if (c.state === 'suspended') c.resume();
+  if (c.state === 'suspended' && !inBackground) c.resume();
   const nowMs = c.currentTime * 1000;
   if (nowMs - (lastPlayed[name] ?? -Infinity) < MIN_GAP_MS) return;
   lastPlayed[name] = nowMs;
@@ -287,17 +287,34 @@ export function suspendAudio() {
 
 export function resumeAudio() {
   heldByGame = false;
-  if (ctx && ctx.state === 'suspended') ctx.resume();
+  if (!inBackground && ctx && ctx.state === 'suspended') ctx.resume();
+}
+
+/**
+ * Застосунок пішов у фон / повернувся (екран вимкнено, згорнуто, інша вкладка) — на будь-якому екрані, не лише в грі.
+ * Баг 2026-11-20: раніше звук приспавала лише сцена гри, тож музика меню грала при вимкненому екрані.
+ * Повернення будить звук, лише якщо його не тримає пауза гри (там — до «Продовжити»).
+ */
+export function setAppBackground(hidden) {
+  inBackground = Boolean(hidden);
+  if (!ctx) return;
+  if (inBackground) {
+    if (ctx.state === 'running') ctx.suspend();
+  } else if (!heldByGame && ctx.state === 'suspended') {
+    ctx.resume();
+  }
 }
 
 // Музика меню вмикається до першого дотику, а браузер/WebView тримає AudioContext приспаним, доки людина не торкнеться
 // екрана. Тому перший (і кожен) дотик будить контекст — якщо його не приспала сама гра (пауза, згорнутий застосунок).
 let heldByGame = false;
+let inBackground = false; // застосунок у фоні (setAppBackground)
 function unlock() {
-  if (!heldByGame && ctx && ctx.state === 'suspended') ctx.resume();
+  if (!heldByGame && !inBackground && ctx && ctx.state === 'suspended') ctx.resume();
 }
 if (typeof document !== 'undefined') {
   for (const type of ['pointerdown', 'touchend', 'keydown']) document.addEventListener(type, unlock, { capture: true, passive: true });
+  document.addEventListener('visibilitychange', () => setAppBackground(document.hidden));
 }
 
 // ---- Музика: планувальник з невеликим запасом наперед (стандартний підхід WebAudio) ----
@@ -390,7 +407,7 @@ export function playMusic(name, { next = null, afterCurrent = false } = {}) {
   }
   const c = ensureContext();
   if (!c) return;
-  if (c.state === 'suspended') c.resume();
+  if (c.state === 'suspended' && !inBackground) c.resume();
   halt();
   music = startTrack(name, c.currentTime + 0.05);
   music.next = next;
