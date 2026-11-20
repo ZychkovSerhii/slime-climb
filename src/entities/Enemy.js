@@ -119,11 +119,11 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
       }
       if (!this.burn) this.burnFx = null;
     }
-    if (this.web) {
-      if (now >= this.rootUntil) this.web = null;
-      else if (now >= this.web.nextAt) {
-        this.web.nextAt += this.web.tickMs;
-        this.takeHit(this.web.damage, null, now);
+    if (this.webDot) {
+      if (now >= this.rootUntil) this.webDot = null;
+      else if (now >= this.webDot.nextAt) {
+        this.webDot.nextAt += this.webDot.tickMs;
+        this.takeHit(this.webDot.damage, null, now);
         if (!this.active) return;
       }
     }
@@ -221,7 +221,7 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
     if (fx?.root && nowMs >= this.rootUntil) {
       this.rootUntil = nowMs + (this.isBoss ? fx.root.bossMs : fx.root.ms);
       // фідбек-8: павутина шкодить, поки ворог приклеєний — перший тик одразу, далі раз на tickMs
-      if (fx.root.damage) this.web = { damage: fx.root.damage, tickMs: fx.root.tickMs, nextAt: nowMs };
+      if (fx.root.damage) this.webDot = { damage: fx.root.damage, tickMs: fx.root.tickMs, nextAt: nowMs };
     }
     if (this.hp <= 0) {
       // етап 14: згорів з прокачаним вогнем — вибух (шкоду рахує Combat)

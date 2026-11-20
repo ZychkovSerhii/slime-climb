@@ -9,6 +9,8 @@ import { isDefault, loadTuning, presetName } from '../systems/Tuning.js';
 import { leaderboard, leaderboardOpen } from '../leaderboard/index.js';
 import { flush } from '../systems/Leaderboard.js';
 import { LEADERBOARD_URL, REQUEST_TIMEOUT_MS } from '../config/leaderboard.js';
+import { patchNotes, patchNotesOpen } from '../patchnotes/index.js';
+import { markPatchNotesSeen, shouldShowPatchNotes } from '../systems/PatchNotes.js';
 
 /** Стартовий екран: назва, рекорд, Шаги, «Тапни, щоб почати», магазин, досягнення, довідник, звук, сніг, туман. */
 export default class MenuScene extends Phaser.Scene {
@@ -78,11 +80,17 @@ export default class MenuScene extends Phaser.Scene {
       codex().open();
     }
 
+    // фідбек-8: «Що нового» — саме при першому запуску після оновлення, далі — кнопкою вгорі
+    const notesBtn = button(this, width - 110, 50, 'Що нового', () => patchNotes().open(), undefined, 28);
+    // під автотестами (navigator.webdriver) вікно не вискакує, щоб не ловило тапи страховок; ?notes=1 — показати примусово
+    const forceNotes = new URLSearchParams(window.location.search).get('notes') === '1';
+    if (forceNotes || (!navigator.webdriver && shouldShowPatchNotes(storage))) patchNotes().open(() => markPatchNotesSeen(storage));
+
     // тап будь-де, крім кнопок, — старт гри
-    const buttons = [shopBtn, achBtn, codexBtn, lbBtn, soundBtn, tuningBtn, snowBtn, fogBtn, embersBtn];
+    const buttons = [shopBtn, achBtn, codexBtn, lbBtn, soundBtn, tuningBtn, snowBtn, fogBtn, embersBtn, notesBtn];
     let started = false;
     this.input.on('pointerdown', (pointer, over) => {
-      if (started || codexOpen() || leaderboardOpen() || over.some((o) => buttons.includes(o))) return;
+      if (started || codexOpen() || leaderboardOpen() || patchNotesOpen() || over.some((o) => buttons.includes(o))) return;
       started = true;
       this.scene.start('Game');
     });

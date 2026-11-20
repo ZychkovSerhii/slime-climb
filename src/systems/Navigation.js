@@ -4,7 +4,8 @@
  * 'closeCodex' — закрити довідник (етап 7: він HTML-шар поверх меню, а не сцена),
  * 'closeLeaderboard' — закрити шар «Лідери» (етап 12, теж HTML).
  */
-export function backAction(activeSceneKeys, gamePaused, codexOpen = false, leaderboardOpen = false) {
+export function backAction(activeSceneKeys, gamePaused, codexOpen = false, leaderboardOpen = false, patchNotesOpen = false) {
+  if (patchNotesOpen) return 'closePatchNotes'; // фідбек-8: вікно «Що нового»
   if (codexOpen) return 'closeCodex';
   if (leaderboardOpen) return 'closeLeaderboard';
   if (activeSceneKeys.includes('Game')) return gamePaused ? 'none' : 'pause';
