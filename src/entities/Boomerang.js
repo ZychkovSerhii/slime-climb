@@ -12,8 +12,8 @@ const SCALE = 2.2; // на телефоні 1,5 ледве видно (скри�
  * step(dt) повертає false, коли бумеранг зник.
  */
 export default class Boomerang extends Phaser.GameObjects.Image {
-  constructor(scene, { angle, rangePx, damage, fx, shield }) {
-    const p = scene.player;
+  constructor(scene, { angle, rangePx, damage, fx, shield, owner = scene.player }) {
+    const p = owner; // фідбек-8: кидає й ловить той, хто кинув (слизак чи клон «Я КОЛЯ»)
     super(scene, p.x, p.y, 'boomerang');
     scene.add.existing(this);
     this.setDepth(6).setScale(SCALE);
@@ -22,6 +22,7 @@ export default class Boomerang extends Phaser.GameObjects.Image {
     this.damage = damage;
     this.fx = fx;
     this.shield = shield;
+    this.owner = owner;
     this.hitOut = new Set();
     this.hitBack = new Set();
     this.shieldUntil = 0;
@@ -45,7 +46,7 @@ export default class Boomerang extends Phaser.GameObjects.Image {
       }
       return true;
     }
-    this.state = stepBoomerang(this.state, dt, B.speed, this.rangePx, scene.player);
+    this.state = stepBoomerang(this.state, dt, B.speed, this.rangePx, this.owner);
     this.setPosition(this.state.x, this.state.y);
     const hit = this.state.back ? this.hitBack : this.hitOut;
     for (const t of this.touching(targets)) {

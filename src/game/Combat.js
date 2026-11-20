@@ -146,22 +146,34 @@ export default class Combat {
     this.fireState = r.state;
     if (!r.fire) return;
     const damage = attackDamage(main, scene.weapon.damage, upgrades);
-    if (inZone) {
-      this.swingAxe(inZone, damage, radius);
+    const shot = { main, upgrades, damage, targets, radius, size };
+    if (inZone) this.swingAxe(inZone, damage, radius);
+    else this.attackFrom(scene.player, shot, true);
+    // фідбек-8: клони «Я КОЛЯ» атакують так само, зі своїх місць
+    for (const c of scene.forms?.shooters() ?? []) this.attackFrom(c, shot, false);
+  }
+
+  /** Одна атака основною зброєю від origin (слизак чи клон). view — повертати зброю слизака і грати звук. */
+  attackFrom(origin, { main, upgrades, damage, targets, radius, size }, view) {
+    const scene = this.scene;
+    if (main === 'axe') {
+      const zone = inRadius(origin, targets, radius, size);
+      if (zone.length) this.swingAxe(zone, damage, radius, view);
       return;
     }
-    const target = pickNearest(scene.player, targets);
+    if (!targets.length) return;
+    const target = pickNearest(origin, targets);
     const relics = scene.progression.relics;
     const fx = hitEffects(scene.weapon.slow, relics);
     if (main === 'lightning') {
-      this.fireLightning(target, targets, damage, upgrades, fx);
+      this.fireLightning(target, targets, damage, upgrades, fx, origin, view);
       return;
     }
     const { vx, vy } = target.screenVelocity(scene.currentScroll);
-    const aim = interceptPoint(scene.player, { x: target.x, y: target.y, vx, vy }, BALANCE.projectileSpeed);
-    const angle = Math.atan2(aim.y - scene.player.y, aim.x - scene.player.x);
+    const aim = interceptPoint(origin, { x: target.x, y: target.y, vx, vy }, BALANCE.projectileSpeed);
+    const angle = Math.atan2(aim.y - origin.y, aim.x - origin.x);
     if (main === 'boomerang') {
-      this.throwBoomerang(angle, damage, upgrades, fx);
+      this.throwBoomerang(angle, damage, upgrades, fx, origin);
       return;
     }
     const angles = main === 'shotgun' ? shotgunAngles(angle, upgrades) : [angle];
@@ -171,48 +183,52 @@ export default class Combat {
     const texture = fire ? 'fireball' : playerShotTexture(shotSprite(scene.meta), relics);
     const bounceMul = main === 'shotgun' && shotgunRicochet(upgrades) ? BALANCE.weaponUpgrades.shotgun.ricochetMul : null;
     for (const a of angles) {
-      const proj = new Projectile(scene, scene.player.x, scene.player.y, texture, { damage, fx: shotFx, bounceMul });
+      const proj = new Projectile(scene, origin.x, origin.y, texture, { damage, fx: shotFx, bounceMul });
       if (relics.includes('venom') && !fire) proj.setTint(VENOM_SHOT_TINT);
       if (fire) proj.setScale(1.6); // вогняна куля помітніша за грудочку слизу
       scene.playerProjectiles.add(proj);
-      proj.launch(scene.player.x + Math.cos(a) * 100, scene.player.y + Math.sin(a) * 100, BALANCE.projectileSpeed, BALANCE.projectileHitboxMul);
+      proj.launch(origin.x + Math.cos(a) * 100, origin.y + Math.sin(a) * 100, BALANCE.projectileSpeed, BALANCE.projectileHitboxMul);
     }
+    if (!view) return;
     this.weaponView.aim(angle);
     sfx(main === 'shotgun' ? 'shotgun' : fire ? 'fireball' : 'shoot');
   }
 
   /** Етап 14: розряд у ціль і перескоки по ланцюгу; з прокачкою — застигання й вибух у кінці. */
-  fireLightning(target, targets, damage, upgrades, fx) {
+  fireLightning(target, targets, damage, upgrades, fx, origin = this.scene.player, view = true) {
     const scene = this.scene;
     const st = lightningStats(upgrades);
     const A = BALANCE.weaponUpgrades.lightning;
     const chain = chainTargets(target, targets, st.targets);
     const hitFx = st.stun ? { ...fx, root: { ...fx.root, ms: Math.max(A.stunMs, fx.root?.ms ?? 0), bossMs: fx.root?.bossMs ?? 0 } } : fx;
-    const points = [{ x: scene.player.x, y: scene.player.y }, ...chain.map((t) => ({ x: t.x, y: t.y }))];
+    const points = [{ x: origin.x, y: origin.y }, ...chain.map((t) => ({ x: t.x, y: t.y }))];
     chain.forEach((t, i) => t.takeHit(chainDamage(damage, i), hitFx, scene.nowMs));
     const end = points[points.length - 1];
     if (st.blast) {
       for (const t of inRadius(end, this.visibleEnemies(), A.blastPx)) t.takeHit(damage * A.blastMul, null, scene.nowMs);
     }
     new LightningBolt(scene, points, st.blast ? A.blastPx : 0);
-    this.weaponView.aim(Math.atan2(target.y - scene.player.y, target.x - scene.player.x));
+    if (!view) return;
+    this.weaponView.aim(Math.atan2(target.y - origin.y, target.x - origin.x));
     sfx('zap');
   }
 
   /** Етап 14: бумеранг (з twinAt — два під ±twinDeg). */
-  throwBoomerang(angle, damage, upgrades, fx) {
+  throwBoomerang(angle, damage, upgrades, fx, owner = this.scene.player) {
     const st = boomerangStats(upgrades);
     const d = (BALANCE.weaponUpgrades.boomerang.twinDeg * Math.PI) / 180;
     const angles = st.count > 1 ? [angle - d, angle + d] : [angle];
-    for (const a of angles) this.boomerangs.push(new Boomerang(this.scene, { angle: a, rangePx: st.rangePx, damage, fx, shield: st.shield }));
+    for (const a of angles) this.boomerangs.push(new Boomerang(this.scene, { angle: a, rangePx: st.rangePx, damage, fx, shield: owner === this.scene.player && st.shield, owner }));
     sfx('whoosh');
   }
 
   /** Розмах сокири: шкода всім у радіусі (зокрема босу), без снарядів. */
-  swingAxe(targets, damage, radius) {
+  swingAxe(targets, damage, radius, view = true) {
     const scene = this.scene;
-    this.weaponView.swing(radius);
-    sfx('axe');
+    if (view) {
+      this.weaponView.swing(radius);
+      sfx('axe');
+    }
     let hitAlive = false;
     for (const t of targets) {
       if (!t.active || t.invulnerable) continue;

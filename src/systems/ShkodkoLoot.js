@@ -63,8 +63,8 @@ export function bombTargets(player, targets, n) {
 }
 
 /** Шкода своєї бомби: база + те, що дали картки «Урон». */
-export function friendlyBombDamage(weaponDamage) {
-  return K.bomb.damage + (weaponDamage - BALANCE.projectileDamage);
+export function friendlyBombDamage(weaponDamage, base = K.bomb.damage) {
+  return base + (weaponDamage - BALANCE.projectileDamage);
 }
 
 /** Хто з цілей у радіусі вибуху. */

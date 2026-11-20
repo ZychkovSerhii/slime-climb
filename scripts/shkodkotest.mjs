@@ -53,7 +53,13 @@ const bad = ready ? await page.evaluate(async () => {
   if (!(await until(() => b.state === 'windup', 6000))) out.push('фаза 1: немає блимання перед ривком');
   else if (!(await until(() => b.target?.lunge && b.state === 'dance', 3000))) out.push('фаза 1: ривку немає');
   else {
-    const v = Math.hypot(b.body.velocity.x, b.body.velocity.y);
+    // швидкість ставить наступний кадр після lunge(): опитування могло влізти між ними (флак «ривок 0 px/с») —
+    // беремо максимум за ~300 мс ривку
+    let v = 0;
+    for (let i = 0; i < 6 && b.state === 'dance'; i++) {
+      v = Math.max(v, Math.hypot(b.body.velocity.x, b.body.velocity.y));
+      await wait(50);
+    }
     if (v < S.dance.p1.speed * 2) out.push(`фаза 1: ривок ${Math.round(v)} px/с, чекали ~×${S.dance.p1.aimSpeedMul}`);
   }
   // фаза 3: дощ — подарунки швидкі, цукерки летять, ціль провалена → лікування

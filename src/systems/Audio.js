@@ -76,6 +76,17 @@ export const SOUNDS = {
   gift: [76, 83].map((n, i) => ({ wave: 'square', from: midiToHz(n), to: midiToHz(n), ms: 70, vol: 0.08, at: i * 70 })),
   // Санта летить: дзвіночки
   jingle: [84, 88, 84, 88, 91].map((n, i) => ({ wave: 'triangle', from: midiToHz(n), to: midiToHz(n), ms: 90, vol: 0.1, at: i * 110 })),
+  // фідбек-8: Санта сміється «йо-хо-хо» — синтез без запису голосу: придих (шум) + низький «голос» з вібрато, обертон зверху.
+  // Перший склад вищий («йо»), два нижчі. Це чіптюн-імітація, не мова.
+  hohoho: [
+    [196, 165],
+    [147, 123],
+    [147, 110],
+  ].flatMap(([from, to], i) => [
+    { noise: true, ms: 50, vol: 0.05, at: 500 + i * 300 },
+    { wave: 'sawtooth', from, to, ms: 230, vol: 0.15, vibrato: 7, at: 530 + i * 300 },
+    { wave: 'triangle', from: from * 2, to: to * 2, ms: 200, vol: 0.06, at: 530 + i * 300 },
+  ]),
   // ---- Шкодько (етап 6b)
   // вибух подарунка-бомби: глухий бах із шумом
   boom: [

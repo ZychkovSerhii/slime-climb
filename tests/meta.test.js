@@ -165,7 +165,7 @@ describe('магазин', () => {
 
   test('ціни зі специфікації', () => {
     const price = Object.fromEntries(BALANCE.meta.skins.map((s) => [s.id, s.price]));
-    expect(price).toEqual({ slime: 0, assassin: 300, commander: 300, raccoon: 500, murzik: 1000 });
+    expect(price).toEqual({ slime: 0, assassin: 300, commander: 300, raccoon: 500, dog: 500, murzik: 1000 });
   });
 });
 

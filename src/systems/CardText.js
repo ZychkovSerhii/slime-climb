@@ -33,7 +33,7 @@ const UPGRADE_DESC = {
   axe: (n, U) => {
     const a = U.axe;
     const extra = n === a.miniAxeAt ? '\n+ міні-сокира-помічниця!' : a.tiers.includes(n) ? '\n+ новий вигляд сокири!' : '';
-    return `+${num(U.damageAdd)} шкоди, радіус +${pct(a.radiusStep - 1)}%,\nрозмах частіше на ${pct(1 - a.intervalStep)}%${extra}`;
+    return `+${num(a.damageAdd ?? U.damageAdd)} шкоди, радіус +${pct(a.radiusStep - 1)}%,\nрозмах частіше на ${pct(1 - a.intervalStep)}%${extra}`;
   },
   shotgun: (n, U) => {
     const a = U.shotgun;
@@ -77,9 +77,9 @@ export const LOOT_TEXT = {
   oksana: () => ({ title: 'Дитинча павучихи Оксанка', desc: `невмируща помічниця: кидається на ворога\nраз на ${BALANCE.bossLoot.oksana.intervalMs / 1000} с, шкода ${BALANCE.bossLoot.oksana.damage},\nросте з «Уроном» і з кожним біомом` }),
   web: () => {
     const w = BALANCE.bossLoot.web;
-    return { title: 'Дупа павучихи', desc: `кулі павутини приклеюють ворога на ${w.rootMs / 1000} с\n(боса — на ${w.bossRootMs / 1000} с)` };
+    return { title: 'Дупа павучихи', desc: `кулі павутини приклеюють ворога на ${num(w.rootMs / 1000)} с\n(боса — на ${num(w.bossRootMs / 1000)} с), ${num(w.damage)} шкоди раз на ${num(w.tickMs / 1000)} с` };
   },
-  form: () => ({ title: 'Ти став павуком', desc: `скін чорного павука,\nстрибок на ${Math.round((BALANCE.bossLoot.form.jumpSpeedMul - 1) * 100)}% швидший` }),
+  form: () => ({ title: 'Ти став павуком', desc: `скін павука, стрибок на ${Math.round((BALANCE.bossLoot.form.jumpSpeedMul - 1) * 100)}% швидший;\nкнопка «Рій»: ${BALANCE.forms.swarm.count} павучків на ворогів, раз на ${BALANCE.forms.cdMs / 1000} с` }),
   sack: () => ({
     title: 'Мішок Шкодька',
     desc: `раз на ${BALANCE.shkodkoLoot.sack.everyMs / 1000} с: бомби, досвід\nчи Шаги, зрідка навичка +1`,
@@ -88,7 +88,7 @@ export const LOOT_TEXT = {
     const I = BALANCE.shkodkoLoot.iam;
     return {
       title: 'Я ШКОДЬКО',
-      desc: `скін Шкодька (скасовує павука),\nдосвід кожні ${I.xpEveryMs / 1000} с, бомба кожні ${I.bombEveryMs / 1000} с`,
+      desc: `скін Шкодька, бомба на ${I.bombDamage} кожні ${I.bombEveryMs / 1000} с;\nкнопка «Потяг»: ${BALANCE.forms.train.ms / 1000} с невразливий у паровозі`,
     };
   },
   // етап 9 — трофеї Колі
@@ -97,11 +97,8 @@ export const LOOT_TEXT = {
     return { title: 'Личинка-помічник', desc: `сидить на тобі й плює в ворога\nраз на ${num(L.everyMs / 1000)} с (росте з «Уроном»)` };
   },
   iamkolya: () => {
-    const I = BALANCE.kolyaLoot.iam;
-    return {
-      title: 'Я КОЛЯ',
-      desc: `скін слимака (скасовує інші). Раз за рівень\nзамість мінус життя: ${num(I.invulnMs / 1000)} с щит і ${I.copies} мінікопії`,
-    };
+    const C = BALANCE.forms.clones;
+    return { title: 'Я КОЛЯ', desc: `скін слимака; кнопка «Клони»: двоє тебе\nна ${C.ms / 1000} с атакують як ти, раз на ${BALANCE.forms.cdMs / 1000} с` };
   },
   // етап 11 — трофеї Казана
   ladle: () => {
@@ -112,7 +109,7 @@ export const LOOT_TEXT = {
     const I = BALANCE.kazanLoot.iam;
     return {
       title: 'Я КАЗАН',
-      desc: `скін казанчика (скасовує інші). Раз за рівень\nзамість мінус життя: ${num(I.invulnMs / 1000)} с щит і кільце лави на ${I.damage}`,
+      desc: `скін казанчика. Раз за рівень\nзамість мінус життя: ${num(I.invulnMs / 1000)} с щит і кільце лави на ${I.damage}`,
     };
   },
 };
@@ -155,6 +152,8 @@ export function cardText(id, picks, arsenal) {
       const more = n > 1 && st.count > shurikenStats(n - 1).count ? `${st.count}-й сюрикен!\n` : '';
       return { title: `${BALANCE.skills.shuriken.name}${n > 1 ? ` ${n}` : ''}`, desc: `${more}${st.count} крутяться довкола тебе й ріжуть\nкожного, хто зачепить: ${st.damage} шкоди` };
     }
+    case 'halfblood':
+      return { title: BALANCE.skills.halfblood.name, desc: 'трансформації більше не скасовують\nодна одну: можна бути і павуком, і Шкодьком…' };
     case 'extraLife':
       return { title: 'Додаткове життя', desc: `+1 серце і +2 життя (до ${maxLivesFor(n)} з ${BALANCE.skills.extraLife.maxLives})` };
     case 'attackSpeed':
@@ -166,7 +165,7 @@ export function cardText(id, picks, arsenal) {
       const I = BALANCE.ice;
       return {
         title: `Крижана атака${n > 1 ? ` ${n}` : ''}`,
-        desc: `заморожує на ${st.durationMs / 1000} с: −${pct(1 - st.factor)}% швидкості\nі ${num(st.dps)} шкоди/с (боса лише −${pct(1 - I.bossFactor)}%)`,
+        desc: `заморожує на ${num(st.durationMs / 1000)} с: −${pct(1 - st.factor)}% швидкості\nі ${num(st.dps)} шкоди/с (боса лише −${pct(1 - st.bossFactor)}%)`,
       };
     }
     default:

@@ -2,7 +2,7 @@ import * as Phaser from 'phaser';
 import { BALANCE } from '../config/balance.js';
 import { formatTime } from '../systems/Format.js';
 import { isDefault, presetName, tuning } from '../systems/Tuning.js';
-import { PAUSE_BUTTON_SIZE, invisButton, parseCssPx, pauseButton, safeTopGamePx, switchButton } from '../systems/Layout.js';
+import { PAUSE_BUTTON_SIZE, formButton, invisButton, parseCssPx, pauseButton, safeTopGamePx, switchButton } from '../systems/Layout.js';
 
 // Розкладка HUD (px базової роздільності) — це верстка, не баланс
 const PAD = 24;
@@ -82,6 +82,7 @@ export default class HudScene extends Phaser.Scene {
     this.armorHeart = this.add.image(0, top + 14, 'heartArmor').setVisible(false); // помаранчево-коричневе (фідбек-6; було чорне)
     this.createInvisButton();
     this.createSwitchButton();
+    this.createFormButtons();
     this.pauseGfx = this.add.graphics().setDepth(5);
     this.drawPause();
     this.xpBar = this.add.graphics();
@@ -110,6 +111,7 @@ export default class HudScene extends Phaser.Scene {
       this.updateBoss(this.lastBoss);
       this.drawInvis(this.lastInvis);
       this.drawSwitch(this.lastSlots);
+      this.drawForms(this.lastForms);
     };
     this.scale.on(Phaser.Scale.Events.RESIZE, onResize);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.off(Phaser.Scale.Events.RESIZE, onResize));
@@ -230,6 +232,46 @@ export default class HudScene extends Phaser.Scene {
     this.switchLabel.setPosition(b.x, b.y).setText(`⇄\n${slots.other}`);
   }
 
+  /** Фідбек-8: кнопки трансформацій (рій / потяг / клони) зліва внизу; з «Полукровкою» — до трьох стовпчиком. */
+  createFormButtons() {
+    this.formBtns = [0, 1, 2].map(() => {
+      const gfx = this.add.graphics().setDepth(5);
+      const label = this.add
+        .text(0, 0, '', { fontFamily: 'sans-serif', fontSize: '20px', fontStyle: 'bold', color: '#ffffff' })
+        .setOrigin(0.5)
+        .setDepth(6)
+        .setVisible(false);
+      const zone = this.add.zone(0, 0, 1, 1).setInteractive().setDepth(6);
+      zone.input.enabled = false;
+      const btn = { gfx, label, zone, id: null };
+      zone.on('pointerdown', () => btn.id && this.scene.get('Game').events.emit('skill:form', btn.id));
+      return btn;
+    });
+  }
+
+  drawForms(list) {
+    this.lastForms = list;
+    const COLORS = { swarm: 0x9cff57, train: 0xffd84a, clones: 0xffb0c8 };
+    this.formBtns.forEach((btn, i) => {
+      const f = list?.[i] ?? null;
+      btn.gfx.clear();
+      btn.id = f?.id ?? null;
+      btn.label.setVisible(!!f);
+      btn.zone.input.enabled = !!f;
+      if (!f) return;
+      const b = formButton(i, this.scale.width, this.scale.height);
+      btn.zone.setPosition(b.x, b.y).setSize(2 * b.r + 24, 2 * b.r + 24);
+      const ready = f.charge >= 1;
+      const color = COLORS[f.id] ?? 0xffffff;
+      btn.gfx.fillStyle(f.active ? color : ready ? 0x2a2a2a : 0x111111, f.active ? 0.5 : 0.75).fillCircle(b.x, b.y, b.r);
+      btn.gfx.lineStyle(7, ready ? color : 0x5a5a5a, 1);
+      btn.gfx.beginPath();
+      btn.gfx.arc(b.x, b.y, b.r - 4, -Math.PI / 2, -Math.PI / 2 + 2 * Math.PI * Math.min(f.charge, 1), false);
+      btn.gfx.strokePath();
+      btn.label.setPosition(b.x, b.y).setText(f.label).setAlpha(ready || f.active ? 1 : 0.5);
+    });
+  }
+
   drawInvis(inv) {
     this.lastInvis = inv;
     this.invisGfx.clear();
@@ -249,8 +291,9 @@ export default class HudScene extends Phaser.Scene {
     this.invisLabel.setAlpha(ready || inv.active ? 1 : 0.5);
   }
 
-  update_({ timeSec, score, lives, maxLives = BALANCE.maxLives, armor = null, invis = null, slots = null, level, xp, xpToNext, steps = 0 }) {
+  update_({ timeSec, score, lives, maxLives = BALANCE.maxLives, armor = null, invis = null, slots = null, forms = null, level, xp, xpToNext, steps = 0 }) {
     this.drawSwitch(slots);
+    this.drawForms(forms);
     this.timeText.setText(formatTime(timeSec));
     this.stepsText.setText(steps > 0 ? `+${steps} Шагів` : '');
     this.scoreText.setText(`SCORE ${score}`);

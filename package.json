@@ -16,7 +16,8 @@
     "combattest": "node scripts/combattest.mjs",
     "android:sync": "npm run build && npx cap sync android",
     "shkodkotest": "node scripts/shkodkotest.mjs",
-    "slotstest": "node scripts/slotstest.mjs"
+    "slotstest": "node scripts/slotstest.mjs",
+    "formtest": "node scripts/formtest.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.6.0",
