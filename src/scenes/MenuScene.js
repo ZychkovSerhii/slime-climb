@@ -1,7 +1,7 @@
 import * as Phaser from 'phaser';
 import { browserStorage, loadHighScore } from '../systems/HighScore.js';
 import { loadMeta, skinSprite, unclaimedCount } from '../systems/Meta.js';
-import { isMuted, setMuted, sfx } from '../systems/Audio.js';
+import { isMusicMuted, isSfxMuted, playMusic, setMusicMuted, setSfxMuted, sfx } from '../systems/Audio.js';
 import { button, textStyle } from './ui.js';
 import { loadSettings, saveSettings } from '../systems/Settings.js';
 import { codex, codexOpen } from '../codex/index.js';
@@ -12,7 +12,7 @@ import { LEADERBOARD_URL, REQUEST_TIMEOUT_MS } from '../config/leaderboard.js';
 import { patchNotes, patchNotesOpen } from '../patchnotes/index.js';
 import { markPatchNotesSeen, shouldShowPatchNotes } from '../systems/PatchNotes.js';
 
-/** Стартовий екран: назва, рекорд, Шаги, «Тапни, щоб почати», магазин, досягнення, довідник, звук, сніг, туман. */
+/** Стартовий екран: назва, рекорд, Шаги, «Тапни, щоб почати», магазин, досягнення, довідник, музика й ефекти, сніг, туман. */
 export default class MenuScene extends Phaser.Scene {
   constructor() {
     super('Menu');
@@ -47,15 +47,24 @@ export default class MenuScene extends Phaser.Scene {
     // результат, що не пішов офлайн, — спробувати ще раз (без очікування)
     flush(storage, { url: LEADERBOARD_URL, timeoutMs: REQUEST_TIMEOUT_MS });
 
-    const soundLabel = () => `Звук: ${isMuted() ? 'вимк.' : 'увімк.'}`;
-    const soundBtn = button(this, cx - width * 0.22, height * 0.85, soundLabel(), () => {
-      setMuted(!isMuted());
-      soundBtn.setText(soundLabel());
+    // звук v2: музика й ефекти вмикаються окремо (хтось слухає своє, але хоче чути гру)
+    playMusic('menu');
+    const onOff = (muted) => (muted ? 'вимк.' : 'увімк.');
+    const musicLabel = () => `Музика: ${onOff(isMusicMuted())}`;
+    const musicBtn = button(this, cx - width * 0.22, height * 0.85, musicLabel(), () => {
+      setMusicMuted(!isMusicMuted());
+      musicBtn.setText(musicLabel());
+    }, undefined, 30);
+    const sfxLabel = () => `Ефекти: ${onOff(isSfxMuted())}`;
+    const sfxBtn = button(this, cx + width * 0.22, height * 0.85, sfxLabel(), () => {
+      setSfxMuted(!isSfxMuted());
+      sfxBtn.setText(sfxLabel());
       sfx('jump');
     }, undefined, 30);
-    // режим налаштувань складності (після етапу 10): підбір балансу без перезбирання
+    // режим налаштувань складності (після етапу 10): підбір балансу без перезбирання; звук v2 — у лівий верхній кут
     const tuningName = presetName(loadTuning(storage));
-    const tuningBtn = button(this, cx + width * 0.22, height * 0.85, `Складність: ${tuningName}`, () => this.scene.start('Tuning'), isDefault(loadTuning(storage)) ? undefined : '#ffd84a', 30);
+    const tuningBtn = button(this, 0, 50, `Складність: ${tuningName}`, () => this.scene.start('Tuning'), isDefault(loadTuning(storage)) ? undefined : '#ffd84a', 28);
+    tuningBtn.setX(tuningBtn.width / 2 + 12);
 
     // сніг у зимовому біомі (етап 6a): хтось його не любить або в нього слабкий телефон
     const settings = loadSettings(storage);
@@ -87,7 +96,7 @@ export default class MenuScene extends Phaser.Scene {
     if (forceNotes || (!navigator.webdriver && shouldShowPatchNotes(storage))) patchNotes().open(() => markPatchNotesSeen(storage));
 
     // тап будь-де, крім кнопок, — старт гри
-    const buttons = [shopBtn, achBtn, codexBtn, lbBtn, soundBtn, tuningBtn, snowBtn, fogBtn, embersBtn, notesBtn];
+    const buttons = [shopBtn, achBtn, codexBtn, lbBtn, musicBtn, sfxBtn, tuningBtn, snowBtn, fogBtn, embersBtn, notesBtn];
     let started = false;
     this.input.on('pointerdown', (pointer, over) => {
       if (started || codexOpen() || leaderboardOpen() || patchNotesOpen() || over.some((o) => buttons.includes(o))) return;

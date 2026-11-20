@@ -3,6 +3,8 @@ import { background } from '../art/textures.js';
 import Snow from '../entities/Snow.js';
 import Fog from '../entities/Fog.js';
 import Embers from '../entities/Embers.js';
+import { playMusic } from '../systems/Audio.js';
+import { biomeMusic } from '../systems/Music.js';
 
 const BG_DEPTH = -3;
 const WALL_DEPTH = -1;
@@ -38,6 +40,7 @@ export default class BiomeDirector {
     this.wallTiles = [left, right];
     this.walls.addMultiple([left, right]);
     this.bgTiles = scene.add.group([this.bg]);
+    playMusic(biomeMusic('cave')); // звук v2: забіг починається в печері (інший старт перемкне enter)
   }
 
   /** Текстура шипа для біому (бурулька, кілок, базальт). */
@@ -48,6 +51,8 @@ export default class BiomeDirector {
   /** Погода, фон і стіни нового біому; instant — без плавного переходу й плашки (старт забігу). */
   enter(biome, instant) {
     const scene = this.scene;
+    // музика біому; фанфару перемоги не обриваємо — біом заграє одразу після неї
+    playMusic(biomeMusic(biome), { afterCurrent: true });
     if (biome === 'winter') {
       if (scene.settings.snow && !this.snow) this.snow = new Snow(scene);
     } else if (this.snow) {

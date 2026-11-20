@@ -2,6 +2,7 @@
 // поява й представлення (пауза) → бій → миші ведмедя → смерть → прислужники й ворожі кулі зникають → наступний відрізок
 // кола → вікно трофеїв (у ведмедя його немає) → гра йде далі. Окремо: ?intro=1 і «трофеї вже твої» (+Шаги).
 // Бота сюди не досить: з 1-го рівня він Шкодька, Колю й Казана не вбиває. Боса тут б'ємо напряму (takeHit).
+// Звук v2: на кожному кроці — чи грає потрібна музика (представлення, тема боса, лють, фанфара → біом).
 // Баланс, атаки босів і час бою цей скрипт НЕ перевіряє.
 // Очікування щедрі (до 40 с): у хмарі без відеокарти туман бамбука гальмує гру в рази.
 // Використання: node scripts/bosstest.mjs
@@ -14,7 +15,7 @@ const base = server.resolvedUrls.local[0];
 const browser = await chromium.launch({
   headless: true,
   executablePath: process.env.CHROME_PATH || undefined,
-  args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
+  args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'],
 });
 
 /** Повний шлях боса. next — який бос і біом мають бути у відрізку після смерті; loot — чи є вікно трофеїв. */
@@ -22,16 +23,25 @@ async function bossPath({ boss, next, loot, bonus }) {
   const { scene, until, pickCards } = window.__t;
   const bad = [];
   const B = scene.bosses;
+  const A = await import('/src/systems/Audio.js');
+  const M = await import('/src/systems/Music.js');
+  const music = (want, when) => {
+    if (A.currentMusic() !== want) bad.push(`${when}: музика ${A.currentMusic()}, чекали ${want}`);
+  };
   if (!(await until(() => scene.stage === 'prep' || scene.stage === 'fight', 40000))) return ['етап «prep» не настав'];
   if (scene.hazards.getChildren().length) bad.push(`перед босом лишилось шипів: ${scene.hazards.getChildren().length}`);
   if (!(await until(() => B.bannerShown, 30000))) bad.push(`плашки боса немає (t=${scene.elapsedSec.toFixed(1)} stage=${scene.stage} paused=${scene.paused} levelUp=${scene.levelUpOpen} at=${scene.seg.atSec})`);
   if (!(await until(() => scene.introOpen, 30000))) return [...bad, 'представлення не відкрилось'];
+  music(`intro${boss[0].toUpperCase()}${boss.slice(1)}`, 'представлення');
   if (!scene.paused) bad.push('під час представлення гра не на паузі');
   if (!B.bossSpawned) bad.push('bossSpawned = false після появи');
   if (!(await until(() => window.game.scene.isActive('BossIntro') || !scene.introOpen, 3000)) || !scene.introOpen) bad.push('сцена BossIntro не активна');
   if (!(await until(() => !scene.introOpen && !scene.paused, 30000))) return [...bad, 'представлення не закрилось / гра не пішла'];
   if (scene.stage !== 'fight' || !scene.bossActive) bad.push(`після представлення етап ${scene.stage}`);
   if (scene.seg.boss !== boss) bad.push(`у відрізку бос ${scene.seg.boss}, чекали ${boss}`);
+  music(M.bossMusic(boss), 'бій');
+  scene.events.emit('boss:rage');
+  music(M.rageMusic(boss), 'лють');
 
   // прислужники й ворожа куля: мають зникнути зі смертю боса
   const before = scene.enemies.getChildren().length;
@@ -54,6 +64,7 @@ async function bossPath({ boss, next, loot, bonus }) {
   if (!killed) return [...bad, 'боса не вдалося вбити'];
 
   if (B.bossSpawned || B.bannerShown) bad.push('прапорці боса не скинулись після смерті');
+  music('victory', 'смерть боса');
   if (scene.seg.boss !== next.boss || scene.seg.biome !== next.biome) bad.push(`наступний відрізок ${scene.seg.biome}/${scene.seg.boss}, чекали ${next.biome}/${next.boss}`);
   if (scene.loop !== loop0 + (next.loop ?? 0)) bad.push(`коло ${scene.loop}, чекали ${loop0 + (next.loop ?? 0)}`);
   if (scene.enemies.getChildren().some((e) => e.bossMinion || e.kolyaMinion || e.kazanMinion)) bad.push('прислужники боса лишились серед ворогів');
@@ -70,6 +81,8 @@ async function bossPath({ boss, next, loot, bonus }) {
   if (!(await until(() => !scene.paused && !scene.levelUpOpen && scene.stage !== 'fight' && scene.biome === next.biome, 30000))) {
     bad.push(`після боса гра не пішла далі: paused=${scene.paused} levelUp=${scene.levelUpOpen} stage=${scene.stage} biome=${scene.biome}`);
   }
+  // фанфара (~1,6 с) доігрує, далі — музика біому наступного відрізка, і вона справді планується
+  if (!(await until(() => A.currentMusic() === M.biomeMusic(next.biome) && A.musicPlaying(), 10000))) music(M.biomeMusic(next.biome), 'після фанфари');
   return bad;
 }
 
