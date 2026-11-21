@@ -8,6 +8,9 @@ import { ninjaDodgeWindow, ninjaY } from '../systems/Bamboo.js';
 import { createSpikeState, planSpikes, prefillStartWorld, reserveFree, skipSpikes } from '../systems/SpikePlanner.js';
 import { dropPassWindow, dropSide, dropsAllowed, nextDropMs, salamanderDodgeWindow, sparkSplit } from '../systems/Lava.js';
 import { createHeartState, heartDue, heartSide } from '../systems/Heart.js';
+import { createSpringState, springDue, springHeal } from '../systems/HotSpring.js';
+import HotSpring from '../entities/HotSpring.js';
+import { heal } from '../systems/Health.js';
 import { sfx } from '../systems/Audio.js';
 import Spike from '../entities/Spike.js';
 import Lion from '../entities/Lion.js';
@@ -48,6 +51,7 @@ export default class SpawnDirector {
     this.santaState = null;
     this.giftState = null;
     this.heartState = createHeartState(); // сердечка (етап 10)
+    this.springState = createSpringState(); // гаряче джерело (фідбек-9)
     this.heartSeq = 0;
   }
 
@@ -114,6 +118,7 @@ export default class SpawnDirector {
     if (scene.biome === 'winter') this.spawnWinterExtras();
     if (scene.biome === 'lava') this.spawnLavaDrop();
     this.spawnHeart();
+    this.spawnSpring();
   }
 
   /**
@@ -135,6 +140,43 @@ export default class SpawnDirector {
     const gap = BALANCE.heart.spikeGapPx;
     this.spikeState = reserveFree(this.spikeState, side, w - gap - BALANCE.spikeHeight, w + gap, scene.distancePx, `heart${++this.heartSeq}`);
     scene.pickups.add(new HeartPickup(scene, side, y));
+  }
+
+  /**
+   * Гаряче джерело (фідбек-9, systems/HotSpring.js): після павучихи раз на хвилину з шансом; не в бою і не в тиші/підготовці.
+   * Стіна — як у сердечка (без шипа поруч), там же резерв без шипів.
+   */
+  spawnSpring() {
+    const scene = this.scene;
+    const blocked = scene.bossActive || hazardsSuppressed(scene.stage);
+    const r = springDue(this.springState, { tSec: scene.elapsedSec, spiderDead: scene.killedAtSec !== null, blocked }, Math.random);
+    this.springState = r.state;
+    if (r.spawn) this.springPending = true; // випало — чекаємо стіну без шипів (не перекидаючи шанс)
+    if (!this.springPending || blocked) return;
+    const h = scene.textures.getFrame('hotSpring').height * 1.5;
+    const y = -h / 2;
+    const spikes = scene.hazards.getChildren().filter((o) => o.active && o.side).map((o) => ({ side: o.side, y: o.y }));
+    const gap = BALANCE.hotSpring.spikeGapPx; // джерело вище за сердечко — свій відступ від шипів
+    const free = ['left', 'right'].filter((sd) => !spikes.some((o) => o.side === sd && Math.abs(o.y - y) < gap));
+    if (!free.length) return; // обидві стіни в шипах — наступного кадру
+    const side = free[Math.floor(Math.random() * free.length)];
+    this.springPending = false;
+    const w = scene.distancePx - y;
+    this.spikeState = reserveFree(this.spikeState, side, w - gap - BALANCE.spikeHeight, w + gap, scene.distancePx, `spring${++this.heartSeq}`);
+    const spring = new HotSpring(scene, side, y);
+    scene.pickups.add(spring);
+    spring.fitBody();
+  }
+
+  /** Дотик до джерела: життя до максимуму, один раз. З повними життями — нічого (джерело лишається). */
+  useSpring(spring) {
+    const scene = this.scene;
+    const add = springHeal(scene.health.lives, scene.maxLives, spring.used);
+    if (add === null) return;
+    spring.dry();
+    sfx('levelUp');
+    scene.health = heal(scene.health, add, scene.maxLives);
+    scene.floatText(`Гаряче джерело: +${add} ${add === 1 ? 'життя' : 'життів'}`, '#7fe8ff');
   }
 
   /**

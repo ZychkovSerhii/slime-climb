@@ -20,7 +20,7 @@ const SCENARIOS = {
   'cave: рослина й сердечко': {
     query: '',
     run: async () => {
-      const { scene, sp, names, until } = window.__t;
+      const { scene, sp, names, until, noSpikes } = window.__t;
       const bad = [];
       sp.pendingPlants = 1;
       if (!(await until(() => names.includes('Plant'), 8000))) bad.push('рослина не сіла на місце шипа');
@@ -29,6 +29,25 @@ const SCENARIOS = {
       sp.heartState = { nextAt: 0, lastFight: null };
       const heart = () => scene.pickups.getChildren().some((p) => p.active && p.kind === 'heart');
       if (!(await until(heart, 8000))) bad.push('сердечко не з\'явилось');
+      // фідбек-9: гаряче джерело — після павучихи; дотик лікує до максимуму, раз
+      for (const p of scene.pickups.getChildren().slice()) p.destroy();
+      noSpikes();
+      scene.killedAtSec = 1;
+      sp.springState = { startedAt: 0, nextAt: 0, chance: 1 };
+      const spring = () => scene.pickups.getChildren().find((p) => p.active && p.kind === 'spring');
+      if (!(await until(spring, 8000))) bad.push('гаряче джерело не з\'явилось');
+      else {
+        // на стіну гравця, чашею на висоту слизака (той самий клас, що створив SpawnDirector)
+        const Spring = spring().constructor;
+        spring().destroy();
+        const sg = new Spring(scene, scene.player.side, scene.player.baseY - 40);
+        scene.pickups.add(sg);
+        sg.fitBody();
+        sg.scrollsWithWorld = false;
+        scene.health = { ...scene.health, lives: 1 };
+        if (!(await until(() => scene.health.lives === scene.maxLives, 3000))) bad.push(`джерело не вилікувало: ${scene.health.lives}/${scene.maxLives}`);
+        else if (!sg.used || !sg.active) bad.push('джерело не позначене використаним / зникло');
+      }
       return bad;
     },
   },
@@ -94,7 +113,7 @@ const SCENARIOS = {
   'lava (коло 1): саламандра, крапля, черга, уламки іскри': {
     query: '?lava=1&loop=1',
     run: async () => {
-      const { scene, sp, names, noSpikes, count } = window.__t;
+      const { scene, sp, names, noSpikes, count, until } = window.__t;
       const bad = [];
       const wipe = () => {
         for (const e of scene.enemies.getChildren().slice()) if (e.salamander) e.destroy();
@@ -107,6 +126,14 @@ const SCENARIOS = {
       sp.stepWalkers();
       if (!names.includes('Salamander')) bad.push('саламандра не з\'явилась');
       if (!sp.lavaWallBusy) bad.push('lavaWallBusy = false при живій саламандрі');
+      // фідбек-9: саламандра на стіні без гравця, струмінь униз по ЇЇ стіні
+      const sal = scene.enemies.getChildren().find((e) => e.active && e.salamander);
+      if (sal && sal.side === scene.player.side) bad.push('саламандра на стіні гравця');
+      if (sal) {
+        sal.nextAt = 0;
+        if (!(await until(() => sal.state === 'breath' || sal.state === 'warn', 3000))) bad.push('саламандра не дає лінії');
+        else if (sal.beam && Math.abs(sal.beam.angle) !== 90) bad.push(`струмінь не вертикальний: кут ${sal.beam.angle}`);
+      }
       wipe();
       sp.dropAt = 0;
       sp.spawnLavaDrop();

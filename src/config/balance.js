@@ -377,6 +377,9 @@ export const BALANCE = deepFreeze({
   // далі раз на випадкові minSec…maxSec. Не з'являється при повних життях; у бою — щонайбільше одне за бій;
   // не ближче spikeGapPx до шипа на тій самій стіні (і нових шипів там не буде — резерв SpikePlanner).
   // afterFullSec — після втрати життя з повних сердечко не раніше ніж через стільки секунд
+  // Гаряче джерело (фідбек-9, src/systems/HotSpring.js): після павучихи раз на хвилину шанс chance, без появи +chanceStep;
+  // поза боєм (бій/тиша — кидок через retrySec). Їде зі світом на стіні; дотик — життя до максимуму, одноразове.
+  hotSpring: { chance: 0.1, chanceStep: 0.05, everySec: 60, retrySec: 5, spikeGapPx: 160 },
   heart: { firstSec: 60, minSec: 20, maxSec: 70, afterFullSec: 20, spikeGapPx: 120, scale: 1.4 },
 
   // Спавн
