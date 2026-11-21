@@ -162,8 +162,8 @@ export default class SpawnDirector {
   }
 
   /**
-   * Саламандра (етап 11, §11.2): як ніндзя — не більше однієї, на стіні, де гравця немає; від струменя рятує стрибок
-   * на її стіну, тож там резерв без шипів (Lava.salamanderDodgeWindow). Поки летить крапля — не з'являється.
+   * Саламандра (етап 11, §11.2): як ніндзя — не більше однієї, на стіні, де гравця немає. Фідбек-9: струмінь униз по її
+   * стіні, тож без шипів резервується стіна гравця (Lava.salamanderDodgeWindow). Поки летить крапля — не з'являється.
    */
   requestSalamander() {
     const scene = this.scene;
@@ -218,8 +218,9 @@ export default class SpawnDirector {
   /** Крок ніндзі в черзі: true — ще чекає. */
   stepNinja(q, spikes) {
     const scene = this.scene;
-    // крапля (етап 11): вільною має лишитися стіна навпроти краплі; ніндзя й саламандра — стіна, де гравця немає
-    const side = q.type === 'drop' ? otherSide(q.dropSide) : otherSide(scene.player.side);
+    // крапля (етап 11) і саламандра (фідбек-9: струмінь униз по її стіні): вільною має лишитися стіна гравця / навпроти краплі;
+    // ніндзя — стіна, де гравця немає (від сюрикена рятує стрибок туди)
+    const side = q.type === 'drop' ? otherSide(q.dropSide) : q.type === 'salamander' ? scene.player.side : otherSide(scene.player.side);
     if (q.side && q.side !== side) this.spikeState = reserveFree(this.spikeState, q.side, 0, -1, scene.distancePx, q.id); // гравець перестрибнув
     q.side = side;
     const p = scene.player;
@@ -241,7 +242,7 @@ export default class SpawnDirector {
     }
     this.spikeState = reserveFree(this.spikeState, side, iv.from, iv.to, scene.distancePx, q.id); // ніндзя з'явився — лише його вікно
     if (q.type === 'drop') scene.hazards.add(new LavaDrop(scene, q.dropSide));
-    else scene.spawnEnemy(q.type === 'salamander' ? new Salamander(scene, side, q.y) : new Ninja(scene, side, q.y));
+    else scene.spawnEnemy(q.type === 'salamander' ? new Salamander(scene, otherSide(side), q.y) : new Ninja(scene, side, q.y));
     return false;
   }
 

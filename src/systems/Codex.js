@@ -233,6 +233,19 @@ function enemies() {
       desc: 'Зимовий кажан з холодним відливом. Летить прямо на тебе згори, міцніший за печерного.',
       facts: ['Дотик — мінус 1 життя', `Прилітає парою на допомогу «${BALANCE.bearBoss.name}»`, `З 2-го кола посилена (контур): ${TRAIT_TEXT.bat()}`],
     }),
+    // фідбек-9: свої миші бамбуку й лави
+    ...[['bambooBat', 'bamboo', 'Зелена, з листочками бамбуку на крилах. Швидша й міцніша за зимову.'],
+      ['lavaBat', 'lava', 'Розпечена миша надр. Найшвидша й найміцніша з мишей.']].map(([id, biome, desc]) => entry({
+      id: `enemy:${id}`,
+      category: 'enemy',
+      name: BALANCE[biome].bat.name,
+      sprite: BALANCE[biome].bat.sprite,
+      biome,
+      hp: BALANCE[biome].bat.hp,
+      speed: BALANCE[biome].bat.speed,
+      desc: `${desc} Летить прямо на тебе згори.`,
+      facts: ['Дотик — мінус 1 життя', `З 2-го кола посилена (контур): ${TRAIT_TEXT.bat()}`],
+    })),
     entry({
       id: 'enemy:spike',
       category: 'enemy',

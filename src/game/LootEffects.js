@@ -6,6 +6,7 @@ import { saveMeta } from '../systems/Meta.js';
 import { createArmor } from '../systems/Skills.js';
 import { bombTargets, formSkin, friendlyBombDamage, rollSack, sackSkillCard, stepTicker } from '../systems/ShkodkoLoot.js';
 import { hasForm } from '../systems/Forms.js';
+import { cardText } from '../systems/CardText.js';
 import { lootShotDamage } from '../systems/KolyaLoot.js';
 import { ladleDamage, ringVictims } from '../systems/KazanLoot.js';
 import { pickNearest } from '../systems/Targeting.js';
@@ -103,9 +104,11 @@ export default class LootEffects {
     if (kind === 'skill') {
       const card = sackSkillCard(s.progression, Math.random);
       if (card) {
+        // фідбек-9: писати, що саме посилилось («Сюрикени 3: …»), а не «навичка +1» — текст картки ДО взяття (наступний рівень)
+        const { title, desc } = cardText(card, s.progression.picks, s.progression.arsenal);
         s.applyPicked(card);
         sfx('levelUp');
-        s.events.emit('hud:banner', { text: 'Мішок Шкодька:\nнавичка +1', ms: 1400 });
+        s.events.emit('hud:banner', { text: `Мішок Шкодька посилив:\n${title}\n${desc}`, ms: 2600 });
       } else kind = 'xp';
     }
     if (kind === 'xp') {

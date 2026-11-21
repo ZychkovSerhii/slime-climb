@@ -71,7 +71,7 @@ test('numeric sort: strongest first, entries without the value last', () => {
   const known = hp.filter((v) => v != null);
   expect(known).toEqual([...known].sort((a, b) => b - a));
   expect(hp.slice(known.length).every((v) => v == null)).toBe(true);
-  expect(r[0].id).toBe('enemy:slugBiter'); // фідбек-8: кусака 40 HP — найміцніший звичайний
+  expect(['enemy:slugBiter', 'enemy:slugSpitter']).toContain(r[0].id); // фідбек-9: обидва слимаки Колі по 80 HP — найміцніші звичайні
 });
 
 test('biome sort: cave, then winter, then bamboo, then entries without a biome', () => {

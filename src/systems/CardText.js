@@ -82,7 +82,7 @@ export const LOOT_TEXT = {
   form: () => ({ title: 'Ти став павуком', desc: `скін павука, стрибок на ${Math.round((BALANCE.bossLoot.form.jumpSpeedMul - 1) * 100)}% швидший;\nкнопка «Рій»: ${BALANCE.forms.swarm.count} павучків на ворогів, раз на ${BALANCE.forms.cdMs / 1000} с` }),
   sack: () => ({
     title: 'Мішок Шкодька',
-    desc: `раз на ${BALANCE.shkodkoLoot.sack.everyMs / 1000} с: бомби, досвід\nчи Шаги, зрідка навичка +1`,
+    desc: `раз на ${BALANCE.shkodkoLoot.sack.everyMs / 1000} с: бомби, досвід чи Шаги;\nзрідка — ще один рівень однієї з твоїх навичок\n(напис покаже, якої саме)`,
   }),
   iam: () => {
     const I = BALANCE.shkodkoLoot.iam;

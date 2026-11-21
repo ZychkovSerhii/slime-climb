@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { BALANCE } from '../src/config/balance.js';
 import {
-  beamCanFire, beamDanger, beamHits, dropPassWindow, salamanderMayFire, dropSide, dropsAllowed, salamanderDodgeWindow, salamanderFires,
+  beamCanFire, beamDanger, columnDanger, beamHits, dropPassWindow, salamanderMayFire, dropSide, dropsAllowed, salamanderDodgeWindow, salamanderFires,
   salamanderTimeline, sparkSplit,
 } from '../src/systems/Lava.js';
 
@@ -83,5 +83,15 @@ describe('Струмінь саламандри: від нього рятує с
     expect(salamanderMayFire(true, Infinity)).toBe(false);
     expect(salamanderMayFire(false, S.landGraceMs - 1)).toBe(false);
     expect(salamanderMayFire(false, S.landGraceMs)).toBe(true);
+  });
+});
+
+describe('фідбек-9: струмінь саламандри вертикальний, по її стіні', () => {
+  const at = (side, y, isJumping = false) => ({ side, y, isJumping });
+  test('б\'є лише того, хто стоїть на її стіні нижче за неї', () => {
+    expect(columnDanger(at('right', 900), 'right', 400)).toBe(true);
+    expect(columnDanger(at('left', 900), 'right', 400)).toBe(false); // стіна гравця вільна
+    expect(columnDanger(at('right', 900, true), 'right', 400)).toBe(false); // у стрибку — ще ні
+    expect(columnDanger(at('right', 200), 'right', 400)).toBe(false); // вище за саламандру
   });
 });
