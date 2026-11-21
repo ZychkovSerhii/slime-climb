@@ -39,6 +39,7 @@ export default class ZombieBoss extends Enemy {
     this.act = 'enter';
     this.dir = 1;
     this.strike = null;
+    this.nextStrikeAt = Infinity; // заводиться, коли спустився (курку можуть збити ще під час спуску)
     this.lastDodgeAt = -Infinity;
     this.timers = [];
     this.fx = scene.add.graphics().setDepth(5);

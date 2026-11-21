@@ -10,7 +10,7 @@ const BLAST = 0xd8c890;
 
 /**
  * Пшикач (біом 5, вибуховик): з'являється згори на стіні side (стіна гравця) і біжить по ній униз (відносно екрана).
- * Ближче fusePx до гравця — «пш-ш» fuseMs: блимає, роздувається й далі повзе до гравця на creepSpeed; потім вибух
+ * Ближче fusePx до гравця — «пш-ш» fuseMs: блимає, роздувається й далі повзе по стіні до висоти гравця на creepSpeed; потім вибух
  * radiusPx. Впритул (contactPx) — мінус contactDamage життів (ТЗ: 3), у радіусі — мінус 1. Рятує стрибок на іншу стіну.
  * Сам дотик не шкодить (лише вибух). Убитий до вибуху — вибуху немає. Нагорода — лише за вбитого.
  */
@@ -41,8 +41,9 @@ export default class Puffball extends Enemy {
       else if (this.y > scene.scale.height + BALANCE.offscreenMarginPx) this.destroy();
       return;
     }
-    const a = Phaser.Math.Angle.Between(this.x, this.y, p.x, p.y);
-    scene.physics.velocityFromRotation(a, CFG.creepSpeed * mul, this.body.velocity);
+    // повзе вздовж своєї стіни до висоти гравця (не відлітає від стіни через коридор)
+    const dy = p.y - this.y;
+    this.body.setVelocity(0, Math.abs(dy) < 4 ? 0 : Math.sign(dy) * CFG.creepSpeed * mul);
     if (now >= this.fuseAt + CFG.fuseMs) this.explode();
   }
 
