@@ -1,10 +1,11 @@
 // Бот-плейтест: справжня гра в headless Chromium, бот сам стрибає і вибирає картки.
 // Смерть вимкнена: рахуємо кожен удар (з джерелом і часом), щоб оцінити, чи реально дожити до боса і вбити його.
-// Використання: node scripts/playtest.mjs [--seconds 160] [--runs 1] [--no-enemies] [--weapon axe|chakra|shotgun] [--cards hat,hat,extraLife] [--winter] [--shkodko] [--bamboo] [--kolya] [--bear] [--lava] [--kazan]
+// Використання: node scripts/playtest.mjs [--seconds 160] [--runs 1] [--no-enemies] [--weapon axe|chakra|shotgun] [--cards hat,hat,extraLife] [--winter] [--shkodko] [--bamboo] [--kolya] [--bear] [--lava] [--kazan] [--grass] [--zombie]
 // --winter — одразу зимовий біом без павучихи (?winter=1); --shkodko — зима і Шкодько на 6-й с (?shkodko=1)
 // --bamboo — одразу бамбук без боса (?bamboo=1); --kolya — бамбук і Коля на 6-й с (?kolya=1)
 // --bear — зима і ведмідь-міні-бос на 6-й с (?bear=1), далі Шкодько (етап 10)
 // --lava — одразу лава без боса (?lava=1); --kazan — лава і Пан Казан на 6-й с (?kazan=1) (етап 11)
+// --grass — одразу трава без боса (?grass=1); --zombie — трава і Мрець-Велетень на 6-й с (?zombie=1) (біом 5)
 // Потрібен браузер Playwright (npx playwright install chromium) або CHROME_PATH.
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
@@ -27,6 +28,8 @@ const KOLYA = process.argv.includes('--kolya');
 const BEAR = process.argv.includes('--bear');
 const LAVA = process.argv.includes('--lava');
 const KAZAN = process.argv.includes('--kazan');
+const GRASS = process.argv.includes('--grass');
+const ZOMBIE = process.argv.includes('--zombie');
 
 // Код бота виконується всередині сторінки (dev-режим дає window.game)
 function installBot() {
@@ -144,6 +147,14 @@ function installBot() {
         if (e.lidWarn) virt.push({ x: W / 2, y: e.lidWarn.y, displayWidth: W, displayHeight: 40, active: true, type: 'lid', scrollsWithWorld: false, from: (e.lidWarn.at - now) / 1000, to: (e.lidWarn.at - now + 900) / 1000 }); // туди — на висоті гравця, назад — вище
       }
     }
+    // біом 5: удар рукою мерця — смуга на стіні від замаху до кінця удару; Пшикач з ґнотом — коло вибуху
+    for (const e of s.enemies.getChildren()) {
+      if (e.active && e.type === 'zombie' && e.strike) {
+        const z = e.strike.zone;
+        virt.push({ x: z.x + z.w / 2, y: z.y + z.h / 2, displayWidth: z.w, displayHeight: z.h, active: true, type: 'hand', scrollsWithWorld: false, from: (e.strike.hitAt - now) / 1000 - 0.05, to: (e.strike.hitAt + 300 - now) / 1000 });
+      }
+      if (e.active && e.puffball && e.fuseAt != null) virt.push({ x: e.x, y: e.y, displayWidth: 240, displayHeight: 240, active: true, type: 'puffBlast', scrollsWithWorld: false });
+    }
     for (const l of s.enemyProjectiles.getChildren()) {
       if (l.active && l.type === 'lid') virt.push({ x: W / 2, y: l.y, displayWidth: W, displayHeight: 40, active: true, type: 'lid', scrollsWithWorld: false, from: 0, to: (1600 - (now - l.bornAt)) / 1000 });
     }
@@ -228,6 +239,9 @@ function installBot() {
     // як людина (етап 10): ведмідь присів і стрілка показує на нашу стіну — стрибаємо на іншу, якщо там безпечно
     const bear = s.enemies.getChildren().find((o) => o.type === 'bear' && o.act === 'warn' && o.target);
     if (bear && decision === 'stay' && Math.abs(bear.target.x - s.player.x) < 60 && safeIfJump(list, 1.2) > 0.8) decision = 'jump';
+    // біом 5, як людина: тінь руки мерця на нашій стіні — стрибаємо на іншу (прогноз бачить старт стрибка в смузі й панікує)
+    const hand = s.enemies.getChildren().find((o) => o.type === 'zombie' && o.strike && !o.strike.slammed && o.strike.zone.side === s.player.side);
+    if (hand && decision !== 'jump') decision = 'jump';
     report.decisions = report.decisions || {};
     report.decisions[decision] = (report.decisions[decision] || 0) + 1;
     if (decision === 'jump') s.player.jump();
@@ -257,6 +271,7 @@ function installBot() {
     if (e.type === 'kolya') report.kolyaKilled = +s.elapsedSec.toFixed(1);
     if (e.type === 'bear') report.bearKilled = +s.elapsedSec.toFixed(1);
     if (e.type === 'kazan') report.kazanKilled = +s.elapsedSec.toFixed(1);
+    if (e.type === 'zombie') report.zombieKilled = +s.elapsedSec.toFixed(1);
     report.kills = report.kills || {};
     report.kills[e.type] = (report.kills[e.type] || 0) + 1;
   });
@@ -291,7 +306,7 @@ for (let r = 0; r < RUNS; r++) {
   const page = await browser.newPage({ viewport: { width: 360, height: 640 } });
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  const q = [WEAPON && `weapon=${WEAPON}`, CARDS && `cards=${CARDS}`, WINTER && 'winter=1', SHKODKO && 'shkodko=1', BAMBOO && 'bamboo=1', KOLYA && 'kolya=1', BEAR && 'bear=1', LAVA && 'lava=1', KAZAN && 'kazan=1'].filter(Boolean).join('&');
+  const q = [WEAPON && `weapon=${WEAPON}`, CARDS && `cards=${CARDS}`, WINTER && 'winter=1', SHKODKO && 'shkodko=1', BAMBOO && 'bamboo=1', KOLYA && 'kolya=1', BEAR && 'bear=1', LAVA && 'lava=1', KAZAN && 'kazan=1', GRASS && 'grass=1', ZOMBIE && 'zombie=1'].filter(Boolean).join('&');
   await page.goto(q ? `${url}?${q}` : url);
   await page.waitForTimeout(800);
   await page.mouse.click(180, 320); // меню → гра
@@ -341,7 +356,7 @@ for (const [i, rep] of results.entries()) {
   console.log(`  Шаги: ${rep.steps} (на першій смерті: ${rep.stepsAtDeath ?? '-'}), вбивства: ${JSON.stringify(rep.kills ?? {})}`);
   if (rep.relics) console.log(`  relics: ${rep.relics.join(', ')}`);
   console.log(`  зима: ричань по гравцю ${rep.winter.roars}, подарунків ${rep.winter.gifts}, Санта ${rep.winter.santa}`);
-  console.log(`  boss start ${rep.bossStart ?? '-'}, boss killed ${rep.bossKilled ?? '-'}, Шкодько killed ${rep.shkodkoKilled ?? '-'}, Коля killed ${rep.kolyaKilled ?? '-'}, ведмідь killed ${rep.bearKilled ?? "-"}, Казан killed ${rep.kazanKilled ?? "-"}, phases: ${rep.boss.join(' ') || '-'}`);
+  console.log(`  boss start ${rep.bossStart ?? '-'}, boss killed ${rep.bossKilled ?? '-'}, Шкодько killed ${rep.shkodkoKilled ?? '-'}, Коля killed ${rep.kolyaKilled ?? '-'}, ведмідь killed ${rep.bearKilled ?? "-"}, Казан killed ${rep.kazanKilled ?? "-"}, Мрець killed ${rep.zombieKilled ?? "-"}, phases: ${rep.boss.join(' ') || '-'}`);
   console.log(`  picks: ${rep.picks.join(', ')}`, 'decisions', JSON.stringify(rep.decisions), 'panicBy', JSON.stringify(rep.panicBy));
   if (rep.hitCtx) console.log('  hitCtx:', JSON.stringify(rep.hitCtx));
   if (rep.errors.length) console.log('  ERRORS:', rep.errors);

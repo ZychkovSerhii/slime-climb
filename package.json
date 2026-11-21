@@ -18,7 +18,8 @@
     "shkodkotest": "node scripts/shkodkotest.mjs",
     "slotstest": "node scripts/slotstest.mjs",
     "formtest": "node scripts/formtest.mjs",
-    "musictest": "node scripts/musictest.mjs"
+    "musictest": "node scripts/musictest.mjs",
+    "zombietest": "node scripts/zombietest.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.6.0",

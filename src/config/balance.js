@@ -1,5 +1,7 @@
 // Усі числа балансу гри. Змінюй тут — сцени й сутності читають тільки звідси.
 // Час — у секундах гри (sec) або мілісекундах (ms), відстані — у пікселях базової роздільності 720×1280.
+// Біом 5 (трава, Мрець-Велетень) — у сусідньому balanceGrass.js (стеля 650 рядків, tests/size.test.js); тут лише підключено.
+import { GRASS, GRASS_ENEMIES, ZOMBIE } from './balanceGrass.js';
 
 function deepFreeze(obj) {
   for (const v of Object.values(obj)) {
@@ -125,6 +127,7 @@ export const BALANCE = deepFreeze({
     // Бульбашка Казана (кипіння): пливе до гравця, лопається від дотику або через lifeMs радіусом popPx
     bubble: { hp: 35, xp: 1, points: 20, speed: 240, // фідбек-8: було 2 HP і 60 px/с (+300%)
       lifeMs: 4000, popPx: 50 },
+    ...GRASS_ENEMIES, // біом 5: Волохань, лучник, вершник, Пшикач, малий мрець — config/balanceGrass.js
   },
   // Біоми. Біом 1 (cave) — як був: його спавн — spawnBaseMs і enemies.<type>.from нижче.
   // Зима настає після смерті павучихи (у 6b — далі Шкодько і чергування). from — секунди від початку зими.
@@ -174,6 +177,8 @@ export const BALANCE = deepFreeze({
     embers: { count: 22, speedMin: 18, speedMax: 45, alpha: 0.5 },
     transitionMs: 1500,
   },
+  grass: GRASS, // біом 5 — config/balanceGrass.js
+
   boss: {
     name: 'Твоя мамаша',
     atSec: 120,
@@ -340,6 +345,7 @@ export const BALANCE = deepFreeze({
     dodgeWindowMs: 1600,
     debugAtSec: 6, // ?kazan=1
   },
+  zombie: ZOMBIE, // бос 5 — config/balanceGrass.js
 
   // Коло біомів (етап 6b, етап 9): печера (павучиха) → зима (Шкодько) → бамбук (Коля) → печера… Коло n (з 0): швидкість ×speedMul^n.
   // Етап 10 (§10.1): HP і досвід — у scaling нижче (замість колишніх cycle.hpMul / xpMul 1,35 за коло).
@@ -566,7 +572,8 @@ export const BALANCE = deepFreeze({
     // Шаги за вбивство. smallSpider — павучки рою павучихи: їх за бій десятки, тому 0 [рішення], інакше рій давав би більше за саму павучиху
     stepsPerKill: { lion: 2, bat: 1, plant: 2, smallSpider: 0, boss: 60, elf: 1, penguin: 1, snowball: 2, bear: 30, santa: 40, shkodko: 100, wagon: 0,
       ninja: 2, lantern: 1, slugBiter: 1, slugSpitter: 1, kolya: 120, kolyaPart: 0, bearAura: 0,
-      salamander: 2, spark: 1, sparkling: 0, bubble: 0, kazan: 150 },
+      salamander: 2, spark: 1, sparkling: 0, bubble: 0, kazan: 150,
+      hairySpider: 2, archer: 2, rider: 3, puffball: 2, zombieMini: 0, zombie: 150 },
     // Скіни лише візуальні. sprite — ключ спрайта в src/art/sprites (однаковий розмір полотна → хітбокс той самий)
     skins: [
       { id: 'slime', name: 'Слизак', price: 0, sprite: 'slime', shot: 'projectile' },
@@ -605,6 +612,11 @@ export const BALANCE = deepFreeze({
       { id: 'spark50', stat: 'spark', count: 50, reward: 50, title: '50 іскор', caption: 'Жодна не долетіла.' },
       { id: 'kazan1', stat: 'kazan', count: 1, reward: 250, title: 'Вбивство Казана', caption: 'Зварив його самого.' },
       { id: 'kazan5', stat: 'kazan', count: 5, reward: 600, title: '5 разів вбити Казана', caption: 'Кришка вже не тримається.' },
+      // біом 5: трава і Мрець-Велетень
+      { id: 'hairySpider50', stat: 'hairySpider', count: 50, reward: 50, title: '50 Волоханів', caption: 'Трава більше не ворушиться.' },
+      { id: 'puffball50', stat: 'puffball', count: 50, reward: 50, title: '50 Пшикачів', caption: 'Пш-ш-ш... і тиша.' },
+      { id: 'zombie1', stat: 'zombie', count: 1, reward: 300, title: 'Вбивство Мерця', caption: 'Удруге не встане. Мабуть.' },
+      { id: 'zombie5', stat: 'zombie', count: 5, reward: 700, title: '5 разів вбити Мерця', caption: 'Курка теж не пробачить.' },
     ],
     toastMs: 2500,
   },

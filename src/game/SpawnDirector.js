@@ -10,7 +10,7 @@ import { dropPassWindow, dropSide, dropsAllowed, nextDropMs, salamanderDodgeWind
 import { createHeartState, heartDue, heartSide } from '../systems/Heart.js';
 import { createSpringState, springDue, springHeal } from '../systems/HotSpring.js';
 import HotSpring from '../entities/HotSpring.js';
-import { heal } from '../systems/Health.js';
+import { giveTempHeart, heal } from '../systems/Health.js';
 import { sfx } from '../systems/Audio.js';
 import Spike from '../entities/Spike.js';
 import Lion from '../entities/Lion.js';
@@ -28,6 +28,12 @@ import Spark from '../entities/Spark.js';
 import Sparkling from '../entities/Sparkling.js';
 import LavaDrop from '../entities/LavaDrop.js';
 import HeartPickup from '../entities/HeartPickup.js';
+import HairySpider from '../entities/HairySpider.js';
+import Archer from '../entities/Archer.js';
+import Rider from '../entities/Rider.js';
+import Puffball from '../entities/Puffball.js';
+import FleshPickup from '../entities/FleshPickup.js';
+import { fleshDrops, fleshEffect } from '../systems/Grass.js';
 
 /**
  * Що й коли з'являється: шипи, звичайні вороги за розкладом, черга «ходоків» (ніндзя, саламандра, лавова крапля),
@@ -113,6 +119,7 @@ export default class SpawnDirector {
       else if (type === 'elf') scene.spawnEnemy(new Elf(scene));
       else if (type === 'penguin') this.spawnPenguins();
       else if (type === 'snowball') scene.spawnEnemy(new Snowball(scene, otherSide(scene.player.side)));
+      else this.spawnGrass(type);
     }
     this.stepWalkers();
     if (scene.biome === 'winter') this.spawnWinterExtras();
@@ -177,6 +184,45 @@ export default class SpawnDirector {
     sfx('levelUp');
     scene.health = heal(scene.health, add, scene.maxLives);
     scene.floatText(`Гаряче джерело: +${add} ${add === 1 ? 'життя' : 'життів'}`, '#7fe8ff');
+  }
+
+  /**
+   * Біом 5: Волохань і лучник — на стіні, де гравця немає; Пшикач — згори по стіні гравця; вершник — як Волохань.
+   * Пшикач і вершник — не більше одного на екрані (рішення Claude): вибух −3 і 60 HP разом — і так боляче.
+   */
+  spawnGrass(type) {
+    const scene = this.scene;
+    const away = otherSide(scene.player.side);
+    const alive = (flag) => scene.enemies.getChildren().some((e) => e.active && e[flag]);
+    if (type === 'hairySpider') scene.spawnEnemy(new HairySpider(scene, away));
+    else if (type === 'archer') scene.spawnEnemy(new Archer(scene, away));
+    else if (type === 'puffball' && !alive('puffball')) scene.spawnEnemy(new Puffball(scene, scene.player.side));
+    else if (type === 'rider' && !alive('rider')) scene.spawnEnemy(new Rider(scene, away));
+  }
+
+  /** Малий мрець загинув (біом 5): з шансом flesh.chance — гнила плоть на найближчій стіні, їде зі світом. */
+  dropFlesh(x, y) {
+    const scene = this.scene;
+    if (scene.dead || !fleshDrops(Math.random)) return;
+    const side = x < scene.scale.width / 2 ? 'left' : 'right';
+    scene.pickups.add(new FleshPickup(scene, side, Math.min(Math.max(y, 40), scene.scale.height * 0.6)));
+  }
+
+  /** Дотик до гнилої плоті: 90% — тимчасове серце на tempMs, 10% — +1 життя; з повними життями — лежить далі. */
+  useFlesh(flesh) {
+    const scene = this.scene;
+    const kind = fleshEffect(Math.random, scene.health.lives >= scene.maxLives);
+    if (!kind) return;
+    flesh.destroy();
+    sfx('chomp');
+    if (kind === 'life') {
+      scene.health = heal(scene.health, 1, scene.maxLives);
+      scene.floatText('Гнила плоть: +1 життя', '#ff7a8a');
+      return;
+    }
+    const ms = BALANCE.zombie.flesh.tempMs;
+    scene.health = giveTempHeart(scene.health, scene.nowMs, ms);
+    scene.floatText(`Гнила плоть: тимчасове серце ${ms / 1000} с`, '#9ad85a');
   }
 
   /**

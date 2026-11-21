@@ -33,7 +33,7 @@ export default class TuningScene extends Phaser.Scene {
     });
 
     const top = height * 0.23;
-    const rowH = height * 0.062; // 10 рядків (етап 11: «HP Казана») — не залазять на підпис унизу
+    const rowH = height * 0.056; // 11 рядків (біом 5: «HP Мерця») — не залазять на підпис унизу
     TUNING_FIELDS.forEach((f, i) => {
       const y = top + i * rowH;
       const v = this.t[f.key];

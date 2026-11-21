@@ -23,7 +23,7 @@ test('nothing from BALANCE is forgotten', () => {
   for (const id of Object.keys(BALANCE.enemies)) expect(ids.has(`enemy:${id}`), id).toBe(true);
   for (const s of BALANCE.meta.skins) expect(ids.has(`skin:${s.id}`), s.id).toBe(true);
   expect(ids.has('boss:spider') && ids.has('boss:shkodko') && ids.has('boss:kolya') && ids.has('boss:kazan')).toBe(true);
-  expect(ids.has('biome:bamboo') && ids.has('biome:lava')).toBe(true);
+  expect(ids.has('biome:bamboo') && ids.has('biome:lava') && ids.has('biome:grass') && ids.has('boss:zombie')).toBe(true);
 });
 
 test('ids are unique, every entry has a name, a description and a known sprite', () => {
@@ -62,7 +62,7 @@ test('search is case-insensitive and by name', () => {
 test('category filter', () => {
   const r = queryCodex(all, { category: 'boss' });
   expect(r.every((e) => e.category === 'boss')).toBe(true);
-  expect(r.length).toBe(5);
+  expect(r.length).toBe(6);
 });
 
 test('numeric sort: strongest first, entries without the value last', () => {

@@ -160,6 +160,16 @@ export const TRACKS = {
       { wave: 'noise', vol: 0.035, pattern: 'x - x - - x - x x - x - x x x x' },
     ],
   },
+  // Мрець-Велетень (біом 5): глухі кроки й стогін униз
+  introZombie: {
+    bpm: 112,
+    loop: false,
+    voices: [
+      { wave: 'triangle', vol: 0.11, pattern: 'F2 . . . F2 . . . E2 . . . Eb2 . D2 .' },
+      { wave: 'square', vol: 0.05, pattern: '. . C5 . . . B4 . . . Bb4 . A4 . Ab4 .' },
+      { wave: 'noise', vol: 0.035, pattern: 'x - - - x - - - x - - - x - x x' },
+    ],
+  },
   // Коля: в'язке «буль-буль» униз і важкий бас
   introKolya: {
     bpm: 120,
@@ -174,9 +184,9 @@ export const TRACKS = {
   ...BOSS_TRACKS,
 };
 
-const BIOME_MUSIC = { cave: 'cave', winter: 'winter', bamboo: 'bamboo', lava: 'lava' };
-const BOSS_MUSIC = { spider: 'bossSpider', bear: 'bossBear', shkodko: 'bossShkodko', kolya: 'bossKolya', kazan: 'bossKazan' };
-const RAGE_MUSIC = { spider: 'rageSpider', shkodko: 'rageShkodko', kolya: 'rageKolya', kazan: 'rageKazan' };
+const BIOME_MUSIC = { cave: 'cave', winter: 'winter', bamboo: 'bamboo', lava: 'lava', grass: 'grass' };
+const BOSS_MUSIC = { spider: 'bossSpider', bear: 'bossBear', shkodko: 'bossShkodko', kolya: 'bossKolya', kazan: 'bossKazan', zombie: 'bossZombie' };
+const RAGE_MUSIC = { spider: 'rageSpider', shkodko: 'rageShkodko', kolya: 'rageKolya', kazan: 'rageKazan', zombie: 'rageZombie' };
 
 /** Трек біому (невідомий біом — печера). */
 export function biomeMusic(biome) {

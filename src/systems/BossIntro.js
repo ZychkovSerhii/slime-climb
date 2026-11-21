@@ -10,6 +10,7 @@ const INFO = {
   kolya: { name: BALANCE.kolya.name, sprite: 'kolya', frame: 0, scale: 2.6, music: 'introKolya' },
   bear: { name: BALANCE.bearBoss.name, sprite: 'bear', frame: 2, scale: 3.4, music: 'introBear' }, // етап 10, кадр rear
   kazan: { name: BALANCE.kazan.name, sprite: 'kazan', frame: 3, scale: 2.6, music: 'introKazan' }, // етап 11, кадр boil
+  zombie: { name: BALANCE.zombie.name, sprite: 'zombie', frame: 0, scale: 2.4, music: 'introZombie' }, // біом 5
 };
 
 export const INTRO_BOSSES = Object.keys(INFO);

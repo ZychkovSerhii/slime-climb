@@ -10,7 +10,7 @@ const only = process.argv.includes('--only') ? process.argv[process.argv.indexOf
 const QUICK = process.argv.includes('--quick');
 // після скількох секунд гри вмирати: 4 с — до боса, 14 с — посеред бою (дебаг-боси виходять на 6-й с)
 const DIE_AT = QUICK ? [4] : [4, 14];
-const SCENARIOS = ['cave', 'boss', 'winter', 'bear', 'shkodko', 'bamboo', 'kolya', 'lava', 'kazan'].filter((s) => !only || only.includes(s));
+const SCENARIOS = ['cave', 'boss', 'winter', 'bear', 'shkodko', 'bamboo', 'kolya', 'lava', 'kazan', 'grass', 'zombie'].filter((s) => !only || only.includes(s));
 const VIEW = { width: 360, height: 640 };
 
 const server = await createServer({ server: { port: 5300 + Math.floor(Math.random() * 100) }, logLevel: 'error' });

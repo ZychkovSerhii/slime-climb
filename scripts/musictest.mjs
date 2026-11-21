@@ -103,7 +103,7 @@ await scenario('старе «Звук: вимк.» → тиша і там, і т
   });
 });
 
-const BIOMES = { '': 'cave', '?winter=1': 'winter', '?bamboo=1': 'bamboo', '?lava=1': 'lava' };
+const BIOMES = { '': 'cave', '?winter=1': 'winter', '?bamboo=1': 'bamboo', '?lava=1': 'lava', '?grass=1': 'grass' };
 for (const [query, track] of Object.entries(BIOMES)) {
   await scenario(`старт ${query || 'звичайний'} → ${track}`, async (page) => {
     await page.goto(`${base}${query}`);

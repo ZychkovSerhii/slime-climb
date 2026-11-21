@@ -52,7 +52,7 @@ async function bossPath({ boss, next, loot, bonus }) {
   const loop0 = scene.loop;
 
   // вбиваємо боса базовим Enemy.takeHit: в обхід стель шкоди за фазу (Шкодько, Коля) і невразливості
-  const TYPES = ['boss', 'shkodko', 'kolya', 'bear', 'kazan'];
+  const TYPES = ['boss', 'shkodko', 'kolya', 'bear', 'kazan', 'zombie'];
   const target = scene.enemies.getChildren().find((e) => e.active && TYPES.includes(e.type));
   if (!target) return [...bad, 'боса немає серед ворогів'];
   let proto = Object.getPrototypeOf(target);
@@ -91,7 +91,8 @@ const SCENARIOS = {
   'ведмідь (без трофеїв) → Шкодько': { query: '?bear=1', args: { boss: 'bear', next: { boss: 'shkodko', biome: 'winter' }, loot: false } },
   'Шкодько → бамбук з Колею': { query: '?shkodko=1', args: { boss: 'shkodko', next: { boss: 'kolya', biome: 'bamboo' }, loot: true } },
   'Коля → лава з Казаном': { query: '?kolya=1', args: { boss: 'kolya', next: { boss: 'kazan', biome: 'lava' }, loot: true } },
-  'Казан → печера наступного кола': { query: '?kazan=1', args: { boss: 'kazan', next: { boss: 'spider', biome: 'cave', loop: 1 }, loot: true } },
+  'Казан → трава з Мерцем': { query: '?kazan=1', args: { boss: 'kazan', next: { boss: 'zombie', biome: 'grass' }, loot: true } },
+  'Мрець (без трофеїв) → печера наступного кола': { query: '?zombie=1', args: { boss: 'zombie', next: { boss: 'spider', biome: 'cave', loop: 1 }, loot: false } },
   'павучиха, усі трофеї вже взяті → +Шаги': {
     query: '?boss=1&cards=loot:armor,loot:venom,loot:oksana,loot:web,loot:form',
     args: { boss: 'spider', next: { boss: 'bear', biome: 'winter' }, loot: true, bonus: 1 },

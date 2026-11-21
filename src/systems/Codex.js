@@ -22,7 +22,7 @@ export const CATEGORIES = [
   { id: 'skin', name: 'Скіни' },
 ];
 
-export const BIOMES = { cave: 'Печера', winter: 'Зима', bamboo: 'Туманний бамбук', lava: 'Лавові надра' };
+export const BIOMES = { cave: 'Печера', winter: 'Зима', bamboo: 'Туманний бамбук', lava: 'Лавові надра', grass: "Трав'яні пагорби" };
 
 export const SORTS = [
   { id: 'category', name: 'Категорія' }, // порядок buildCodex: персонаж, зброя, … скіни
@@ -216,9 +216,9 @@ function enemies() {
     const i = info();
     const facts = [...(i.facts ?? [])];
     if (TRAIT_TEXT[id]) facts.push(`З 2-го кола посилений (контур): ${TRAIT_TEXT[id]()}`);
-    if (id !== 'santa') facts.unshift('Дотик — мінус 1 життя');
+    if (id !== 'santa' && id !== 'puffball') facts.unshift('Дотик — мінус 1 життя');
     facts.push(`Досвід: ${E[id].xp}, Шаги: ${BALANCE.meta.stepsPerKill[id] ?? 0}`);
-    const sprite = { wagon: 'wagon', slugBiter: 'slug', slugSpitter: 'slug' }[id] ?? id;
+    const sprite = { wagon: 'wagon', slugBiter: 'slug', slugSpitter: 'slug', rider: 'hairySpider', zombieMini: 'zombie' }[id] ?? id;
     return entry({ id: `enemy:${id}`, category: 'enemy', sprite, hp: i.hp ?? E[id].hp, ...i, facts });
   });
   const hazards = [
@@ -332,6 +332,24 @@ function enemies() {
       facts: ['Дотик — мінус 1 життя', 'Повертається тим самим шляхом — рятує стрибок'],
     }),
     entry({
+      id: 'enemy:thornBush',
+      category: 'enemy',
+      name: 'Колючий кущ',
+      sprite: 'thornBush',
+      biome: 'grass',
+      desc: "Шип трав'яних стін. Не вбивається: перестрибни на іншу стіну.",
+      facts: ['Дотик — мінус 1 життя'],
+    }),
+    entry({
+      id: 'enemy:flesh',
+      category: 'enemy',
+      name: 'Гнила плоть',
+      sprite: 'flesh',
+      biome: 'grass',
+      desc: `Падає з малого мерця й лежить на стіні. З неповними життями: ${pct(BALANCE.zombie.flesh.tempChance)}% — тимчасове зелене серце на ${sec(BALANCE.zombie.flesh.tempMs)} с, інакше +1 життя.`,
+      facts: ['З повними життями не підбирається — лежить далі', 'Тимчасове серце одне: нове лише оновлює таймер', 'Удар спершу знімає його'],
+    }),
+    entry({
       id: 'enemy:candy',
       category: 'enemy',
       name: 'Льодяник',
@@ -441,7 +459,31 @@ function bosses() {
         cycleFact,
       ],
     }),
+    zombieBoss(cycleFact), // біом 5
   ];
+}
+
+function zombieBoss(cycleFact) {
+  const Zb = BALANCE.zombie;
+  return entry({
+    id: 'boss:zombie',
+    category: 'boss',
+    name: Zb.name,
+    sprite: 'zombie',
+    biome: 'grass',
+    hp: Zb.hp,
+    speed: Zb.speed,
+    desc: 'Здоровенний мрець у латаній сорочці. Висить над тобою, гойдається й б\'є рукою по твоїй стіні.',
+    facts: [
+      `Приходить через ${Math.floor(Zb.afterSec / 60)} хв після перемоги над «${BALANCE.kazan.name}»`,
+      `Перед ударом на твоїй стіні ${sec(Zb.strike.warnMs)} с тінь — стрибай на іншу`,
+      `На ${pct(Zb.phases.summon)}% HP кличе ${Zb.summon.count} малих мерців; з них падає гнила плоть`,
+      `На ${pct(Zb.phases.hen)}% HP сідає на курку (${Zb.hen.hp} HP): поки сидить, б'єш курку, а вона ухиляється від куль`,
+      `Курку збито — мрець ×${num(Zb.after.speedMul)} швидший і б'є в ${num(Zb.after.strikeMul)} раза частіше`,
+      `Нагорода: ${BALANCE.meta.stepsPerKill.zombie} Шагів, без трофея`,
+      cycleFact,
+    ],
+  });
 }
 
 function biomes() {
@@ -496,7 +538,21 @@ function biomes() {
         `Вороги: ${names(['salamander', 'spark', 'bat'])}`,
         'Пастки: базальтові кілки, лавові краплі',
         'Іскри лише на фоні, вимикаються в меню',
-        'Після Казана — знову печера, але важча',
+        `Після Казана — ${BIOMES.grass}`,
+      ],
+    }),
+    entry({
+      id: 'biome:grass',
+      category: 'biome',
+      name: BIOMES.grass,
+      sprite: 'wallGrass',
+      biome: 'grass',
+      desc: `Настає після перемоги над «${BALANCE.kazan.name}». Тут чекає бос «${BALANCE.zombie.name}».`,
+      facts: [
+        `Вороги: ${names(['hairySpider', 'archer', 'rider', 'puffball'])}`,
+        'Пастки: колючі кущі',
+        `Сонце йде над пагорбами ${Math.round(BALANCE.grass.night.dayMs / 1000)} с, далі ніч до кінця біому (вороги видно)`,
+        'Після Мерця — знову печера, але важча',
       ],
     }),
   ];
@@ -521,7 +577,7 @@ export function buildCodex() {
 }
 
 const lower = (s) => s.toLocaleLowerCase('uk');
-const BIOME_ORDER = { cave: 0, winter: 1, bamboo: 2, lava: 3 };
+const BIOME_ORDER = { cave: 0, winter: 1, bamboo: 2, lava: 3, grass: 4 };
 const sortValue = (e, key) => {
   const v = e[key];
   if (typeof v === 'string') return parseFloat(v); // «3–4» → 3
