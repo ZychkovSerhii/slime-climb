@@ -163,6 +163,8 @@ export default class Combat {
     }
     if (!targets.length) return;
     const target = pickNearest(origin, targets);
+    // баг 2026-11-21: слизак (блискавка/сокира) міг убити всіх у цьому ж кадрі — клону «Я КОЛЯ» нема в кого стріляти
+    if (!target) return;
     const relics = scene.progression.relics;
     const fx = hitEffects(scene.weapon.slow, relics);
     if (main === 'lightning') {

@@ -186,6 +186,17 @@ describe('етап 14: нова зброя', async () => {
     expect(W.chainTargets(a, [a, b, c], 2, 240)).toEqual([a, b]);
   });
 
+  test('баг 2026-11-21: ланцюг не перескакує на вбитих (слизак убив усіх, клон «Я КОЛЯ» б\'є тим самим списком)', () => {
+    const a = { x: 0, y: 0 };
+    const dead = { x: 50, y: 0, active: false };
+    const b = { x: 100, y: 0 };
+    expect(W.chainTargets(a, [a, dead, b], 5, 240)).toEqual([a, b]);
+  });
+
+  test('баг 2026-11-21: без живої першої цілі ланцюг порожній, а не падає', () => {
+    expect(W.chainTargets(null, [{ x: 1, y: 1, active: false }], 3, 240)).toEqual([]);
+  });
+
   test('правка 2026-11-18: основна ціль нової зброї ×1, як дробовик; додаткові — слабше', () => {
     for (const id of ['lightning', 'fire', 'boomerang']) expect(W.attackDamage(id, 10, 0)).toBe(W.attackDamage('shotgun', 10, 0));
     expect(B.weapons.lightning.falloff).toBeLessThan(1);
