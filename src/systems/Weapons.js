@@ -77,8 +77,9 @@ export function lightningStats(upgrades = 0) {
  * Не більше max цілей. Повертає масив цілей по порядку.
  */
 export function chainTargets(first, targets, max, chainPx = BALANCE.weapons.lightning.chainPx) {
+  if (!first) return []; // баг 2026-11-21: жива ціль могла загинути від слизака в тому ж кадрі
   const out = [first];
-  const left = targets.filter((t) => t !== first);
+  const left = targets.filter((t) => t !== first && t.active !== false);
   while (out.length < max && left.length) {
     const last = out[out.length - 1];
     let best = -1;
