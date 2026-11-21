@@ -113,6 +113,17 @@ export const SOUNDS = {
   squelch: [0, 1, 2, 3].map((i) => ({ wave: 'sine', from: 220 + i * 40, to: 120 + i * 30, ms: 110, vol: 0.12, at: i * 90 })),
   // Коля з'їдає рештки: «ням-ням»
   gulp: [0, 1, 2].map((i) => ({ wave: 'square', from: 180, to: 90, ms: 140, vol: 0.09, at: i * 220 })),
+  // ---- Трава й Мрець-Велетень (біом 5)
+  // Пшикач: довге «пш-ш» підпаленого пороху
+  hiss: [{ noise: true, ms: 900, vol: 0.07 }, { wave: 'sawtooth', from: 2400, to: 3200, ms: 900, vol: 0.015, vibrato: 40 }],
+  // удар рукою мерця об стіну: глухе «гуп»
+  slam: [{ noise: true, ms: 180, vol: 0.16 }, { wave: 'square', from: 90, to: 40, ms: 220, vol: 0.14 }],
+  // мерць стогне (кличе малих, сідає на курку)
+  groan: [{ wave: 'sawtooth', from: 110, to: 80, ms: 900, vol: 0.14, vibrato: 5 }, { noise: true, ms: 300, vol: 0.05, at: 100 }],
+  // курка: «ко-ко-кудах»
+  cluck: [70, 70, 77].map((n, i) => ({ wave: 'square', from: midiToHz(n), to: midiToHz(n - 3), ms: i === 2 ? 200 : 70, vol: 0.08, at: i * 110 })),
+  // гнила плоть з'їдена: «хрум-ням»
+  chomp: [0, 1].map((i) => ({ noise: true, ms: 70, vol: 0.1, at: i * 160 })).concat([{ wave: 'square', from: 160, to: 80, ms: 160, vol: 0.08, at: 60 }]),
   levelUp: [60, 64, 67, 72].map((n, i) => ({ wave: 'square', from: midiToHz(n), to: midiToHz(n), ms: 90, vol: 0.1, at: i * 85 })),
   // сумне «ту-ту-ту-туууу»: три короткі ноти вниз по півтону і довга остання з вібрато
   gameOver: [

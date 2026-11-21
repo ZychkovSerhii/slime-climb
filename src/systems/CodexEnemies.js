@@ -117,6 +117,42 @@ export const ENEMIES = {
     desc: `Її випускає «${BALANCE.kazan.name}», коли закипає. Пливе до тебе і лопається від дотику або за ${sec(E.bubble.lifeMs)} с.`,
     facts: [`Вибух: радіус ${E.bubble.popPx} px`],
   }),
+  // ---- Трав'яні пагорби і Мрець-Велетень (біом 5)
+  hairySpider: () => ({
+    name: 'Волохань',
+    biome: 'grass',
+    speed: E.hairySpider.speed,
+    desc: `Волохатий павук з купою очей. Повзе згори по стіні, де тебе немає, трохи нижче половини екрана блимає і стрибає на тебе.`,
+    facts: [`Промахнувся — ще ${E.hairySpider.returns} раз з'являється згори на іншій стіні й стрибає знову`, `Стрибок: ${E.hairySpider.lungeSpeed} px/с`],
+  }),
+  archer: () => ({
+    name: 'Лучник у каптурі',
+    biome: 'grass',
+    speed: E.archer.speed,
+    desc: `Ходить по стіні, де тебе немає, у верхній частині екрана й стріляє з лука, коли він вище за тебе. Перед пострілом ${sec(E.archer.windupMs)} с блимає жовтим.`,
+    facts: [`Стріла раз на ${sec(E.archer.fireMs)} с`, 'Від стріли рятує стрибок', `За ${Math.round(E.archer.lifeMs / 1000)} с іде вгору за екран`],
+  }),
+  rider: () => ({
+    name: 'Лучник верхи на Волохані',
+    biome: 'grass',
+    speed: E.hairySpider.speed,
+    desc: `З'являється з ${BALANCE.grass.from.rider}-ї секунди трави. Павук стрибає на тебе, а лучник на ньому стріляє раз на ${sec(E.archer.fireMs)} с.`,
+    facts: [`Після ${E.rider.spiderHp} шкоди (з ${E.rider.hp}) павук гине, а лучник зіскакує на стіну й воює далі`, 'Не більше одного на екрані'],
+  }),
+  puffball: () => ({
+    name: 'Пшикач',
+    biome: 'grass',
+    speed: E.puffball.speed,
+    desc: `Сердитий гриб-дощовик. Біжить згори по твоїй стіні, за ${E.puffball.fusePx} px робить «пш-ш» ${sec(E.puffball.fuseMs)} с і вибухає.`,
+    facts: [`Вибух впритул — мінус ${E.puffball.contactDamage} життя, поруч (${E.puffball.radiusPx} px) — мінус 1`, 'Рятує стрибок на іншу стіну', 'Збив до вибуху — вибуху немає', 'Сам дотик не шкодить'],
+  }),
+  zombieMini: () => ({
+    name: 'Малий мрець',
+    biome: 'grass',
+    speed: E.zombieMini.speed,
+    desc: `Його кличе «${BALANCE.zombie.name}» на ${pct(BALANCE.zombie.phases.summon)}% HP — ${BALANCE.zombie.summon.count} штук. Іде на тебе, зблизька перестає доворачувати.`,
+    facts: [`З шансом ${pct(BALANCE.zombie.flesh.chance)}% лишає гнилу плоть на стіні`],
+  }),
   wagon: () => ({
     name: 'Вагон потяга',
     biome: 'winter',

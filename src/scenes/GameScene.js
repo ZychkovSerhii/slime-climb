@@ -8,7 +8,7 @@ import { loadSettings } from '../systems/Settings.js';
 import { addXp, applyCard, cardUpgrade, createProgression, killXp, rollLevelUp, weaponCard, xpToNext } from '../systems/Progression.js';
 import { weaponJumpMul } from '../systems/Weapons.js';
 import { clampDelta } from '../systems/Time.js';
-import { applyDamage, createHealth, heal, healForLevels } from '../systems/Health.js';
+import { applyDamage, createHealth, heal, healForLevels, tempHeartLeft } from '../systems/Health.js';
 import { breakArmor, cardLoot, createInvis, isInvisible, jumpMul, maxLivesFor, stepArmor } from '../systems/Skills.js';
 import { cardSlot } from '../systems/Arsenal.js';
 import { inPauseButton } from '../systems/Layout.js';
@@ -82,9 +82,9 @@ export default class GameScene extends Phaser.Scene {
     // (calm → before/after → prep → fight). killedAtSec — секунда смерті попереднього боса (тиша й плавний спавн).
     // Перевірка: ?boss=1 — павучиха на 6-й с, ?winter=1 — зима без боса, ?shkodko=1 — зима і Шкодько на 6-й с,
     // ?bamboo=1 — бамбук без боса, ?kolya=1 — бамбук і Коля на 6-й с (етап 9);
-    // ?lava=1 — лава без боса, ?kazan=1 — лава і Казан на 6-й с, ?loop=N — почати з кола N (етап 11).
+    // ?lava=1 — лава без боса, ?kazan=1 — лава і Казан на 6-й с, ?loop=N — почати з кола N (етап 11); ?grass=1, ?zombie=1 — біом 5.
     const q = new URLSearchParams(window.location.search);
-    const start = ['kazan', 'lava', 'bear', 'kolya', 'bamboo', 'shkodko', 'winter'].find((k) => q.get(k) === '1') ?? (q.get('boss') === '1' ? 'spider' : 'cave');
+    const start = ['zombie', 'grass', 'kazan', 'lava', 'bear', 'kolya', 'bamboo', 'shkodko', 'winter'].find((k) => q.get(k) === '1') ?? (q.get('boss') === '1' ? 'spider' : 'cave');
     this.seg = firstSegment(start, Math.max(0, Math.min(9, parseInt(q.get('loop') ?? '0', 10) || 0)));
     this.loop = this.seg.loop; // номер кола з 0: вороги й боси міцніші (Enemy читає scene.loop)
     this.stage = 'before';
@@ -322,8 +322,8 @@ export default class GameScene extends Phaser.Scene {
     return heightPoints(this.distancePx) + this.killScore;
   }
 
-  /** Удар по гравцю. Повертає true, якщо життя справді знято. */
-  hurtPlayer() {
+  /** Удар по гравцю (amount — скільки життів, вибух Пшикача — 3). Повертає true, якщо життя справді знято. */
+  hurtPlayer(amount = 1) {
     // фізика може зробити ще кілька кроків у кадрі, де гру поставили на паузу (вікно рівня)
     if (this.dead || this.paused) return false;
     if (isInvisible(this.invis, this.nowMs)) return false;
@@ -341,7 +341,7 @@ export default class GameScene extends Phaser.Scene {
       this.loot.lavaRing();
       return false;
     }
-    const r = applyDamage(this.health, this.nowMs);
+    const r = applyDamage(this.health, this.nowMs, amount);
     this.health = r.health;
     if (!r.tookDamage) return false;
     if (r.died) {
@@ -440,6 +440,7 @@ export default class GameScene extends Phaser.Scene {
   collectGift(gift) {
     if (this.paused || this.dead || !gift.active) return;
     if (gift.kind === 'spring') return this.spawner.useSpring(gift); // фідбек-9: не зникає від дотику
+    if (gift.kind === 'flesh') return this.spawner.useFlesh(gift); // біом 5: з повними життями лежить
     gift.destroy();
     if (gift.kind === 'heart') {
       sfx('levelUp');
@@ -533,6 +534,7 @@ export default class GameScene extends Phaser.Scene {
       lives: this.health.lives,
       maxLives: this.maxLives,
       armor: this.armor ? (this.armor.on ? 'on' : 'off') : null,
+      temp: tempHeartLeft(this.health, this.nowMs, BALANCE.zombie.flesh.tempMs), // біом 5: тимчасове серце
       invis: this.buttons.invisHud(),
       slots: this.buttons.switchHud(),
       forms: this.forms.hud(),
@@ -542,7 +544,7 @@ export default class GameScene extends Phaser.Scene {
       steps: this.runSteps,
     };
     const inv = s.invis ? `${s.invis.active}|${Math.floor(s.invis.charge * 40)}` : '';
-    const key = `${Math.floor(s.timeSec)}|${s.score}|${s.lives}|${s.maxLives}|${s.armor}|${inv}|${s.level}|${s.xp}|${s.steps}|${s.slots?.active}|${s.forms?.map((f) => `${f.active}${Math.floor(f.charge * 40)}`).join()}`;
+    const key = `${Math.floor(s.timeSec)}|${s.score}|${s.lives}|${s.maxLives}|${s.armor}|${Math.ceil(s.temp * 15)}|${inv}|${s.level}|${s.xp}|${s.steps}|${s.slots?.active}|${s.forms?.map((f) => `${f.active}${Math.floor(f.charge * 40)}`).join()}`;
     if (key === this.lastHud) return;
     this.lastHud = key;
     this.events.emit('hud:update', s);

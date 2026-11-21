@@ -100,6 +100,31 @@ const bossKazan = {
   ],
 };
 
+
+// ---- Мрець-Велетень (біом 5): фа мінор, важкий «шаркаючий» крок 112 bpm, хроматика вниз
+const bossZombie = {
+  bpm: 112,
+  loop: true,
+  voices: [
+    { wave: 'triangle', vol: 0.1, pattern: follow(prog('Fm Fm Db C Fm Fm Bbm C', 2), '0 . . 0 . . 0 . 2 . . . 1 . 0 .') },
+    {
+      wave: 'square',
+      vol: 0.045,
+      pattern: mel(
+        'F4 . . . Ab4 . . . C5 . . . B4 . Bb4 .',
+        'A4 . . . Ab4 . . . F4 . . . - - - -',
+        'Db5 . . . C5 . . . Ab4 . . . F4 . . .',
+        'E4 . . . . . . . G4 . . . C5 . . .',
+        'F5 . . . Eb5 . Db5 . C5 . . . Ab4 . . .',
+        'G4 . . . Ab4 . . . C5 . . . F5 . . .',
+        'Db5 . . . F5 . . . Bb4 . . . Db5 . . .',
+        'C5 . . . . . . . E4 . . . G4 . . .',
+      ),
+    },
+    { wave: 'noise', vol: 0.035, pattern: times('k - - - x - - k k - - - x - h -', 8) },
+  ],
+};
+
 /** Лють: та сама тема на 30% швидше (на слух — «бос розлютився», а не інша пісня). */
 export const RAGE_BPM_MUL = 1.3;
 const rageOf = (t) => ({ ...t, bpm: Math.round(t.bpm * RAGE_BPM_MUL) });
@@ -112,4 +137,6 @@ export const BOSS_TRACKS = {
   rageShkodko: rageOf(bossShkodko),
   rageKolya: rageOf(bossKolya),
   rageKazan: rageOf(bossKazan),
+  bossZombie,
+  rageZombie: rageOf(bossZombie),
 };

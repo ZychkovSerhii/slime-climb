@@ -1,4 +1,4 @@
-// Коло біомів (етап 6b, 9, 11): печера (павучиха) → зима (ведмідь, Шкодько) → бамбук (Коля) → лава (Казан) → печера → …
+// Коло біомів (етап 6b, 9, 11, біом 5): печера (павучиха) → зима (ведмідь, Шкодько) → бамбук (Коля) → лава (Казан) → трава (Мрець) → печера → …
 // Чисті функції без Phaser. Відрізок — один біом з одним босом наприкінці.
 import { BALANCE } from '../config/balance.js';
 import { bossHpTuning, tuning } from './Tuning.js';
@@ -10,7 +10,8 @@ const B = BALANCE.boss;
  * 'shkodko' (?shkodko=1 — зима і Шкодько на shkodko.debugAtSec), 'spider' (?boss=1 — павучиха на boss.debugAtSec),
  * 'bamboo' (?bamboo=1 — бамбук без боса), 'kolya' (?kolya=1 — бамбук і Коля на kolya.debugAtSec),
  * 'bear' (?bear=1 — зима і ведмідь на bearBoss.debugAtSec, далі Шкодько),
- * 'lava' (?lava=1 — лава без боса), 'kazan' (?kazan=1 — лава і Казан на kazan.debugAtSec).
+ * 'lava' (?lava=1 — лава без боса), 'kazan' (?kazan=1 — лава і Казан на kazan.debugAtSec),
+ * 'grass' (?grass=1 — трава без боса), 'zombie' (?zombie=1 — трава і Мрець-Велетень на zombie.debugAtSec).
  * loop — з якого кола почати (?loop=N, етап 11: перевірка контуру й посилень).
  */
 export function firstSegment(start = 'cave', loop = 0) {
@@ -25,12 +26,14 @@ function firstSegmentAt(start) {
   if (start === 'bear') return { biome: 'winter', boss: 'bear', atSec: BALANCE.bearBoss.debugAtSec, loop: 0, startSec: 0 };
   if (start === 'lava') return { biome: 'lava', boss: null, atSec: Infinity, loop: 0, startSec: 0 };
   if (start === 'kazan') return { biome: 'lava', boss: 'kazan', atSec: BALANCE.kazan.debugAtSec, loop: 0, startSec: 0 };
+  if (start === 'grass') return { biome: 'grass', boss: null, atSec: Infinity, loop: 0, startSec: 0 };
+  if (start === 'zombie') return { biome: 'grass', boss: 'zombie', atSec: BALANCE.zombie.debugAtSec, loop: 0, startSec: 0 };
   const atSec = start === 'spider' ? B.debugAtSec : B.atSec;
   return { biome: 'cave', boss: 'spider', atSec, loop: 0, startSec: 0 };
 }
 
 /**
- * Відрізок після смерті боса seg.boss на секунді killSec. Після Казана (етап 11) починається нове коло.
+ * Відрізок після смерті боса seg.boss на секунді killSec. Після Мерця-Велетня (біом 5) починається нове коло.
  * Етап 10: зима ділиться на два відрізки — ведмідь (через bearBoss.afterSec після павучихи) і Шкодько
  * (через shkodko.afterSec після павучихи, але не раніше shkodkoGapSec після ведмедя). startSec — початок зими.
  */
@@ -48,6 +51,9 @@ export function nextSegment(seg, killSec) {
   if (seg.boss === 'kolya') {
     return { biome: 'lava', boss: 'kazan', atSec: killSec + BALANCE.kazan.afterSec, loop: seg.loop, startSec: killSec };
   }
+  if (seg.boss === 'kazan') {
+    return { biome: 'grass', boss: 'zombie', atSec: killSec + BALANCE.zombie.afterSec, loop: seg.loop, startSec: killSec };
+  }
   return { biome: 'cave', boss: 'spider', atSec: killSec + B.atSec, loop: seg.loop + 1, startSec: killSec };
 }
 
@@ -63,7 +69,8 @@ export function runStage(tSec, seg, lastKillSec = null) {
   return lastKillSec === null ? 'before' : 'after';
 }
 
-const BIOME_ORDER = { cave: 0, winter: 1, bamboo: 2, lava: 3 };
+// біом 5: у колі 5 біомів — печера 2-го кола тепер біом 5 (вороги ×1,15 міцніші, ніж коли їх було 4)
+const BIOME_ORDER = { cave: 0, winter: 1, bamboo: 2, lava: 3, grass: 4 };
 const BIOMES_PER_LOOP = Object.keys(BIOME_ORDER).length;
 const SC = BALANCE.scaling;
 

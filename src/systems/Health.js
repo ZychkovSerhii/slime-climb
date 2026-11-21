@@ -9,12 +9,31 @@ export function createHealth(maxLives = BALANCE.maxLives) {
  * Одна порція шкоди в момент nowMs (мс часу гри).
  * Під час невразливості нічого не змінює — тож два джерела шкоди в одному кадрі знімають одне життя.
  */
-export function applyDamage(h, nowMs) {
+export function applyDamage(h, nowMs, amount = 1) {
   if (nowMs < h.invulnerableUntil || h.lives <= 0) {
     return { health: h, tookDamage: false, died: false };
   }
-  const health = { lives: h.lives - 1, invulnerableUntil: nowMs + BALANCE.invulnerableMs };
+  // біом 5: тимчасове серце з гнилої плоті знімається першим (одна одиниця шкоди), решта — зі звичайних життів
+  const temp = tempHeartOn(h, nowMs);
+  const fromLives = temp ? amount - 1 : amount;
+  const health = { ...h, lives: h.lives - fromLives, invulnerableUntil: nowMs + BALANCE.invulnerableMs };
+  if (temp) health.tempUntil = 0;
   return { health, tookDamage: true, died: health.lives <= 0 };
+}
+
+/** Тимчасове серце (гнила плоть, біом 5) ще діє. */
+export function tempHeartOn(h, nowMs) {
+  return (h.tempUntil ?? 0) > nowMs;
+}
+
+/** Дати (або оновити) тимчасове серце на ms: воно одне — нове лише продовжує таймер. */
+export function giveTempHeart(h, nowMs, ms) {
+  return { ...h, tempUntil: nowMs + ms };
+}
+
+/** Частка часу тимчасового серця, що лишилась (0…1; 0 — немає). */
+export function tempHeartLeft(h, nowMs, ms) {
+  return tempHeartOn(h, nowMs) ? Math.min((h.tempUntil - nowMs) / ms, 1) : 0;
 }
 
 /** Відновлює amount життів, але не більше maxLives. Не змінює вхід. */

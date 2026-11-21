@@ -80,6 +80,10 @@ export default class HudScene extends Phaser.Scene {
       this.hearts.push(this.add.image(PAD + 16 + i * HEART_STEP, top + 14, 'heart'));
     }
     this.armorHeart = this.add.image(0, top + 14, 'heartArmor').setVisible(false); // помаранчево-коричневе (фідбек-6; було чорне)
+    // біом 5: тимчасове серце з гнилої плоті — тремтить і згасає разом з таймером
+    this.rotHeart = this.add.image(0, top + 14, 'heartRot').setVisible(false);
+    this.rotY = top + 14;
+    this.tweens.add({ targets: this.rotHeart, angle: { from: -9, to: 9 }, duration: 90, yoyo: true, repeat: -1 });
     this.createInvisButton();
     this.createSwitchButton();
     this.createFormButtons();
@@ -291,7 +295,7 @@ export default class HudScene extends Phaser.Scene {
     this.invisLabel.setAlpha(ready || inv.active ? 1 : 0.5);
   }
 
-  update_({ timeSec, score, lives, maxLives = BALANCE.maxLives, armor = null, invis = null, slots = null, forms = null, level, xp, xpToNext, steps = 0 }) {
+  update_({ timeSec, score, lives, maxLives = BALANCE.maxLives, armor = null, temp = 0, invis = null, slots = null, forms = null, level, xp, xpToNext, steps = 0 }) {
     this.drawSwitch(slots);
     this.drawForms(forms);
     this.timeText.setText(formatTime(timeSec));
@@ -299,6 +303,8 @@ export default class HudScene extends Phaser.Scene {
     this.scoreText.setText(`SCORE ${score}`);
     this.hearts.forEach((h, i) => h.setVisible(i < maxLives).setAlpha(i < lives ? 1 : 0.2));
     this.armorHeart.setVisible(!!armor).setAlpha(armor === 'on' ? 1 : 0.25).setX(PAD + 16 + maxLives * HEART_STEP);
+    const rotSlot = maxLives + (armor ? 1 : 0);
+    this.rotHeart.setVisible(temp > 0).setAlpha(0.35 + 0.65 * temp).setX(PAD + 16 + rotSlot * HEART_STEP);
     this.drawInvis(invis);
     this.levelText.setText(`LV ${level}`);
 

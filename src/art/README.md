@@ -17,6 +17,7 @@
 | Бамбук (етап 9): стіна `wallBamboo`, кілок `stake` (той самий розмір, що `wall`/`spike`), `ninja` (`idle/throw`), дим `smoke`, `shuriken`, `lantern` (`glow1/glow2/blink`) | `sprites/<key>.js` |
 | Бос 3 «Слимак Коля»: `kolya` (`crawl1/crawl2/squeeze/breathe/eat`), малі слимаки `slug` (`biter1/2`, `spitter1/2`), крапля `slimeSpit`; трофеї `larva`, скін `slimeKolya` (як `slime`) | `sprites/<key>.js` |
 | Скіни магазину: `skinAssassin`, `skinCommander`, `skinRaccoon`, `skinMurzik` (той самий розмір і кадри `idle1/idle2/jump`, що в `slime`; ціни й назви — `BALANCE.meta.skins`) | `sprites/<key>.js` |
+| Біом 5 «Трав'яні пагорби»: стіна `wallGrass`, колючий кущ `thornBush` (розмір як `wall`/`spike`), `hairySpider` (Волохань, згори, мордою праворуч), `archer` (`idle`/`draw`), `arrow`, `puffball` (`idle`/`swell`), бос `zombie` (`walk1/walk2/raise`; малі мерці — той самий спрайт ×0,45), `hen`, гнила плоть `flesh`, тимчасове серце `heartRot` (розмір як `heart`), `sun`, `moon`; фон `bgGrass` (`backgrounds/grassHills.js`) | `sprites/<key>.js` |
 | Генерація текстур і анімацій у Phaser | `textures.js` (зазвичай не чіпати) |
 
 ## Перемалювати спрайт у коді

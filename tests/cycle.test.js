@@ -5,7 +5,7 @@ import { biomeIndex, bossHp, enemyHp, enhanced, firstSegment, loopMul, nextSegme
 const B = BALANCE.boss;
 
 describe('коло біомів', () => {
-  test('печера з павучихою → зима зі Шкодьком → бамбук з Колею → лава з Казаном → печера наступного кола', () => {
+  test('печера з павучихою → зима зі Шкодьком → бамбук з Колею → лава з Казаном → трава з Мерцем → печера наступного кола', () => {
     const s0 = firstSegment();
     expect(s0).toMatchObject({ biome: 'cave', boss: 'spider', atSec: B.atSec, loop: 0 });
     const s1 = nextSegment(nextSegment(s0, 130), 230); // етап 10: між ними ведмідь
@@ -14,8 +14,10 @@ describe('коло біомів', () => {
     expect(s2).toMatchObject({ biome: 'bamboo', boss: 'kolya', atSec: 400 + BALANCE.kolya.afterSec, loop: 0, startSec: 400 });
     const sL = nextSegment(s2, 700);
     expect(sL).toMatchObject({ biome: 'lava', boss: 'kazan', atSec: 700 + BALANCE.kazan.afterSec, loop: 0, startSec: 700 });
-    const s3 = nextSegment(sL, 900);
-    expect(s3).toMatchObject({ biome: 'cave', boss: 'spider', atSec: 900 + B.atSec, loop: 1 });
+    const sG = nextSegment(sL, 900);
+    expect(sG).toMatchObject({ biome: 'grass', boss: 'zombie', atSec: 900 + BALANCE.zombie.afterSec, loop: 0, startSec: 900 });
+    const s3 = nextSegment(sG, 1000);
+    expect(s3).toMatchObject({ biome: 'cave', boss: 'spider', atSec: 1000 + B.atSec, loop: 1 });
     expect(nextSegment(s3, 1100)).toMatchObject({ boss: 'bear', loop: 1 });
   });
 
@@ -27,6 +29,8 @@ describe('коло біомів', () => {
     expect(firstSegment('kolya')).toMatchObject({ biome: 'bamboo', boss: 'kolya', atSec: BALANCE.kolya.debugAtSec });
     expect(firstSegment('lava')).toMatchObject({ biome: 'lava', boss: null });
     expect(firstSegment('kazan')).toMatchObject({ biome: 'lava', boss: 'kazan', atSec: BALANCE.kazan.debugAtSec });
+    expect(firstSegment('grass')).toMatchObject({ biome: 'grass', boss: null });
+    expect(firstSegment('zombie')).toMatchObject({ biome: 'grass', boss: 'zombie', atSec: BALANCE.zombie.debugAtSec });
   });
 
   test('етап 11: ?loop=N — будь-який старт з кола N (перевірка контуру й посилень)', () => {
@@ -58,8 +62,9 @@ describe('коло біомів', () => {
     expect(biomeIndex({ loop: 0, biome: 'winter' })).toBe(1);
     expect(biomeIndex({ loop: 0, biome: 'bamboo' })).toBe(2);
     expect(biomeIndex({ loop: 0, biome: 'lava' })).toBe(3);
-    expect(biomeIndex({ loop: 1, biome: 'cave' })).toBe(4); // етап 11: 4 біоми в колі
-    expect(biomeIndex({ loop: 1, biome: 'winter' })).toBe(5);
+    expect(biomeIndex({ loop: 0, biome: 'grass' })).toBe(4);
+    expect(biomeIndex({ loop: 1, biome: 'cave' })).toBe(5); // біом 5: 5 біомів у колі
+    expect(biomeIndex({ loop: 1, biome: 'winter' })).toBe(6);
   });
 
   test('етап 10: HP звичайних ворогів ×1,15 за біом, босів ×2 за коло (фідбек-8)', () => {

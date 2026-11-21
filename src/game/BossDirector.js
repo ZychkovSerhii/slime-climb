@@ -15,10 +15,11 @@ import ShkodkoBoss from '../entities/ShkodkoBoss.js';
 import KolyaBoss from '../entities/KolyaBoss.js';
 import BearBoss from '../entities/BearBoss.js';
 import KazanBoss from '../entities/KazanBoss.js';
+import ZombieBoss from '../entities/ZombieBoss.js';
 
 
 // Боси (етап 9 — третій): тип у події 'enemy:killed' → ключ відрізка, ім'я, клас, трофеї
-export const BOSS_OF_KILL = { boss: 'spider', shkodko: 'shkodko', kolya: 'kolya', bear: 'bear', kazan: 'kazan' };
+export const BOSS_OF_KILL = { boss: 'spider', shkodko: 'shkodko', kolya: 'kolya', bear: 'bear', kazan: 'kazan', zombie: 'zombie' };
 const BOSSES = {
   spider: { name: BALANCE.boss.name, make: (s) => new SpiderBoss(s), loot: (relics) => rollLoot(relics, Math.random) },
   shkodko: { name: BALANCE.shkodko.name, make: (s) => new ShkodkoBoss(s), loot: (relics) => rollLoot(relics, Math.random, SHKODKO_LOOT_IDS, BALANCE.shkodkoLoot.offer) },
@@ -26,6 +27,8 @@ const BOSSES = {
   // етап 10: міні-бос без трофеїв (і без бонусу Шагів «трофеї вже твої»)
   bear: { name: BALANCE.bearBoss.name, make: (s) => new BearBoss(s), loot: null },
   kazan: { name: BALANCE.kazan.name, make: (s) => new KazanBoss(s), loot: (relics) => rollLoot(relics, Math.random, KAZAN_LOOT_IDS, BALANCE.kazanLoot.offer) }, // етап 11
+  // біом 5: без трофеїв (не просились) — як ведмідь
+  zombie: { name: BALANCE.zombie.name, make: (s) => new ZombieBoss(s), loot: null },
 };
 
 /**

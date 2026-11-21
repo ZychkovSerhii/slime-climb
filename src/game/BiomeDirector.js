@@ -3,6 +3,7 @@ import { background } from '../art/textures.js';
 import Snow from '../entities/Snow.js';
 import Fog from '../entities/Fog.js';
 import Embers from '../entities/Embers.js';
+import DayNight from '../entities/DayNight.js';
 import { playMusic } from '../systems/Audio.js';
 import { biomeMusic } from '../systems/Music.js';
 
@@ -13,8 +14,9 @@ const TEX = {
   winter: { bg: 'bgWinter', wall: 'wallIce', spike: 'icicle' },
   bamboo: { bg: 'bgBamboo', wall: 'wallBamboo', spike: 'stake' },
   lava: { bg: 'bgLava', wall: 'wallLava', spike: 'basalt' },
+  grass: { bg: 'bgGrass', wall: 'wallGrass', spike: 'thornBush' }, // біом 5: колючий кущ замість шипа
 };
-const BIOME_BANNER = { winter: 'Зима', bamboo: 'Туманний бамбук', lava: 'Лавові надра' };
+const BIOME_BANNER = { winter: 'Зима', bamboo: 'Туманний бамбук', lava: 'Лавові надра', grass: "Трав'яні пагорби" };
 
 /**
  * Вигляд біому: фон, стіни, перехід між біомами, погода (сніг, туман, іскри).
@@ -28,6 +30,7 @@ export default class BiomeDirector {
     this.snow = null;
     this.fog = null; // туман бамбука (етап 9)
     this.embers = null; // іскри лави (етап 11)
+    this.dayNight = null; // сонце, місяць і ніч трави (біом 5)
     // Фон біому між стінами: тайловий, їде повільніше за стіни (паралакс)
     const w = BALANCE.wallWidth;
     this.bgInfo = background('bg');
@@ -73,6 +76,12 @@ export default class BiomeDirector {
       this.embers.destroy();
       this.embers = null;
     }
+    // день → ніч — лише в траві (біом 5): відлік від початку біому
+    if (biome === 'grass' && !this.dayNight) this.dayNight = new DayNight(scene, scene.nowMs);
+    else if (biome !== 'grass' && this.dayNight) {
+      this.dayNight.destroy();
+      this.dayNight = null;
+    }
     this.swapTiles(TEX[biome], instant ? 0 : BALANCE.winter.transitionMs);
     if (!instant) scene.events.emit('hud:banner', { text: BIOME_BANNER[biome] ?? `Коло ${scene.loop + 1}`, ms: 1800 });
   }
@@ -116,6 +125,7 @@ export default class BiomeDirector {
     this.snow?.step(dt, dy);
     this.fog?.step(dt, dy);
     this.embers?.step(dt, dy);
+    this.dayNight?.step();
   }
 
   relayout() {
@@ -126,5 +136,6 @@ export default class BiomeDirector {
     left.setSize(w, height).setPosition(w / 2, height / 2);
     right.setSize(w, height).setPosition(width - w / 2, height / 2);
     this.fog?.relayout();
+    this.dayNight?.relayout();
   }
 }

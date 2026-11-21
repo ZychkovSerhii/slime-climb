@@ -1,6 +1,6 @@
 // Страховка спавну (рефакторинг SpawnDirector): смикає напряму ті гілки, якими бот ходить рідко або ніколи —
 // рослина на місці шипа, сердечко, пара пінгвінів (коло 1+), Санта, подарунок, ніндзя й саламандра з черги,
-// лавова крапля, «саламандра чекає», уламки іскри. Перевіряє: потрібна сутність з'явилась, кадри йдуть, помилок немає.
+// лавова крапля, «саламандра чекає», уламки іскри; біом 5 — моби трави, вершник → лучник, вибух Пшикача, ніч. Перевіряє: потрібна сутність з'явилась, кадри йдуть, помилок немає.
 // Баланс і розклад (коли саме щось з'являється) цей скрипт НЕ перевіряє — для цього тести systems/* і бот.
 // Використання: node scripts/spawntest.mjs
 import { createServer } from 'vite';
@@ -47,6 +47,49 @@ const SCENARIOS = {
         scene.health = { ...scene.health, lives: 1 };
         if (!(await until(() => scene.health.lives === scene.maxLives, 3000))) bad.push(`джерело не вилікувало: ${scene.health.lives}/${scene.maxLives}`);
         else if (!sg.used || !sg.active) bad.push('джерело не позначене використаним / зникло');
+      }
+      return bad;
+    },
+  },
+  // біом 5: усі моби трави, вершник → лучник, вибух Пшикача (−3, тимчасове серце бере 1), ніч
+  'grass: Волохань, лучник, вершник → лучник, Пшикач, ніч': {
+    query: '?grass=1',
+    run: async () => {
+      const { scene, sp, names, until, count } = window.__t;
+      const { BALANCE } = await import('/src/config/balance.js');
+      const { giveTempHeart } = await import('/src/systems/Health.js');
+      const bad = [];
+      for (const t of ['hairySpider', 'archer', 'puffball', 'rider']) sp.spawnGrass(t);
+      for (const n of ['HairySpider', 'Archer', 'Puffball', 'Rider']) if (count(n) !== 1) bad.push(`${n}: ${count(n)}`);
+      sp.spawnGrass('puffball');
+      sp.spawnGrass('rider');
+      if (count('Puffball') !== 1 || count('Rider') !== 1) bad.push('другий Пшикач/вершник при живому першому');
+      if (scene.hazards.getChildren().some((h) => h.active && h.texture.key !== 'thornBush')) bad.push('шипи трави — не колючі кущі');
+      // вершник: після spiderHp шкоди — лучник з рештою HP
+      const rider = scene.enemies.getChildren().find((e) => e.active && e.rider);
+      const hp0 = rider.hp;
+      rider.takeHit(Math.ceil(hp0 * (BALANCE.enemies.rider.spiderHp / BALANCE.enemies.rider.hp)), null, scene.nowMs);
+      if (rider.active) bad.push('вершник не втратив павука');
+      if (count('Archer') !== 2) bad.push(`лучник не лишився (Archer: ${count('Archer')})`);
+      const archer = scene.enemies.getChildren().filter((e) => e.active && e.archer).at(-1);
+      if (archer && archer.hp >= hp0) bad.push(`лучник з ${archer.hp} HP`);
+      // лучник стріляє стрілою
+      if (!(await until(() => scene.enemyProjectiles.getChildren().some((p) => p.active && p.texture.key === 'arrow'), 9000))) bad.push('стріл немає');
+      // Пшикач впритул: −3; тимчасове серце бере 1
+      const puff = scene.enemies.getChildren().find((e) => e.active && e.puffball);
+      puff.setPosition(scene.player.x, scene.player.y);
+      scene.health = giveTempHeart({ ...scene.health, lives: 3, invulnerableUntil: 0 }, scene.nowMs, 15000);
+      puff.explode();
+      if (scene.health.lives !== 1) bad.push(`після вибуху впритул з тимчасовим серцем життів ${scene.health.lives}, чекали 1`);
+      scene.health = { ...scene.health, lives: 3, invulnerableUntil: Infinity };
+      // ніч
+      const dn = scene.biomes.dayNight;
+      if (!dn) bad.push('дня/ночі немає');
+      else {
+        dn.startMs = scene.nowMs - BALANCE.grass.night.dayMs - BALANCE.grass.night.fadeMs - 100;
+        await until(() => dn.dark > BALANCE.grass.night.alpha - 0.01, 3000);
+        if (Math.abs(dn.dark - BALANCE.grass.night.alpha) > 0.01) bad.push(`ніч: темрява ${dn.dark}`);
+        if (dn.sun.visible) bad.push('уночі видно сонце');
       }
       return bad;
     },

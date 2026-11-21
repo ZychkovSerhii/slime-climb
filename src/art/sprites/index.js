@@ -81,6 +81,18 @@ import staffFire from './staffFire.js';
 import staffBolt from './staffBolt.js';
 import fireball from './fireball.js';
 import boomerang from './boomerang.js';
+import wallGrass from './wallGrass.js';
+import thornBush from './thornBush.js';
+import hairySpider from './hairySpider.js';
+import archer from './archer.js';
+import arrow from './arrow.js';
+import puffball from './puffball.js';
+import zombie from './zombie.js';
+import hen from './hen.js';
+import flesh from './flesh.js';
+import heartRot from './heartRot.js';
+import sun from './sun.js';
+import moon from './moon.js';
 
 export const SPRITES = [slime, wall, spike, projectile, plantBullet, heart, heartArmor, bat, batBamboo, batLava, hotSpring, plant, lion, spider, smallSpider, shadow, axe, shotgun, chakraVeins, webBall, hat, webShot, slimeSpider, frost, skinAssassin, skinCommander, skinRaccoon, skinMurzik, skinDog, shotAssassin, shotCommander, shotRaccoon, shotMurzik, shotDog,
   wallIce, icicle, elf, candy, bear, penguin, santa, gift, snowflake,
@@ -90,7 +102,8 @@ export const SPRITES = [slime, wall, spike, projectile, plantBullet, heart, hear
   traitStar,
   wallLava, basalt, salamander, beam, spark, sparkling, lavaDrop, kazan, lid, magma, bubble, puddle, ladle, slimeKazan, ember,
   orbitShuriken, snowball,
-  staffFire, staffBolt, fireball, boomerang];
+  staffFire, staffBolt, fireball, boomerang,
+  wallGrass, thornBush, hairySpider, archer, arrow, puffball, zombie, hen, flesh, heartRot, sun, moon];
 
 /** Ключ анімації в Phaser: 'slime:idle'. */
 export const animKey = (spriteKey, anim) => `${spriteKey}:${anim}`;
