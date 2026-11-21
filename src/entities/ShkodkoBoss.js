@@ -290,18 +290,26 @@ export default class ShkodkoBoss extends Enemy {
       const w = BALANCE.wallWidth;
       // фідбек-7: подарунки не лягають один на одного — рознесені по x від попередніх і по y, якщо з'явились в одному кадрі
       const x = pickGiftX(Math.random, w, scene.scale.width - w, this.rushGifts.filter((q) => q.active).map((q) => q.x), S.rush.minGapX);
-      const g = new Gift(scene, x, -20 - this.rushStack * S.rush.stackGapPx);
+      // фідбек-9: подарунки вилітають із самого Шкодька (раніше падали з-за верху екрана — гравець не пов'язував їх з босом).
+      // x — куди долетить на висоті гравця; щоб кілька за кадр не злипались, кожен наступний трохи пізніше по y.
+      const g = new Gift(scene, this.x, this.y - this.rushStack * S.rush.stackGapPx);
       this.rushStack += 1;
       g.scrollsWithWorld = false;
+      if (this.rushStack === 1) sfx('throw');
       g.xp = S.rush.xp;
       g.onCollect = () => {
         this.rush.collected += 1;
         this.rushBanner();
       };
       scene.pickups.add(g);
-      g.body.setVelocity(0, S.rush.fallSpeed);
+      const t = Math.max(scene.player.baseY - g.y, 200) / S.rush.fallSpeed;
+      g.body.setVelocity((x - g.x) / t, S.rush.fallSpeed);
       this.rushGifts.push(g);
     }
+    // пролетів повз — прибираємо (scrollsWithWorld = false, тож scrollObjects їх не чистить)
+    const bottom = scene.scale.height + 80;
+    for (const q of this.rushGifts) if (q.active && q.y > bottom) q.destroy();
+    this.rushGifts = this.rushGifts.filter((q) => q.active);
     if (rushOver(this.rush, now, this.rushFallMs)) this.endRush();
   }
 

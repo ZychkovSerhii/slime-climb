@@ -8,6 +8,9 @@ import plantBullet from './plantBullet.js';
 import heart from './heart.js';
 import heartArmor from './heartArmor.js';
 import bat from './bat.js';
+import batBamboo from './batBamboo.js';
+import batLava from './batLava.js';
+import hotSpring from './hotSpring.js';
 import plant from './plant.js';
 import lion from './lion.js';
 import spider from './spider.js';
@@ -79,7 +82,7 @@ import staffBolt from './staffBolt.js';
 import fireball from './fireball.js';
 import boomerang from './boomerang.js';
 
-export const SPRITES = [slime, wall, spike, projectile, plantBullet, heart, heartArmor, bat, plant, lion, spider, smallSpider, shadow, axe, shotgun, chakraVeins, webBall, hat, webShot, slimeSpider, frost, skinAssassin, skinCommander, skinRaccoon, skinMurzik, skinDog, shotAssassin, shotCommander, shotRaccoon, shotMurzik, shotDog,
+export const SPRITES = [slime, wall, spike, projectile, plantBullet, heart, heartArmor, bat, batBamboo, batLava, hotSpring, plant, lion, spider, smallSpider, shadow, axe, shotgun, chakraVeins, webBall, hat, webShot, slimeSpider, frost, skinAssassin, skinCommander, skinRaccoon, skinMurzik, skinDog, shotAssassin, shotCommander, shotRaccoon, shotMurzik, shotDog,
   wallIce, icicle, elf, candy, bear, penguin, santa, gift, snowflake,
   shkodko, giftBomb, wagon, loco,
   slimeShkodko, sack,

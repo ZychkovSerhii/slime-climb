@@ -82,6 +82,14 @@ export function nextDropMs(rng) {
   return D.everyMs * (1 - D.jitter + 2 * D.jitter * rng());
 }
 
+/**
+ * Фідбек-9: струмінь саламандри — вертикальний, униз уздовж її стіни (side) від topY до низу екрана.
+ * Б'є слизака, що стоїть (не в стрибку) на цій стіні нижче topY. Від нього рятує не стрибати на її стіну.
+ */
+export function columnDanger(player, side, topY) {
+  return !player.isJumping && player.side === side && player.y + BALANCE.playerSize / 2 >= topY;
+}
+
 /** Чи б'є струмінь зараз: у стрибку — ні (від струменя рятує стрибок), на стіні — якщо на висоті смуги. */
 export function beamDanger(playerY, beamY, isJumping) {
   return !isJumping && beamHits(playerY, beamY);

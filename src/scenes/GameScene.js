@@ -439,6 +439,7 @@ export default class GameScene extends Phaser.Scene {
 
   collectGift(gift) {
     if (this.paused || this.dead || !gift.active) return;
+    if (gift.kind === 'spring') return this.spawner.useSpring(gift); // фідбек-9: не зникає від дотику
     gift.destroy();
     if (gift.kind === 'heart') {
       sfx('levelUp');

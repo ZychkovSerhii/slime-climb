@@ -16,18 +16,21 @@ const WINTER_TINT = 0xb8dcff; // «Зимова летюча миша» (ета�
 export default class Bat extends Enemy {
   constructor(scene, { biome = 'cave', x, y } = {}) {
     const { width } = scene.scale;
-    const tex = scene.textures.getFrame('bat');
+    // фідбек-9: у бамбуку й лаві — свої миші (свій спрайт; тип ворога той самий 'bat')
+    const key = BALANCE[biome]?.bat?.sprite ?? 'bat';
+    const tex = scene.textures.getFrame(key);
     const minX = BALANCE.wallWidth + tex.width / 2;
-    super(scene, x ?? Phaser.Math.FloatBetween(minX, width - minX), y ?? -tex.height / 2, 'bat', 'bat');
+    super(scene, x ?? Phaser.Math.FloatBetween(minX, width - minX), y ?? -tex.height / 2, key, 'bat');
     this.scrollsWithWorld = false;
     const cfg = BALANCE[biome]?.bat;
-    this.winterMul = cfg ? cfg.speedMul : 1;
+    this.winterMul = cfg?.speedMul ?? 1;
+    this.baseSpeed = cfg?.speed ?? CFG.speed; // фідбек-9: бамбук і лава задають швидкість числом
     if (cfg) this.setBaseHp(cfg.hp);
-    this.variant = biome === 'winter' ? 'winterBat' : 'bat';
+    this.variant = { winter: 'winterBat', bamboo: 'bambooBat', lava: 'lavaBat' }[biome] ?? 'bat';
     if (biome === 'winter' && !this.trait) this.setBaseTint(WINTER_TINT);
     this.dive = null; // { hoverUntil, vx, vy } — пікірування посиленого
     // різний стартовий кадр — зграя не махає крилами синхронно
-    this.play({ key: animKey('bat', 'fly'), startFrame: Phaser.Math.Between(0, 1) });
+    this.play({ key: animKey(key, 'fly'), startFrame: Phaser.Math.Between(0, 1) });
   }
 
   preUpdate(time, delta) {
@@ -38,7 +41,7 @@ export default class Bat extends Enemy {
     const now = scene.nowMs;
     // світ пізніше мчить униз швидше — кажан пришвидшується разом із ним, інакше на фоні стін він ніби завмирає
     const extra = CFG.scrollK * Math.max(scene.currentScroll - BALANCE.scrollBase, 0);
-    const speed = (CFG.speed + extra) * this.winterMul * this.speedMul(now);
+    const speed = (this.baseSpeed + extra) * this.winterMul * this.speedMul(now);
     const t = this.trait;
     if (t && !this.dive && Phaser.Math.Distance.Between(this.x, this.y, p.x, p.y) < t.diveAtPx) {
       this.dive = { hoverUntil: now + t.hoverMs, angle: 0 };

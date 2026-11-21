@@ -107,7 +107,7 @@ export default class Ninja extends Enemy {
 
   shuriken() {
     const scene = this.scene;
-    const s = new Shuriken(scene, this.x, this.y);
+    const s = new Shuriken(scene, this.x, this.y).setScale(CFG.shurikenScale);
     scene.enemyProjectiles.add(s);
     s.launch(scene.player.x, scene.player.y, CFG.shurikenSpeed);
     sfx('throw');

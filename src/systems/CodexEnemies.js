@@ -20,7 +20,7 @@ export const ENEMIES = {
     biome: 'cave',
     speed: E.bat.speed,
     desc: 'Летить прямо на тебе згори. Б\'є лише дотиком.',
-    facts: [`У бамбуку: ${BALANCE.bamboo.bat.hp} HP і на ${pct(BALANCE.bamboo.bat.speedMul - 1)}% швидший`],
+    facts: [`У бамбуку й лаві — свої миші (див. «${BALANCE.bamboo.bat.name}», «${BALANCE.lava.bat.name}»)`],
   }),
   plant: () => ({
     name: 'Квітка',

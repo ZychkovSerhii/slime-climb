@@ -1,5 +1,5 @@
 import { BALANCE } from '../config/balance.js';
-import { addLeg, createSnake, divesClear, pathLength, pointAt, snakeLayout, upcomingDive } from '../systems/Snake.js';
+import { addLeg, atLowestRow, createSnake, divesClear, pathLength, pointAt, snakeLayout, upcomingDive } from '../systems/Snake.js';
 import { sfx } from '../systems/Audio.js';
 import Enemy from './Enemy.js';
 
@@ -78,7 +78,9 @@ export default class Train {
   grow(now) {
     while (pathLength(this.snake.path) - this.snake.headD < N.warnPx + N.lookaheadPx) {
       const startD = pathLength(this.snake.path);
-      const dive = now >= this.nextDiveAt && divesClear(this.snake.dives, startD, this.length);
+      // фідбек-9: дійшов до нижнього ряду — пірнає на гравця (раніше відбивався й їхав рядами назад угору)
+      const want = now >= this.nextDiveAt || atLowestRow(this.snake, this.layout);
+      const dive = want && divesClear(this.snake.dives, startD, this.length);
       if (dive) this.nextDiveAt = now + N.diveEveryMs;
       this.snake = addLeg(this.snake, this.layout, dive);
     }

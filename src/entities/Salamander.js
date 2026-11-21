@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser';
 import { BALANCE } from '../config/balance.js';
-import { beamDanger, salamanderFires, salamanderMayFire, salamanderTimeline } from '../systems/Lava.js';
+import { columnDanger, salamanderFires, salamanderTimeline } from '../systems/Lava.js';
 import { sfx } from '../systems/Audio.js';
 import { animKey, frameOf } from '../art/sprites/index.js';
 import Enemy from './Enemy.js';
@@ -9,11 +9,11 @@ const CFG = BALANCE.enemies.salamander;
 const WARN_ALPHA = 0.35;
 
 /**
- * Саламандра (лава, §11.2). Вилазить із тріщини на стіні side (де гравця немає) на висоті y і тримається там
- * (scrollsWithWorld = false) — вище гравця. Струмінь не б'є слизака в стрибку; видих починається, лише коли він
- * простояв на стіні landGraceMs, тож стрибок разом із видихом переносить через увесь струмінь. emergeMs — жевріє, невразлива перші півчасу; потім лінія-попередження warnMs
- * через коридор на висоті гравця (beamY = player.baseY: слизак на стіні завжди на цій висоті, а стрибок іде вгору); потім breaths видихів по breathMs (між ними gapMs). Струмінь чекає, поки гравець
- * простоїть на стіні landGraceMs (Lava.beamCanFire). Убита до кінця лінії — видиху немає.
+ * Саламандра (лава, §11.2; фідбек-9 — струмінь вертикальний). Вилазить із тріщини на стіні side (де гравця немає) на висоті y
+ * і тримається там (scrollsWithWorld = false) — вище гравця. emergeMs — жевріє, невразлива перші півчасу; потім лінія-попередження
+ * warnMs униз уздовж її стіни (від неї до низу екрана), потім breaths видихів по breathMs (між ними gapMs). Струмінь б'є слизака,
+ * що стоїть на її стіні нижче за неї (Lava.columnDanger) — тобто туди не можна стрибати. Стіна гравця на цей час без шипів
+ * (SpawnDirector резервує її, як навпроти лавової краплі). Убита до кінця лінії — видиху немає.
  */
 export default class Salamander extends Enemy {
   constructor(scene, side, y) {
@@ -41,14 +41,15 @@ export default class Salamander extends Enemy {
     this.body.setVelocity(0, 0);
   }
 
-  /** Смуга через коридор на висоті гравця: попередження (тьмяна) або струмінь. */
+  /** Стовп уздовж стіни саламандри від неї до низу екрана: попередження (тьмяне) або струмінь. */
   showBeam(alpha) {
     const scene = this.scene;
-    const w = BALANCE.wallWidth;
-    const len = scene.scale.width - 2 * w;
-    this.beamY = scene.player.baseY;
-    if (!this.beam) this.beam = scene.add.image(w + len / 2, this.beamY, 'beam').setDepth(this.depth + 1);
-    this.beam.setDisplaySize(len, CFG.beamHalfH * 2).setPosition(w + len / 2, this.beamY).setAlpha(alpha);
+    this.beamTop = this.y + this.displayHeight / 2;
+    const len = scene.scale.height - this.beamTop;
+    const x = this.x;
+    // текстура 'beam' горизонтальна — повертаємо на 90°; displaySize — до повороту (довжина × товщина)
+    if (!this.beam) this.beam = scene.add.image(x, this.beamTop + len / 2, 'beam').setDepth(this.depth + 1).setAngle(90);
+    this.beam.setDisplaySize(len, CFG.beamHalfH * 2).setPosition(x, this.beamTop + len / 2).setAlpha(alpha);
   }
 
   preUpdate(time, delta) {
@@ -69,11 +70,11 @@ export default class Salamander extends Enemy {
     }
     if (this.state === 'warn') {
       this.beam?.setAlpha(WARN_ALPHA * (0.6 + 0.4 * Math.abs(Math.sin(now / 90))));
-      if (now >= this.nextAt && salamanderFires(null, this.tl) && this.mayFire(now)) this.breathe(now);
+      if (now >= this.nextAt && salamanderFires(null, this.tl)) this.breathe(now);
       return;
     }
     if (this.state === 'breath') {
-      if (!scene.dead && beamDanger(scene.player.y, this.beamY, scene.player.isJumping)) scene.hurtPlayer();
+      if (!scene.dead && columnDanger(scene.player, this.side, this.beamTop)) scene.hurtPlayer();
       if (now >= this.nextAt) {
         this.breathsLeft -= 1;
         this.beam?.setVisible(false);
@@ -88,14 +89,8 @@ export default class Salamander extends Enemy {
       }
       return;
     }
-    if (this.state === 'gap' && now >= this.nextAt && this.mayFire(now)) this.breathe(now);
+    if (this.state === 'gap' && now >= this.nextAt) this.breathe(now);
     if (this.state === 'hide' && now >= this.nextAt) this.vanish();
-  }
-
-  /** Гравець стоїть на стіні щонайменше landGraceMs (Lava.salamanderMayFire). */
-  mayFire(now) {
-    const p = this.scene.player;
-    return salamanderMayFire(p.isJumping, now - (this.scene.landedAt ?? -Infinity));
   }
 
   breathe(now) {

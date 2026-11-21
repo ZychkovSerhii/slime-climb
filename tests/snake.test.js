@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { BALANCE } from '../src/config/balance.js';
 import {
-  addLeg, createPath, createSnake, divesClear, extendPath, pathLength, pointAt, snakeLayout, upcomingDive,
+  addLeg, atLowestRow, createPath, createSnake, divesClear, extendPath, pathLength, pointAt, snakeLayout, upcomingDive,
 } from '../src/systems/Snake.js';
 
 const T = BALANCE.shkodko.train;
@@ -71,5 +71,24 @@ describe('змійка (фідбек-6 п.18)', () => {
     expect(upcomingDive(dives, 1000 - T.snake.warnPx - 1)).toBeNull();
     expect(upcomingDive(dives, 900)).toBe(dives[0]);
     expect(upcomingDive(dives, 1700)).toBeNull();
+  });
+});
+
+describe('фідбек-9: змійка не відбивається від нижнього ряду, а пірнає на гравця', () => {
+  const L = snakeLayout(W, PLAYER_Y, CAR_W, CAR_H);
+  test('на нижньому ряду (їдучи вниз) — час пірнати; вгору — ні', () => {
+    let s = createSnake(L, 16, CAR_W);
+    expect(atLowestRow(s, L)).toBe(L.rows.length === 1);
+    while (s.row < L.rows.length - 1) s = addLeg(s, L, false);
+    expect(atLowestRow(s, L)).toBe(true);
+    s = addLeg(s, L, false); // відбився вгору
+    expect(atLowestRow(s, L)).toBe(false);
+  });
+  test('якщо пірнати на нижньому ряду, паровоз доходить до висоти гравця', () => {
+    let s = createSnake(L, 16, CAR_W);
+    while (!atLowestRow(s, L)) s = addLeg(s, L, false);
+    s = addLeg(s, L, divesClear(s.dives, pathLength(s.path), 16 * CAR_W));
+    expect(s.dives.length).toBe(1);
+    expect(pointAt(s.path, s.dives[0].bottomD).y).toBe(PLAYER_Y);
   });
 });
